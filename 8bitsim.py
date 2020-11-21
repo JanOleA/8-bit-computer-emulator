@@ -375,6 +375,7 @@ class Game:
         self.WHITE = (255, 255, 255)
         self.GREY = (115, 115, 115)
         self.DARKGREY = (20, 20, 20)
+        self.BRIGHTRED = (255, 75, 75)
         self.RED = (255, 0, 0)
         self.DARKRED = (200, 0, 0)
         self.DARKERRED = (30, 0, 0)
@@ -574,8 +575,10 @@ class Game:
                 self.computer.update()
 
     def loop(self):
-        numpad = self.keys_pressed[256:266]
-        operators = self.keys_pressed[268:271]
+        numpad = self.keys_pressed[89:97]
+        zero = self.keys_pressed[98:99]
+        numpad = zero + numpad
+        operators = self.keys_pressed[85:88]
         input_val = 0
         pressed = False
         if sum(numpad) > 0:
@@ -626,7 +629,7 @@ class Game:
         self.inpt_display.draw_number(self.computer.input_regi, self._screen)
 
         out_string = f"{self.computer.out_regist:>03d}"
-        out_text = self._font_segmentdisplay.render(out_string, True, self.RED)
+        out_text = self._font_segmentdisplay.render(out_string, True, self.BRIGHTRED)
         screen_bg = pygame.Rect(980, 480, out_text.get_width() + 35, out_text.get_height() + 25)
         pygame.draw.rect(self._screen, self.DARKGREY, screen_bg, border_radius = 10)
         self._screen.blit(out_text, (1000, 500))
