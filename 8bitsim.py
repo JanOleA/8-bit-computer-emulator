@@ -358,8 +358,9 @@ class BitDisplay:
         bin_out = int(bin(num_in).replace("0b", ""))
         self.draw_bits(bin_out, screen)
 
+
 class Game:
-    def __init__(self, autorun = True, target_HZ = 200):
+    def __init__(self, autorun = True, target_HZ = 300):
         self._running = True
         self._screen = None
         self._width = 1280
@@ -373,6 +374,7 @@ class Game:
         
         self.WHITE = (255, 255, 255)
         self.GREY = (115, 115, 115)
+        self.DARKGREY = (20, 20, 20)
         self.RED = (255, 0, 0)
         self.DARKRED = (200, 0, 0)
         self.DARKERRED = (30, 0, 0)
@@ -395,7 +397,7 @@ class Game:
         self._running = True
 
         pygame.font.init()
-        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 50)
+        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
         self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 11)
         self._font = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 16)
@@ -555,7 +557,7 @@ class Game:
         if event.type == pygame.QUIT:
             self._running = False
 
-        self.keys_pressed = pygame.key.get_pressed()
+        self.keys_pressed = list(pygame.key.get_pressed())
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RETURN:
@@ -625,6 +627,8 @@ class Game:
 
         out_string = f"{self.computer.out_regist:>03d}"
         out_text = self._font_segmentdisplay.render(out_string, True, self.RED)
+        screen_bg = pygame.Rect(980, 480, out_text.get_width() + 35, out_text.get_height() + 25)
+        pygame.draw.rect(self._screen, self.DARKGREY, screen_bg, border_radius = 10)
         self._screen.blit(out_text, (1000, 500))
 
         self.ctrl_display.draw_number(self.computer.controlword, self._screen)
@@ -668,6 +672,18 @@ class Game:
         self.cleanup()
 
 if __name__ == "__main__":
-    game = Game()
+    if len(sys.argv) > 1:
+        autorun = sys.argv[1]
+        if autorun == "False":
+            autorun = False
+        else:
+            autorun = True
+    else:
+        autorun = True
+    if len(sys.argv) > 2:
+        target_hz = int(sys.argv[2])
+    else:
+        target_hz = 200
+    game = Game(autorun, target_hz)
     game.execute()
     
