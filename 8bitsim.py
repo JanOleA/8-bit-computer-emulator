@@ -598,18 +598,17 @@ class Game:
 
         self.computer.update()
         if self.autorun:
-            if self.step == 0:
-                self.computer.clock_high()
-            elif self.step == 1:
-                self.computer.clock_low()
+            self.computer.clock_high()
+            self.computer.update()
+            self.computer.clock_low()
 
         self.step += 1
         if self.step == 2:
             self.step = 0
 
-        self._clock.tick_busy_loop(int(self.target_HZ * 2))
+        self._clock.tick_busy_loop(self.target_HZ * 2)
         self.fps = self._clock.get_fps()
-        self.clockrate = self._font.render(f"{int(self.fps/2):d} Hz", True, self.BLACK)
+        self.clockrate = self._font.render(f"{int(self.fps):d} Hz", True, self.BLACK)
 
     def render(self):
         pygame.draw.rect(self._screen, self.WHITE, self._bg)
