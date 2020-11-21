@@ -1,0 +1,44 @@
+LDI 0
+STA 255
+STA 200
+KEI     # loop for input check
+ADI 128
+JPC 7   # if input, jump to 4
+JMP 3   # input check loop end
+ADI 192
+JPC 35  # handle_add
+ADI 32
+JPC 38  # handle sub
+ADI 16
+JPC 41  # handle mul
+ADI 16
+STA 255 # store input in 255
+LDI 11  # multiplier
+STA 254 # store multiplier in 254
+LDA 200 # load value from 200
+STA 253 # store value as multiplicand
+LDA 254 # - start multiply
+SUI 1   #
+JPZ 27  #
+STA 254 # - store multiplier back in memory
+LDA 252 # - load product
+ADD 253 # - add multiplicand to product
+STA 252 # - store product
+JMP 19  # - jump to start of multiply
+LDA 252 # - FINISHED - load product
+ADD 255 # - add the input value
+OUT     # - display result
+STA 200 # - store to 200
+KEI     # no-input loop
+ADI 0   
+JPZ 3   # jump to 0 when there is no longer any input given
+JMP 31  # no-input loop end
+LDI 255 # handle add
+OUT
+JMP 31
+LDI 254 # handle sub
+OUT
+JMP 31
+LDI 253 # handle sub
+OUT
+JMP 31

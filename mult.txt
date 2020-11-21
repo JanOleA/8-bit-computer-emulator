@@ -1,0 +1,20 @@
+LDI 1   # load 1 into A
+STA 255 # store A in mem(250)
+LDI 0   # load 0 into A
+STA 254 # store A in mem(254), this will be the product
+LDI 8   # load x into A
+STA 253 # store A in mem(253), this will be the multiplicand
+LDI 7   # load y into A
+ADD 255 # add 1 to y to get the correct multiplicand
+STA 252 # store A in mem(252), this will be the multiplier
+LDA 252 # 9: load the multiplier into A
+SUB 255 # 10: subtract 1
+JPZ 17  # 11: if the result is zero, jump to finished
+STA 252 # 12: store the multiplier back in mem(252)
+LDA 254 # 13: load the current product into A
+ADD 253 # 14: add the multiplicand to the product
+STA 254 # 15: store the new product
+JMP 9   # 16: jump back to 9
+LDA 254 # 17: finished, load the product into A
+OUT     # 18: display the result
+HLT
