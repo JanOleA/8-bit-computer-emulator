@@ -1,5 +1,6 @@
 import time
 import os
+import sys
 
 import pygame
 from pygame.locals import *
@@ -53,7 +54,8 @@ class Computer:
         self.assembly[0b11111110] = [AO|OI]                                         # OUT, 254
         self.assembly[0b11111111] = [HLT]                                           # HLT, 255
 
-        self.opcode_map = {"LDA": 1,
+        self.opcode_map = {"NOP": 0,
+                           "LDA": 1,
                            "ADD": 2,
                            "SUB": 3,
                            "STA": 4,
@@ -66,8 +68,6 @@ class Computer:
                            "SUI": 11,
                            "OUT": 254,
                            "HLT": 255,}
-
-        self.memory[255] = 1
 
         self.programmer()
         self.reset()
@@ -109,8 +109,7 @@ class Computer:
                 j += 1
                 i += 1
 
-        for item in lines_history:
-            print(item)
+        self.program = lines_history
         print(f"{i} words of memory used for program")
     
     def printstate(self, debug = True):
@@ -360,7 +359,7 @@ class BitDisplay:
         self.draw_bits(bin_out, screen)
 
 class Game:
-    def __init__(self):
+    def __init__(self, autorun = True, target_HZ = 200):
         self._running = True
         self._screen = None
         self._width = 1280
@@ -369,7 +368,8 @@ class Game:
         self.fps = 0
         self.step = 0
 
-        self.autorun = True
+        self.autorun = autorun
+        self.target_HZ = target_HZ # max ~ 400
         
         self.WHITE = (255, 255, 255)
         self.GREY = (115, 115, 115)
@@ -395,13 +395,15 @@ class Game:
         self._running = True
 
         pygame.font.init()
+        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 50)
+        self._font_small_console = pygame.font.SysFont("monospace", 11)
         self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 11)
         self._font = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 16)
         self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
         self._font_larger = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 45)
         self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 64)
 
-        self._black_bg = pygame.Rect(0, 0, self._width, self._height)
+        self._bg = pygame.Rect(0, 0, self._width, self._height)
         self._clock = pygame.time.Clock()
 
         self.computer = Computer()
@@ -529,8 +531,25 @@ class Game:
         self.ctrl_word_text_rendered = []
         for text in ctrl_word_text:
             self.ctrl_word_text_rendered.append(self._font_small.render(text,
-                                                                        True,
-                                                                        self.BLACK))
+                                                                                True,
+                                                                                self.BLACK))
+
+        prog_texts_black = []
+        prog_texts_green = []
+        prog_offsets = []
+
+        for i, instruction in enumerate(self.computer.program):
+            if len(instruction[0]) == 1:
+                instruction[0].append("")
+            text = f"{i:>03d} {instruction[0][0]:>3s} {instruction[0][1]:>3s}"
+            prog_texts_black.append(self._font_small_console.render(text, True, self.BLACK))
+            prog_texts_green.append(self._font_small_console.render(text, True, self.DARKGREEN))
+            prog_offsets.append(instruction[1])
+
+        self.prog_texts_black = prog_texts_black
+        self.prog_texts_green = prog_texts_green
+        self.prog_offsets = prog_offsets
+        self.display_op = 0
         
     def on_event(self, event):
         if event.type == pygame.QUIT:
@@ -583,12 +602,12 @@ class Game:
         if self.step == 2:
             self.step = 0
 
-        self._clock.tick_busy_loop(1000)
+        self._clock.tick_busy_loop(int(self.target_HZ * 2))
         self.fps = self._clock.get_fps()
         self.clockrate = self._font.render(f"{int(self.fps/2):d} Hz", True, self.BLACK)
 
     def render(self):
-        pygame.draw.rect(self._screen, self.WHITE, self._black_bg)
+        pygame.draw.rect(self._screen, self.WHITE, self._bg)
         self.clk_display.draw_number(self.computer.timer_indicator, self._screen)
         self.bus_display.draw_number(self.computer.bus, self._screen)
         self.cnt_display.draw_number(self.computer.prog_count, self._screen)
@@ -604,7 +623,8 @@ class Game:
         self.outp_display.draw_number(self.computer.out_regist, self._screen)
         self.inpt_display.draw_number(self.computer.input_regi, self._screen)
 
-        out_text = self._font_verylarge.render(str(self.computer.out_regist), True, self.BLACK)
+        out_string = f"{self.computer.out_regist:>03d}"
+        out_text = self._font_segmentdisplay.render(out_string, True, self.RED)
         self._screen.blit(out_text, (1000, 500))
 
         self.ctrl_display.draw_number(self.computer.controlword, self._screen)
@@ -616,6 +636,21 @@ class Game:
         operation = int("1" + "0"*self.computer.opcode)
         self.oprt_display.draw_bits(operation, self._screen)
         self._screen.blit(self.clockrate, (5,5))
+
+        if self.computer.opcode == 0:
+            self.display_op = self.computer.prog_count
+
+        x = 10
+        y = 80
+        for i, item in enumerate(self.prog_texts_black):
+            if self.display_op == i + self.prog_offsets[i]:
+                item = self.prog_texts_green[i]
+            self._screen.blit(item, (x, y))
+            y += 15
+            if y >= self._height - 20:
+                y = 80
+                x += 100
+
         pygame.display.flip()
 
     def cleanup(self):
