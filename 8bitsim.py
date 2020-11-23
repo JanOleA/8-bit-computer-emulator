@@ -33,6 +33,7 @@ class Computer:
         JC  = self.JC  = 0b000000000000000000100000 # Jump on carry
         JZ  = self.JZ  = 0b000000000000000000010000 # Jump on zero
         KEI = self.KEI = 0b000000000000000000001000 # Keyboard in
+        ORE = self.ORE = 0b000000000000000000000100 # Reset operation counter
 
         self.assembly = {}
         for i in range(255):
@@ -40,34 +41,34 @@ class Computer:
 
         """ All operations begin with CO|MI -> RO|IAI|CE """
         self.assembly[0b00000000] = [] # NOP, 0
-        self.assembly[0b00000001] = [CO|MI, RO|IBI|CE, IBO|MI, RO|AI]               # LDA, 1, load into A from mem
-        self.assembly[0b00000010] = [CO|MI, RO|IBI|CE, IBO|MI, RO|BI, EO|AI|FI]     # ADD, 2, add to A
-        self.assembly[0b00000011] = [CO|MI, RO|IBI|CE, IBO|MI, RO|BI, EO|AI|FI|SU]  # SUB, 3, subtract from A
-        self.assembly[0b00000100] = [CO|MI, RO|IBI|CE, IBO|MI, AO|RI]               # STA, 4, store A to mem
-        self.assembly[0b00000101] = [CO|MI, RO|IBI|CE, IBO|AI]                      # LDI, 5, load immediate (into A)
-        self.assembly[0b00000110] = [CO|MI, RO|IBI|CE, IBO|JMP]                     # JMP, 6, jump
-        self.assembly[0b00000111] = [CO|MI, RO|IBI|CE, IBO|JC]                      # JPC, 7, jump on carry
-        self.assembly[0b00001000] = [CO|MI, RO|IBI|CE, IBO|JZ]                      # JPZ, 8, jump on zero
-        self.assembly[0b00001001] = [KEI|AI]                                        # KEI, 9, loads keyboard input into A
-        self.assembly[0b00001010] = [CO|MI, RO|IBI|CE, IBO|BI, EO|AI|FI]            # ADI, 10, add immediate to A
-        self.assembly[0b00001011] = [CO|MI, RO|IBI|CE, IBO|BI, EO|AI|FI|SU]         # SUI, 11, sub immediate from A
-        self.assembly[0b11111110] = [AO|OI]                                         # OUT, 254
-        self.assembly[0b11111111] = [HLT]                                           # HLT, 255
+        self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|AI|ORE]                             # LDA, 1, load into A from mem
+        self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|BI,             EO|AI|FI|ORE]       # ADD, 2, add to A
+        self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|BI,             EO|AI|FI|SU|ORE]    # SUB, 3, subtract from A
+        self.assembly[0b00000100] = [CO|MI,         RO|IBI|CE,      IBO|MI,          AO|RI|ORE]                             # STA, 4, store A to mem
+        self.assembly[0b00000101] = [CO|MI,         RO|IBI|CE,      IBO|AI|ORE]                                             # LDI, 5, load immediate (into A)
+        self.assembly[0b00000110] = [CO|MI,         RO|IBI|CE,      IBO|JMP|ORE]                                            # JMP, 6, jump
+        self.assembly[0b00000111] = [CO|MI,         RO|IBI|CE,      IBO|JC|ORE]                                             # JPC, 7, jump on carry
+        self.assembly[0b00001000] = [CO|MI,         RO|IBI|CE,      IBO|JZ|ORE]                                             # JPZ, 8, jump on zero
+        self.assembly[0b00001001] = [KEI|AI|ORE]                                                                            # KEI, 9, loads keyboard input into A
+        self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,          EO|AI|FI|ORE]                          # ADI, 10, add immediate to A
+        self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,          EO|AI|FI|SU|ORE]                       # SUI, 11, sub immediate from A
+        self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT, 254
+        self.assembly[0b11111111] = [HLT]                                                                                   # HLT, 255
 
         self.op_timestep_map = {"NOP": 0,
-                           "LDA": 1,
-                           "ADD": 2,
-                           "SUB": 3,
-                           "STA": 4,
-                           "LDI": 5,
-                           "JMP": 6,
-                           "JPC": 7,
-                           "JPZ": 8,
-                           "KEI": 9,
-                           "ADI": 10,
-                           "SUI": 11,
-                           "OUT": 254,
-                           "HLT": 255,}
+                                "LDA": 1,
+                                "ADD": 2,
+                                "SUB": 3,
+                                "STA": 4,
+                                "LDI": 5,
+                                "JMP": 6,
+                                "JPC": 7,
+                                "JPZ": 8,
+                                "KEI": 9,
+                                "ADI": 10,
+                                "SUI": 11,
+                                "OUT": 254,
+                                "HLT": 255,}
 
         self.assembler()
         self.reset()
@@ -135,11 +136,11 @@ class Computer:
         print(f"\n{self.prog_count}.{self.op_timestep}")
         if not debug:
             return
-        print(f"         Bus: {d2b(self.bus)       :>08d} | Prog count: {d2b(self.prog_count):>08d}")
-        print(f"Mem. address: {d2b(self.memaddress):>08d} |      A reg: {d2b(self.areg):>08d}")
-        print(f"Mem. content: {d2b(self.memcontent):>08d} |    Sum reg: {d2b(self.sumreg):>08d} | Flag reg: {d2b(self.flagreg):>02d}")
-        print(f"Inst. reg. A: {d2b(self.inst_reg_a):>08d} |      B reg: {d2b(self.breg):>08d}")
-        print(f"Inst. reg. B: {d2b(self.inst_reg_b):>08d} |    Out reg: {d2b(self.out_regist):>08d}")
+        print(f"         Bus: {d2b(self.bus)            :>08d} | Prog count: {d2b(self.prog_count):>08d}")
+        print(f"Mem. address: {d2b(self.memaddress)     :>08d} |      A reg: {d2b(self.areg):>08d}")
+        print(f"Mem. content: {d2b(self.memcontent)     :>08d} |    Sum reg: {d2b(self.sumreg):>08d} | Flag reg: {d2b(self.flagreg):>02d}")
+        print(f"Inst. reg. A: {d2b(self.inst_reg_a)     :>08d} |      B reg: {d2b(self.breg):>08d}")
+        print(f"Inst. reg. B: {d2b(self.inst_reg_b)     :>08d} |    Out reg: {d2b(self.out_regist):>08d}")
         print(f"Opcode:       {d2b(self.op_timestep)    :>08d} |  Ctrl word: {d2b(self.controlword):>024d}")
         print(f"                                     HMRRIIIIAAESBOCCJF")
         print(f"                                     LIIOAABBIOOUIIEOMI")
@@ -310,7 +311,7 @@ class Computer:
             return
         self.timer_indicator = 0
         self.op_timestep += 1
-        if self.op_timestep >= 8:
+        if self.op_timestep >= 8 or self.controlword&self.ORE:
             self.op_timestep = 0
 
         if self.prog_count >= 256:
@@ -607,7 +608,7 @@ class Game:
 
         ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
                           "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
-                          "FI", "JC", "JZ", "KEI"]
+                          "FI", "JC", "JZ", "KEI", "ORE"]
 
         self.ctrl_word_text_rendered = []
         for text in ctrl_word_text:
