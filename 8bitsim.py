@@ -347,6 +347,7 @@ class BitDisplay:
         self.text = text
         self.x = cpos[0]
         self.y = cpos[1]
+        self.cpos = cpos
         self.oncolor = oncolor
         self.offcolor = offcolor
 
@@ -388,7 +389,7 @@ class BitDisplay:
             textwidth = self.text_rendered.get_width()
             textheight = self.text_rendered.get_height()
             text_x = int(self.x - textwidth/2)
-            text_y = int((self.y - textheight/2 - self.radius - 15))
+            text_y = int((self.y - textheight/2 - self.radius - 20))
             screen.blit(self.text_rendered, (text_x, text_y))
 
     def draw_number(self, num_in, screen):
@@ -436,6 +437,7 @@ class Game:
         self._running = True
 
         pygame.font.init()
+        self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
         self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
         self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 11)
@@ -451,136 +453,219 @@ class Game:
         self.computer = Computer()
 
         self.bus_display = BitDisplay(cpos = (640, 50),
-                                      font = self._font,
+                                      font = self._font_brush,
                                       textcolor = self.BLACK,
                                       text = "Bus",
                                       oncolor = self.RED,
                                       offcolor = self.DARKERRED)
-        pygame.draw.rect(self._bg, (0,0,0), self.bus_display.reg_bg, border_radius = 10)
-        
+
         self.cnt_display = BitDisplay(cpos = (840, 150),
-                                      font = self._font,
+                                      font = self._font_brush,
                                       textcolor = self.BLACK,
                                       text = "Program counter",
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
-        pygame.draw.rect(self._bg, (0,0,0), self.cnt_display.reg_bg, border_radius = 10)
 
         self.areg_display = BitDisplay(cpos = (840, 250),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "A register",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
-        pygame.draw.rect(self._bg, (0,0,0), self.areg_display.reg_bg, border_radius = 10)
 
         self.breg_display = BitDisplay(cpos = (840, 450),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "B register",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
-        pygame.draw.rect(self._bg, (0,0,0), self.breg_display.reg_bg, border_radius = 10)
 
         self.sreg_display = BitDisplay(cpos = (840, 350),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "ALU (sum)",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
-        pygame.draw.rect(self._bg, (0,0,0), self.sreg_display.reg_bg, border_radius = 10)
 
-        self.flgr_display = BitDisplay(cpos = (1100, 350),
-                                       font = self._font,
+        self.flgr_display = BitDisplay(cpos = (1130, 350),
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Flags register",
                                        length = 2,
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
-        pygame.draw.rect(self._bg, (0,0,0), self.flgr_display.reg_bg, border_radius = 10)
 
         self.flag_display = BitDisplay(cpos = (1000, 350),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Flags",
                                        length = 2,
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE)
-        pygame.draw.rect(self._bg, (0,0,0), self.flag_display.reg_bg, border_radius = 10)
 
         self.madd_display = BitDisplay(cpos = (440, 150),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Memory address",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
-        pygame.draw.rect(self._bg, (0,0,0), self.madd_display.reg_bg, border_radius = 10)
 
         self.mcon_display = BitDisplay(cpos = (440, 250),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Memory content",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
-        pygame.draw.rect(self._bg, (0,0,0), self.mcon_display.reg_bg, border_radius = 10)
+        
 
         self.insa_display = BitDisplay(cpos = (440, 350),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Instruction register A",
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE)
-        pygame.draw.rect(self._bg, (0,0,0), self.insa_display.reg_bg, border_radius = 10)
-        
+
         self.insb_display = BitDisplay(cpos = (440, 450),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Instruction register B",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
-        pygame.draw.rect(self._bg, (0,0,0), self.insb_display.reg_bg, border_radius = 10)
 
         self.oprt_display = BitDisplay(cpos = (440, 550),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Operation timestep",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
-        pygame.draw.rect(self._bg, (0,0,0), self.oprt_display.reg_bg, border_radius = 10)
-        
+
         self.inpt_display = BitDisplay(cpos = (440, 650),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Input register",
                                        oncolor = self.PURPLEISH,
                                        offcolor = self.DARKERPURPLEISH)
-        pygame.draw.rect(self._bg, (0,0,0), self.inpt_display.reg_bg, border_radius = 10)
 
         self.outp_display = BitDisplay(cpos = (840, 550),
-                                       font = self._font,
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Output register",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
-        pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 10)
 
-        self.ctrl_display = BitDisplay(cpos = (840, 700),
-                                       font = self._font,
+        self.ctrl_display = BitDisplay(cpos = (950, 700),
+                                       font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Control word",
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE,
                                        length = 24)
-        pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 10)
 
         self.clk_display = BitDisplay(cpos = (50, 60),
-                                      font = self._font,
+                                      font = self._font_brush,
                                       textcolor = self.BLACK,
                                       text = "Clock",
                                       length = 1,
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
-        pygame.draw.rect(self._bg, (0,0,0), self.clk_display.reg_bg, border_radius = 10)
+
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.bus_display.cpos,
+                         (self.bus_display.x, self.inpt_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.madd_display.cpos,
+                         (self.bus_display.x, self.madd_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.mcon_display.cpos,
+                         (self.bus_display.x, self.mcon_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.insa_display.cpos,
+                         (self.bus_display.x, self.insa_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.insb_display.cpos,
+                         (self.bus_display.x, self.insb_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.oprt_display.cpos,
+                         (self.bus_display.x, self.oprt_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.inpt_display.cpos,
+                         (self.bus_display.x, self.inpt_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.cnt_display.cpos,
+                         (self.bus_display.x, self.cnt_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.areg_display.cpos,
+                         (self.bus_display.x, self.areg_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.breg_display.cpos,
+                         (self.bus_display.x, self.breg_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.sreg_display.cpos,
+                         (self.bus_display.x, self.sreg_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.RED,
+                         self.outp_display.cpos,
+                         (self.bus_display.x, self.outp_display.y),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.BLUE,
+                         np.array(self.madd_display.cpos) + (85,0),
+                         np.array(self.mcon_display.cpos) + (85,0),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.BLUE,
+                         np.array(self.areg_display.cpos) + (65,0),
+                         np.array(self.breg_display.cpos) + (65,0),
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.BLUE,
+                         self.sreg_display.cpos,
+                         self.flag_display.cpos,
+                         width = 5)
+        pygame.draw.line(self._bg,
+                         self.BLUE,
+                         self.outp_display.cpos,
+                         (self.outp_display.x + 200, self.outp_display.y),
+                         width = 5)
+
+        pygame.draw.rect(self._bg, (0,0,0), self.bus_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.cnt_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.areg_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.breg_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.sreg_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.flgr_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.flag_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.madd_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.mcon_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.insa_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.insb_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.inpt_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.oprt_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 10)
+        #pygame.draw.rect(self._bg, (0,0,0), self.clk_display.reg_bg, border_radius = 10)
 
         self.keypad1 = BitDisplay(cpos = (1100, 50), length = 3, radius = 15,
                                   offcolor = (40, 40, 40), oncolor = (80, 120, 80))
@@ -697,7 +782,8 @@ class Game:
 
     def render(self):
         self._screen.blit(self._bg, (0,0))
-        self.clk_display.draw_number(self.computer.timer_indicator, self._screen)
+
+        #self.clk_display.draw_number(self.computer.timer_indicator, self._screen)
         self.bus_display.draw_number(self.computer.bus, self._screen)
         self.cnt_display.draw_number(self.computer.prog_count, self._screen)
         self.areg_display.draw_number(self.computer.areg, self._screen)
@@ -767,14 +853,14 @@ class Game:
             self.display_op = self.computer.prog_count
 
         x = 10
-        y = 80
+        y = 30
         for i, item in enumerate(self.prog_texts_black):
             if self.display_op == i + self.prog_offsets[i]:
                 item = self.prog_texts_green[i]
             self._screen.blit(item, (x, y))
             y += 15
             if y >= self._height - 20:
-                y = 80
+                y = 30
                 x += 100
 
         pygame.display.flip()
