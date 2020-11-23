@@ -52,6 +52,7 @@ class Computer:
         self.assembly[0b00001001] = [KEI|AI|ORE]                                                                            # KEI, 9, loads keyboard input into A
         self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,          EO|AI|FI|ORE]                          # ADI, 10, add immediate to A
         self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,          EO|AI|FI|SU|ORE]                       # SUI, 11, sub immediate from A
+        self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|BI,             FI|SU|ORE]          # CMP, 12, compare value from memory with A register. Set zf if equal.
         self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT, 254
         self.assembly[0b11111111] = [HLT]                                                                                   # HLT, 255
 
@@ -67,15 +68,18 @@ class Computer:
                                 "KEI": 9,
                                 "ADI": 10,
                                 "SUI": 11,
+                                "CMP": 12,
                                 "OUT": 254,
                                 "HLT": 255,}
+                                
 
-        self.assembler()
+        #self.assembler_simple()
+        self.assembler_complex()
         self.reset()
 
-    def assembler(self):
+    def assembler_simple(self):
         """ Reads a program from program.txt and assembles it into memory """
-        with open("program.txt", "r") as infile:
+        with open("oldprograms/fibonacci.txt", "r") as infile:
             lines = infile.readlines()
         
         i = 0
@@ -88,6 +92,8 @@ class Computer:
             for item in items:
                 j += 1
                 i += 1
+
+        print(lines_history)
 
         i = 0
         for k, line in enumerate(lines):
@@ -113,6 +119,62 @@ class Computer:
 
         self.program = lines_history
         print(f"{i} words of memory used for program")
+
+    def assembler_complex(self):
+        with open("program.txt", "r") as infile:
+            lines = infile.readlines()
+
+        addresses = {}
+        addresses_line = {}
+        program = []
+
+        address = 0
+        progline = 0
+        for i, line in enumerate(lines):
+            line = line.split(";")[0]
+            if line.startswith("  ") and line[2] != " ":
+                """ Instruction line """
+                instruction = line.strip().split(" ")
+                if len(instruction) > 2:
+                    print(f"Invalid instruction on line {i + 1}")
+                    sys.exit(1)
+
+                program.append([instruction, address - progline])
+                for item in instruction:
+                    address += 1
+                progline += 1
+            elif not line.startswith(" "):
+                """ Mark an address with a string """
+                if ":" in line:
+                    address_name = line.strip().split(":")[0]
+                    addresses[address_name] = address
+                    addresses_line[address] = progline
+
+        memaddress = 0
+        for i, line in enumerate(program):
+            jump = False
+            items = line[0]
+            for item in items:
+                if item == items[0]:
+                    mem_ins = self.op_timestep_map[str(item)]
+                    if 6 <= mem_ins <= 8:
+                        # Jump instruction
+                        jump = True
+                else:
+                    if jump:
+                        if item[0] == "#":
+                            address = item[1:]
+                        else:
+                            address = addresses[item]
+                        mem_ins = int(address)
+                        program[i][0][1] = str(addresses_line[addresses[item]])
+                    else:
+                        mem_ins = int(item)
+                self.memory[memaddress] = mem_ins
+                memaddress += 1
+
+        print(f"{memaddress} words of memory used for program")
+        self.program = program
     
     def printmem(self):
         """ Prints the memory to terminal"""
@@ -569,86 +631,50 @@ class Game:
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
 
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.bus_display.cpos,
-                         (self.bus_display.x, self.inpt_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.madd_display.cpos,
-                         (self.bus_display.x, self.madd_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.mcon_display.cpos,
-                         (self.bus_display.x, self.mcon_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.insa_display.cpos,
-                         (self.bus_display.x, self.insa_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.insb_display.cpos,
-                         (self.bus_display.x, self.insb_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.oprt_display.cpos,
-                         (self.bus_display.x, self.oprt_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.inpt_display.cpos,
-                         (self.bus_display.x, self.inpt_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.cnt_display.cpos,
-                         (self.bus_display.x, self.cnt_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.areg_display.cpos,
-                         (self.bus_display.x, self.areg_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.breg_display.cpos,
-                         (self.bus_display.x, self.breg_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.sreg_display.cpos,
-                         (self.bus_display.x, self.sreg_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.RED,
-                         self.outp_display.cpos,
-                         (self.bus_display.x, self.outp_display.y),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.BLUE,
-                         np.array(self.madd_display.cpos) + (85,0),
-                         np.array(self.mcon_display.cpos) + (85,0),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.BLUE,
-                         np.array(self.areg_display.cpos) + (65,0),
-                         np.array(self.breg_display.cpos) + (65,0),
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.BLUE,
-                         self.sreg_display.cpos,
-                         self.flag_display.cpos,
-                         width = 5)
-        pygame.draw.line(self._bg,
-                         self.BLUE,
-                         self.outp_display.cpos,
-                         (self.outp_display.x + 200, self.outp_display.y),
-                         width = 5)
+        # Draw line connections
+        self.simple_line(self.bus_display, (self.bus_display.x, self.inpt_display.y), self.RED)
+        self.simple_line(self.madd_display, (self.bus_display.x, self.madd_display.y), self.RED)
+        self.simple_line(self.mcon_display, (self.bus_display.x, self.mcon_display.y), self.RED)
+        self.simple_line(self.insa_display, (self.bus_display.x, self.insa_display.y), self.RED)
+        self.simple_line(self.insb_display, (self.bus_display.x, self.insb_display.y), self.RED)
+        self.simple_line(self.oprt_display, (self.bus_display.x, self.oprt_display.y), self.RED)
+        self.simple_line(self.inpt_display, (self.bus_display.x + 2, self.inpt_display.y), self.RED)
+        self.simple_line(self.cnt_display, (self.bus_display.x, self.cnt_display.y), self.RED)
+        self.simple_line(self.areg_display, (self.bus_display.x, self.areg_display.y), self.RED)
+        self.simple_line(self.breg_display, (self.bus_display.x, self.breg_display.y), self.RED)
+        self.simple_line(self.sreg_display, (self.bus_display.x, self.sreg_display.y), self.RED)
+        self.simple_line(self.outp_display, (self.bus_display.x, self.outp_display.y), self.RED)
+        self.simple_line(self.flag_display, self.flgr_display, self.RED)
+
+        self.simple_line(self.madd_display, self.mcon_display, self.BLUE, (85,0), (85,0))
+        self.simple_line(self.areg_display, self.breg_display, self.BLUE, (65,0), (65,0))
+        self.simple_line(self.sreg_display, self.flag_display, self.BLUE)
+        self.simple_line(self.outp_display, self.outp_display, self.BLUE, (200, 0))
+
+        self.simple_line(self.oprt_display, self.oprt_display, self.PURPLEISH, (-130, 0))
+        self.simple_line(self.insa_display, self.insa_display, self.PURPLEISH, (-130, 0))
+        self.simple_line(self.insa_display, (self.insa_display.x - 130, self.ctrl_display.y), self.PURPLEISH, (-130, -2))
+        self.simple_line((self.insa_display.x - 132, self.ctrl_display.y), self.ctrl_display, self.PURPLEISH)
+
+        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKGREEN, (0, 37))
+        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKGREEN, (0, 35), (-660, 35))
+        self.simple_line(self.ctrl_display, self.madd_display, self.DARKGREEN, (-660, 37), (-150, -2))
+        self.simple_line(self.madd_display, self.madd_display, self.DARKGREEN, (-150, 0))
+        self.simple_line(self.mcon_display, self.mcon_display, self.DARKGREEN, (-150, 0))
+        self.simple_line(self.insa_display, self.insa_display, self.DARKGREEN, (-150, -5), (0, -5))
+        self.simple_line(self.insb_display, self.insb_display, self.DARKGREEN, (-150, 0))
+        self.simple_line(self.inpt_display, self.inpt_display, self.DARKGREEN, (-150, 0))
+        self.simple_line(self.oprt_display, self.oprt_display, self.DARKGREEN, (-150, -5), (0, -5))
+        
+        self.simple_line(self.ctrl_display, self.cnt_display, self.DARKGREEN, (-240, 0), (-130, -7))
+        self.simple_line(self.cnt_display, self.cnt_display, self.DARKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.areg_display, self.areg_display, self.DARKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.breg_display, self.breg_display, self.DARKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.sreg_display, self.sreg_display, self.DARKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.outp_display, self.outp_display, self.DARKGREEN, (0, -5), (-130, -5))
+
+        self.simple_line(self.flgr_display, self.flgr_display, self.DARKGREEN, (0, 0), (52, 0))
+        self.simple_line(self.flgr_display, (self.flgr_display.x + 50, self.ctrl_display.y), self.DARKGREEN, (50, 0))
 
         pygame.draw.rect(self._bg, (0,0,0), self.bus_display.reg_bg, border_radius = 10)
         pygame.draw.rect(self._bg, (0,0,0), self.cnt_display.reg_bg, border_radius = 10)
@@ -721,7 +747,25 @@ class Game:
         self.prog_texts_green = prog_texts_green
         self.prog_offsets = prog_offsets
         self.display_op = 0
-        
+
+    def simple_line(self, pos1, pos2, color, shift1 = (0,0), shift2 = (0,0), width = 5):
+        """ Draws a simple line to display connections between registers to the
+        background image.
+
+        pos1 and pos2 can be either a position (iterable with length 2), or an
+        instance of BitDisplay, in which case the center position of the
+        display will be used.
+        """
+        if isinstance(pos1, BitDisplay):
+            pos1 = pos1.cpos
+        if isinstance(pos2, BitDisplay):
+            pos2 = pos2.cpos
+
+        pygame.draw.line(self._bg, color,
+                         np.array(pos1) + shift1,
+                         np.array(pos2) + shift2,
+                         width = width)
+
     def on_event(self, event):
         if event.type == pygame.QUIT:
             self._running = False
