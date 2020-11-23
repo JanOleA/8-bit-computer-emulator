@@ -1,19 +1,18 @@
 start:
-  LDI 0
-  OUT
   LDI 1
   STA 255
   LDI 0
   STA 254
-  LDI 1
-loop:
+  OUT
+add:
+  LDA 255
+  ADD 254
+  JPC start
+  OUT
   STA 255
-  LDA 254
-  ADD 255
+  LDA 255
+  ADD 254
   JPC start
   OUT
   STA 254
-  LDA 255
-  ADD 254
-  OUT
-  JMP loop
+  JMP add
