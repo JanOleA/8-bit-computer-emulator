@@ -54,7 +54,7 @@ class Computer:
         self.assembly[0b11111110] = [AO|OI]                                         # OUT, 254
         self.assembly[0b11111111] = [HLT]                                           # HLT, 255
 
-        self.opcode_map = {"NOP": 0,
+        self.op_timestep_map = {"NOP": 0,
                            "LDA": 1,
                            "ADD": 2,
                            "SUB": 3,
@@ -69,10 +69,11 @@ class Computer:
                            "OUT": 254,
                            "HLT": 255,}
 
-        self.programmer()
+        self.assembler()
         self.reset()
 
-    def programmer(self):
+    def assembler(self):
+        """ Reads a program from program.txt and assembles it into memory """
         with open("program.txt", "r") as infile:
             lines = infile.readlines()
         
@@ -95,7 +96,7 @@ class Computer:
             jump = False
             for item in items:
                 if j == 0:
-                    mem_ins = self.opcode_map[str(item)]
+                    mem_ins = self.op_timestep_map[str(item)]
                     if 6 <= mem_ins <= 8:
                         # Jump instruction
                         jump = True
@@ -112,9 +113,26 @@ class Computer:
         self.program = lines_history
         print(f"{i} words of memory used for program")
     
+    def printmem(self):
+        """ Prints the memory to terminal"""
+        outs = "###\n"
+        for i in range(16):
+            line = self.memory[i*16:i*16 + 16]
+            s = ""
+            for j, item in enumerate(line):
+                item = hex(item).replace("0x", "")
+                if len(item) == 1:
+                    item = "0" + item
+                s += f"{item} "
+                if j == 7:
+                    s += " "
+
+            outs += f"{s}\n"
+        print(outs, end = "")
+
     def printstate(self, debug = True):
         d2b = self.dec2bin
-        print(f"\n{self.prog_count}.{self.opcode}")
+        print(f"\n{self.prog_count}.{self.op_timestep}")
         if not debug:
             return
         print(f"         Bus: {d2b(self.bus)       :>08d} | Prog count: {d2b(self.prog_count):>08d}")
@@ -122,7 +140,7 @@ class Computer:
         print(f"Mem. content: {d2b(self.memcontent):>08d} |    Sum reg: {d2b(self.sumreg):>08d} | Flag reg: {d2b(self.flagreg):>02d}")
         print(f"Inst. reg. A: {d2b(self.inst_reg_a):>08d} |      B reg: {d2b(self.breg):>08d}")
         print(f"Inst. reg. B: {d2b(self.inst_reg_b):>08d} |    Out reg: {d2b(self.out_regist):>08d}")
-        print(f"Opcode:       {d2b(self.opcode)    :>08d} |  Ctrl word: {d2b(self.controlword):>024d}")
+        print(f"Opcode:       {d2b(self.op_timestep)    :>08d} |  Ctrl word: {d2b(self.controlword):>024d}")
         print(f"                                     HMRRIIIIAAESBOCCJF")
         print(f"                                     LIIOAABBIOOUIIEOMI")
         print(f"                                     T   OIOI        P ")
@@ -142,7 +160,7 @@ class Computer:
         self.out_regist = 0
         self.prog_count = 0
         self.input_regi = 0
-        self.opcode = 0
+        self.op_timestep = 0
         self.controlword = 0
         self.halting = 0
         self.carry = 0
@@ -153,6 +171,11 @@ class Computer:
         self.memcontent = self.memory[self.memaddress]
 
     def update_ALU(self, subtract = False):
+        """ Updates the value stored in the ALU based on the current values in
+        the A and B registers, and the subtract control signal.
+
+        TODO: Fix so the carry bit will be set for appropriate subtracts.
+        """
         self.carry = 0
         self.zero = 0
         a = int(self.areg)
@@ -178,19 +201,24 @@ class Computer:
             self.flags = self.flags|0b01
 
     def update(self):
-        """ Standard update cycle """
-        if self.opcode == 0:
+        """ Updates the value on the appropriate registers and bus.
+        Any states that would update regardless of what the clock is doing
+        should be updated here.
+        """
+
+        # get the appropriate control word based on the current instruction
+        # and operation timestep
+        if self.op_timestep == 0:
             operation = self.MI|self.CO
-        elif self.opcode == 1:
+        elif self.op_timestep == 1:
             operation = self.RO|self.IAI|self.CE
         else:
             operation_ID = self.inst_reg_a
             operations = self.assembly[operation_ID]
-            if self.opcode - 2 >= len(operations):
+            if self.op_timestep - 2 >= len(operations):
                 operation = 0
             else:
-                operation = operations[self.opcode - 2]
-
+                operation = operations[self.op_timestep - 2]
         self.controlword = operation
 
         if operation&self.IAO:
@@ -222,10 +250,10 @@ class Computer:
             self.bus = self.prog_count
 
     def clock_high(self):
-        """ Things that happen when the clock transitions to high """
-        self.timer_indicator = 1
+        """ Updates states that should update on clock-high pulse """
         if self.halting:
             return False
+        self.timer_indicator = 1
 
         operation = self.controlword
 
@@ -277,21 +305,21 @@ class Computer:
         return True
 
     def clock_low(self):
-        """ Things that happen when the clock transitions to low """
+        """ Updates states that should update on clock-low pulse """
         if self.halting:
             return
         self.timer_indicator = 0
-        self.opcode += 1
-        if self.opcode >= 8:
-            self.opcode = 0
+        self.op_timestep += 1
+        if self.op_timestep >= 8:
+            self.op_timestep = 0
 
         if self.prog_count >= 256:
             self.halting = True
 
     def step(self):
+        """ Steps the CPU one clock cycle forward """
         self.update()
         result = self.clock_high()
-        self.printstate()
         self.clock_low()
         self.update()
 
@@ -309,9 +337,11 @@ class Computer:
 
 
 class BitDisplay:
+    """ Class for making instances of an 8-bit LED display """
     def __init__(self, oncolor = (0, 255, 0), offcolor = (0, 50, 0),
                  cpos = (0,0), length = 8, text = "Display",
-                 font = None, textcolor = (255, 255, 255)):
+                 font = None, textcolor = (255, 255, 255),
+                 radius = 10):
         self.length = length
         self.text = text
         self.x = cpos[0]
@@ -319,10 +349,14 @@ class BitDisplay:
         self.oncolor = oncolor
         self.offcolor = offcolor
 
-        self.radius = 10
+        self.radius = radius
         self.separation = 5
         self.width = length*self.radius*2 + (length - 1)*self.separation
 
+        self.reg_bg = pygame.Rect(int(self.x - self.width/2 - 5),
+                                  int(self.y - self.radius - 5),
+                                  int(self.width + 10), int(self.radius*2 + 10))
+        
         if not font is None:
             self.text_rendered = font.render(self.text, True, textcolor)
         else:
@@ -338,6 +372,8 @@ class BitDisplay:
         y = int(self.y)
         x = int(self.x - self.width/2 + self.radius)
 
+        #pygame.draw.rect(screen, (0,0,0), self.reg_bg)
+
         for bit_value in bitstring:
             if bit_value == "1":
                 color = self.oncolor
@@ -351,7 +387,7 @@ class BitDisplay:
             textwidth = self.text_rendered.get_width()
             textheight = self.text_rendered.get_height()
             text_x = int(self.x - textwidth/2)
-            text_y = int((self.y - textheight/2 - self.radius - 10))
+            text_y = int((self.y - textheight/2 - self.radius - 15))
             screen.blit(self.text_rendered, (text_x, text_y))
 
     def draw_number(self, num_in, screen):
@@ -360,7 +396,7 @@ class BitDisplay:
 
 
 class Game:
-    def __init__(self, autorun = True, target_HZ = 300):
+    def __init__(self, autorun = True, target_FPS = 300, HZ_multiplier = 1):
         self._running = True
         self._screen = None
         self._width = 1280
@@ -370,7 +406,8 @@ class Game:
         self.step = 0
 
         self.autorun = autorun
-        self.target_HZ = target_HZ # max ~ 400
+        self.target_FPS = target_FPS
+        self.HZ_multiplier = HZ_multiplier
         
         self.WHITE = (255, 255, 255)
         self.GREY = (115, 115, 115)
@@ -406,7 +443,8 @@ class Game:
         self._font_larger = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 45)
         self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 64)
 
-        self._bg = pygame.Rect(0, 0, self._width, self._height)
+        self._bg = pygame.Surface(self._size)
+        self._bg.fill(self.WHITE)
         self._clock = pygame.time.Clock()
 
         self.computer = Computer()
@@ -417,6 +455,7 @@ class Game:
                                       text = "Bus",
                                       oncolor = self.RED,
                                       offcolor = self.DARKERRED)
+        pygame.draw.rect(self._bg, (0,0,0), self.bus_display.reg_bg, border_radius = 10)
         
         self.cnt_display = BitDisplay(cpos = (840, 150),
                                       font = self._font,
@@ -424,6 +463,7 @@ class Game:
                                       text = "Program counter",
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
+        pygame.draw.rect(self._bg, (0,0,0), self.cnt_display.reg_bg, border_radius = 10)
 
         self.areg_display = BitDisplay(cpos = (840, 250),
                                        font = self._font,
@@ -431,6 +471,7 @@ class Game:
                                        text = "A register",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
+        pygame.draw.rect(self._bg, (0,0,0), self.areg_display.reg_bg, border_radius = 10)
 
         self.breg_display = BitDisplay(cpos = (840, 450),
                                        font = self._font,
@@ -438,6 +479,7 @@ class Game:
                                        text = "B register",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
+        pygame.draw.rect(self._bg, (0,0,0), self.breg_display.reg_bg, border_radius = 10)
 
         self.sreg_display = BitDisplay(cpos = (840, 350),
                                        font = self._font,
@@ -445,6 +487,7 @@ class Game:
                                        text = "ALU (sum)",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
+        pygame.draw.rect(self._bg, (0,0,0), self.sreg_display.reg_bg, border_radius = 10)
 
         self.flgr_display = BitDisplay(cpos = (1100, 350),
                                        font = self._font,
@@ -453,6 +496,7 @@ class Game:
                                        length = 2,
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
+        pygame.draw.rect(self._bg, (0,0,0), self.flgr_display.reg_bg, border_radius = 10)
 
         self.flag_display = BitDisplay(cpos = (1000, 350),
                                        font = self._font,
@@ -461,6 +505,7 @@ class Game:
                                        length = 2,
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE)
+        pygame.draw.rect(self._bg, (0,0,0), self.flag_display.reg_bg, border_radius = 10)
 
         self.madd_display = BitDisplay(cpos = (440, 150),
                                        font = self._font,
@@ -468,6 +513,7 @@ class Game:
                                        text = "Memory address",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
+        pygame.draw.rect(self._bg, (0,0,0), self.madd_display.reg_bg, border_radius = 10)
 
         self.mcon_display = BitDisplay(cpos = (440, 250),
                                        font = self._font,
@@ -475,6 +521,7 @@ class Game:
                                        text = "Memory content",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
+        pygame.draw.rect(self._bg, (0,0,0), self.mcon_display.reg_bg, border_radius = 10)
 
         self.insa_display = BitDisplay(cpos = (440, 350),
                                        font = self._font,
@@ -482,6 +529,7 @@ class Game:
                                        text = "Instruction register A",
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE)
+        pygame.draw.rect(self._bg, (0,0,0), self.insa_display.reg_bg, border_radius = 10)
         
         self.insb_display = BitDisplay(cpos = (440, 450),
                                        font = self._font,
@@ -489,6 +537,7 @@ class Game:
                                        text = "Instruction register B",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
+        pygame.draw.rect(self._bg, (0,0,0), self.insb_display.reg_bg, border_radius = 10)
 
         self.oprt_display = BitDisplay(cpos = (440, 550),
                                        font = self._font,
@@ -496,6 +545,7 @@ class Game:
                                        text = "Operation timestep",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
+        pygame.draw.rect(self._bg, (0,0,0), self.oprt_display.reg_bg, border_radius = 10)
         
         self.inpt_display = BitDisplay(cpos = (440, 650),
                                        font = self._font,
@@ -503,6 +553,7 @@ class Game:
                                        text = "Input register",
                                        oncolor = self.PURPLEISH,
                                        offcolor = self.DARKERPURPLEISH)
+        pygame.draw.rect(self._bg, (0,0,0), self.inpt_display.reg_bg, border_radius = 10)
 
         self.outp_display = BitDisplay(cpos = (840, 550),
                                        font = self._font,
@@ -510,6 +561,7 @@ class Game:
                                        text = "Output register",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
+        pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 10)
 
         self.ctrl_display = BitDisplay(cpos = (840, 700),
                                        font = self._font,
@@ -518,14 +570,40 @@ class Game:
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE,
                                        length = 24)
+        pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 10)
 
-        self.clk_display = BitDisplay(cpos = (50, 50),
+        self.clk_display = BitDisplay(cpos = (50, 60),
                                       font = self._font,
                                       textcolor = self.BLACK,
                                       text = "Clock",
                                       length = 1,
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
+        pygame.draw.rect(self._bg, (0,0,0), self.clk_display.reg_bg, border_radius = 10)
+
+        self.keypad1 = BitDisplay(cpos = (1100, 50), length = 3, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad2 = BitDisplay(cpos = (1100, 85), length = 3, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad3 = BitDisplay(cpos = (1100, 120), length = 3, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad4 = BitDisplay(cpos = (1100, 165), length = 3, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad0 = BitDisplay(cpos = (1030, 120), length = 1, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+
+        self.keypad_rows = [self.keypad1, self.keypad2, self.keypad3, self.keypad4]
+        self.keypad_numbers = [0, 0, 0, 0]
+        self.keypad = np.zeros((4,3))
+        self.keypad_zero_pressed = 0
+
+        keypad_symbols = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "+", "-", "*"]
+        self.keypad_texts_rendered = []
+        for text in keypad_symbols:
+            self.keypad_texts_rendered.append(self._font_small.render(text,
+                                                                      True,
+                                                                      self.WHITE))
+        self.keypad_texts_0 = self._font_small.render("0", True, self.WHITE)
 
         ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
                           "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
@@ -534,8 +612,8 @@ class Game:
         self.ctrl_word_text_rendered = []
         for text in ctrl_word_text:
             self.ctrl_word_text_rendered.append(self._font_small.render(text,
-                                                                                True,
-                                                                                self.BLACK))
+                                                                        True,
+                                                                        self.BLACK))
 
         prog_texts_black = []
         prog_texts_green = []
@@ -545,8 +623,12 @@ class Game:
             if len(instruction[0]) == 1:
                 instruction[0].append("")
             text = f"{i:>03d} {instruction[0][0]:>3s} {instruction[0][1]:>3s}"
-            prog_texts_black.append(self._font_small_console.render(text, True, self.BLACK))
-            prog_texts_green.append(self._font_small_console.render(text, True, self.DARKGREEN))
+            prog_texts_black.append(self._font_small_console.render(text,
+                                                                    True,
+                                                                    self.BLACK))
+            prog_texts_green.append(self._font_small_console.render(text,
+                                                                    True,
+                                                                    self.DARKGREEN))
             prog_offsets.append(instruction[1])
 
         self.prog_texts_black = prog_texts_black
@@ -575,43 +657,45 @@ class Game:
                 self.computer.update()
 
     def loop(self):
-        numpad = self.keys_pressed[89:97]
-        zero = self.keys_pressed[98:99]
-        numpad = zero + numpad
-        operators = self.keys_pressed[85:88]
-        input_val = 0
-        pressed = False
-        if sum(numpad) > 0:
-            key = np.argmax(numpad)
-            input_val += key
-            pressed = True
-        if sum(operators) > 0:
-            key = np.argmax(operators) + 4
-            key = 2**key
-            input_val += key
-            pressed = True
+        self.mouse_pos = np.array(pygame.mouse.get_pos())
+        keypressed = np.where(self.keypad == 1)
 
-        if pressed:
+        input_val = 0
+        if np.sum(self.keypad) != 0:
+            rowpressed = keypressed[0][0]
+            colpressed = keypressed[1][0]
+            if rowpressed < 3:
+                input_val = 3*(2 - rowpressed) + colpressed + 1
+            else:
+                input_val = 2**(6 - colpressed)
+
             input_val += 128
+
+        if self.keypad_zero_pressed:
+            input_val = 128
 
         self.computer.input_regi = input_val
 
-        self.computer.update()
-        if self.autorun:
-            self.computer.clock_high()
+        HZ_multiplier = self.HZ_multiplier
+        for i in range(HZ_multiplier):
             self.computer.update()
-            self.computer.clock_low()
+            if self.autorun:
+                self.computer.clock_high()
+                self.computer.update()
+                self.computer.clock_low()
+        
+        #self.computer.printmem()
 
         self.step += 1
         if self.step == 2:
             self.step = 0
 
-        self._clock.tick_busy_loop(self.target_HZ * 2)
+        self._clock.tick_busy_loop(self.target_FPS)
         self.fps = self._clock.get_fps()
-        self.clockrate = self._font.render(f"{int(self.fps):d} Hz", True, self.BLACK)
+        self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.BLACK)
 
     def render(self):
-        pygame.draw.rect(self._screen, self.WHITE, self._bg)
+        self._screen.blit(self._bg, (0,0))
         self.clk_display.draw_number(self.computer.timer_indicator, self._screen)
         self.bus_display.draw_number(self.computer.bus, self._screen)
         self.cnt_display.draw_number(self.computer.prog_count, self._screen)
@@ -627,6 +711,41 @@ class Game:
         self.outp_display.draw_number(self.computer.out_regist, self._screen)
         self.inpt_display.draw_number(self.computer.input_regi, self._screen)
 
+        i = 0
+        for kp, num in zip(self.keypad_rows, self.keypad_numbers):
+            kp.draw_number(num, self._screen)
+            self.keypad_numbers[i] = 0
+            i += 1
+        self.keypad0.draw_number(self.keypad_zero_pressed, self._screen)
+
+        self.keypad_zero_pressed = 0
+        x = self.keypad0.x
+        y = self.keypad0.y
+        mouse_dist = (self.mouse_pos[0] - x)**2 + (self.mouse_pos[1] - y)**2
+        if mouse_dist < self.keypad0.radius**2:
+            if pygame.mouse.get_pressed()[0]:
+                self.keypad_zero_pressed = 1
+        kp_text = self.keypad_texts_0
+        text_x = x - kp_text.get_width() / 2
+        text_y = y - kp_text.get_height() / 2
+        self._screen.blit(kp_text, (text_x, text_y))
+        
+        self.keypad[:,:] = 0
+        for i, kp_text in enumerate(self.keypad_texts_rendered):
+            column = i%3
+            row = i//3
+            kp = self.keypad_rows[row]
+            x = kp.xvalues[column]
+            y = kp.y
+            mouse_dist = (self.mouse_pos[0] - x)**2 + (self.mouse_pos[1] - y)**2
+            if mouse_dist < kp.radius**2:
+                if pygame.mouse.get_pressed()[0]:
+                    self.keypad_numbers[row] = 2**(2 - column)
+                    self.keypad[row, column] = 1
+            text_x = x - kp_text.get_width() / 2
+            text_y = y - kp_text.get_height() / 2
+            self._screen.blit(kp_text, (text_x, text_y))
+
         out_string = f"{self.computer.out_regist:>03d}"
         out_text = self._font_segmentdisplay.render(out_string, True, self.BRIGHTRED)
         screen_bg = pygame.Rect(980, 480, out_text.get_width() + 35, out_text.get_height() + 25)
@@ -639,11 +758,11 @@ class Game:
             text_y = int(self.ctrl_display.y + text.get_height())
             self._screen.blit(text, (text_x, text_y))
 
-        operation = int("1" + "0"*self.computer.opcode)
+        operation = int("1" + "0"*self.computer.op_timestep)
         self.oprt_display.draw_bits(operation, self._screen)
         self._screen.blit(self.clockrate, (5,5))
 
-        if self.computer.opcode == 0:
+        if self.computer.op_timestep == 0:
             self.display_op = self.computer.prog_count
 
         x = 10
@@ -682,10 +801,16 @@ if __name__ == "__main__":
             autorun = True
     else:
         autorun = True
+
     if len(sys.argv) > 2:
-        target_hz = int(sys.argv[2])
+        target_fps = int(sys.argv[2])
     else:
-        target_hz = 200
-    game = Game(autorun, target_hz)
+        target_fps = 200
+
+    if len(sys.argv) > 3:
+        hz_mul = int(sys.argv[3])
+    else:
+        hz_mul = 1
+    game = Game(autorun, target_fps, hz_mul)
     game.execute()
     

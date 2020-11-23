@@ -32,10 +32,10 @@ LDA 252 # - FINISHED - load product
 ADD 255 # - add the input value
 OUT     # - display result
 STA 200 # - store to 200
-KEI     ###### no-input loop
+KEI     # no-input loop
 ADI 0   
 JPZ 4   # jump to 0 when there is no longer any input given
-JMP 34  ###### no-input loop end
+JMP 34  # no-input loop end
 LDI 255 # handle add
 LDA 201 # load the current sum from 201
 ADD 200 # add the current input
@@ -70,7 +70,6 @@ STA 248 # - store product
 JMP 62  # - jump to start of multiply
 LDA 248 # - FINISHED - load product
 OUT     # - display result
-STA 201 # store back in 201
 LDI 0
 STA 200
 JMP 34
