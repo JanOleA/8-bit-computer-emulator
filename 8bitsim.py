@@ -13,28 +13,31 @@ class Computer:
         self.get_mem_strings()
 
         # microcode definitions
-        HLT = self.HLT = 0b100000000000000000000000 # Halt
-        MI  = self.MI  = 0b010000000000000000000000 # Memory address in
-        RI  = self.RI  = 0b001000000000000000000000 # RAM in
-        RO  = self.RO  = 0b000100000000000000000000 # RAM out
-        IAO = self.IAO = 0b000010000000000000000000 # Instruction A out
-        IAI = self.IAI = 0b000001000000000000000000 # Instruction A in
-        IBO = self.IBO = 0b000000100000000000000000 # Instruction B out
-        IBI = self.IBI = 0b000000010000000000000000 # Instruction B in
-        AI  = self.AI  = 0b000000001000000000000000 # Register A in
-        AO  = self.AO  = 0b000000000100000000000000 # Register A out
-        EO  = self.EO  = 0b000000000010000000000000 # Sum register out
-        SU  = self.SU  = 0b000000000001000000000000 # Subtract
-        BI  = self.BI  = 0b000000000000100000000000 # Register B in
-        OI  = self.OI  = 0b000000000000010000000000 # Output in
-        CE  = self.CE  = 0b000000000000001000000000 # Counter enable
-        CO  = self.CO  = 0b000000000000000100000000 # Counter out
-        JMP = self.JMP = 0b000000000000000010000000 # Jump
-        FI  = self.FI  = 0b000000000000000001000000 # Flags in
-        JC  = self.JC  = 0b000000000000000000100000 # Jump on carry
-        JZ  = self.JZ  = 0b000000000000000000010000 # Jump on zero
-        KEI = self.KEI = 0b000000000000000000001000 # Keyboard in
-        ORE = self.ORE = 0b000000000000000000000100 # Reset operation counter
+        HLT = self.HLT = 0b10000000000000000000000000000000 # Halt
+        MI  = self.MI  = 0b01000000000000000000000000000000 # Memory address in
+        RI  = self.RI  = 0b00100000000000000000000000000000 # RAM in
+        RO  = self.RO  = 0b00010000000000000000000000000000 # RAM out
+        IAO = self.IAO = 0b00001000000000000000000000000000 # Instruction A out
+        IAI = self.IAI = 0b00000100000000000000000000000000 # Instruction A in
+        IBO = self.IBO = 0b00000010000000000000000000000000 # Instruction B out
+        IBI = self.IBI = 0b00000001000000000000000000000000 # Instruction B in
+        AI  = self.AI  = 0b00000000100000000000000000000000 # Register A in
+        AO  = self.AO  = 0b00000000010000000000000000000000 # Register A out
+        EO  = self.EO  = 0b00000000001000000000000000000000 # Sum register out
+        SU  = self.SU  = 0b00000000000100000000000000000000 # Subtract
+        BI  = self.BI  = 0b00000000000010000000000000000000 # Register B in
+        OI  = self.OI  = 0b00000000000001000000000000000000 # Output in
+        CE  = self.CE  = 0b00000000000000100000000000000000 # Counter enable
+        CO  = self.CO  = 0b00000000000000010000000000000000 # Counter out
+        JMP = self.JMP = 0b00000000000000001000000000000000 # Jump
+        FI  = self.FI  = 0b00000000000000000100000000000000 # Flags in
+        JC  = self.JC  = 0b00000000000000000010000000000000 # Jump on carry
+        JZ  = self.JZ  = 0b00000000000000000001000000000000 # Jump on zero
+        KEI = self.KEI = 0b00000000000000000000100000000000 # Keyboard in
+        ORE = self.ORE = 0b00000000000000000000010000000000 # Reset operation counter
+        INS = self.INS = 0b00000000000000000000001000000000 # Increment stack pointer
+        DES = self.DES = 0b00000000000000000000000100000000 # Decrement stack pointer
+        STO = self.STO = 0b00000000000000000000000010000000 # Stack pointer out
 
         self.assembly = {}
         for i in range(255):
@@ -42,20 +45,25 @@ class Computer:
 
         """ All operations begin with CO|MI -> RO|IAI|CE """
         self.assembly[0b00000000] = [ORE] # NOP, 0
-        self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|AI|ORE]                             # LDA, 1, load into A from mem
-        self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|BI,             EO|AI|FI|ORE]       # ADD, 2, add to A
-        self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|BI,             EO|AI|FI|SU|ORE]    # SUB, 3, subtract from A
-        self.assembly[0b00000100] = [CO|MI,         RO|IBI|CE,      IBO|MI,          AO|RI|ORE]                             # STA, 4, store A to mem
-        self.assembly[0b00000101] = [CO|MI,         RO|IBI|CE,      IBO|AI|ORE]                                             # LDI, 5, load immediate (into A)
-        self.assembly[0b00000110] = [CO|MI,         RO|IBI|CE,      IBO|JMP|ORE]                                            # JMP, 6, jump
-        self.assembly[0b00000111] = [CO|MI,         RO|IBI|CE,      IBO|JC|ORE]                                             # JPC, 7, jump on carry
-        self.assembly[0b00001000] = [CO|MI,         RO|IBI|CE,      IBO|JZ|ORE]                                             # JPZ, 8, jump on zero
-        self.assembly[0b00001001] = [KEI|AI|ORE]                                                                            # KEI, 9, loads keyboard input into A
-        self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,          EO|AI|FI|ORE]                          # ADI, 10, add immediate to A
-        self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,          EO|AI|FI|SU|ORE]                       # SUI, 11, sub immediate from A
-        self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|BI,             FI|SU|ORE]          # CMP, 12, compare value from memory with A register. Set zf if equal.
-        self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT, 254
-        self.assembly[0b11111111] = [HLT]                                                                                   # HLT, 255
+        self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|AI|ORE]                                              # LDA, 1, load into A from mem
+        self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|ORE]                       # ADD, 2, add to A
+        self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|SU|ORE]                    # SUB, 3, subtract from A
+        self.assembly[0b00000100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         AO|RI|ORE]                                              # STA, 4, store A to mem
+        self.assembly[0b00000101] = [CO|MI,         RO|IBI|CE,      IBO|AI|ORE]                                                             # LDI, 5, load immediate (into A)
+        self.assembly[0b00000110] = [CO|MI,         RO|IBI|CE,      IBO|JMP|ORE]                                                            # JMP, 6, jump
+        self.assembly[0b00000111] = [CO|MI,         RO|IBI|CE,      IBO|JC|ORE]                                                             # JPC, 7, jump on carry
+        self.assembly[0b00001000] = [CO|MI,         RO|IBI|CE,      IBO|JZ|ORE]                                                             # JPZ, 8, jump on zero
+        self.assembly[0b00001001] = [KEI|AI|ORE]                                                                                            # KEI, 9, loads keyboard input into A
+        self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|ORE]                                           # ADI, 10, add immediate to A
+        self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|SU|ORE]                                        # SUI, 11, sub immediate from A
+        self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              FI|SU|ORE]                          # CMP, 12, compare value from memory with A register. Set zf if equal.
+        self.assembly[0b00001101] = [STO|MI,        AO|RI|INS|ORE]                                                                          # PHA, 13, push value from A onto the stack
+        self.assembly[0b00001110] = [STO|MI,        AI|RO|DES|ORE]                                                                          # PLA, 14, pull value from stack onto A
+        self.assembly[0b00001111] = [STO|AI|ORE]                                                                                            # LDS, 15, load the value of the stack pointer into A
+        self.assembly[0b00010000] = [CO|MI,         RO|IBI|CE,      STO|MI,         CO|RI|INS,          IBO|JMP|ORE]                        # JSR, 16, jump to subroutine
+        self.assembly[0b00010001] = [DES,           STO|MI,         RO|JMP|ORE]                                                             # RET, 17, return from subroutine
+        self.assembly[0b11111110] = [AO|OI|ORE]                                                                                             # OUT, 254
+        self.assembly[0b11111111] = [HLT]                                                                                                   # HLT, 255
 
         self.op_timestep_map = {"NOP": 0,
                                 "LDA": 1,
@@ -70,6 +78,11 @@ class Computer:
                                 "ADI": 10,
                                 "SUI": 11,
                                 "CMP": 12,
+                                "PHA": 13,
+                                "PLA": 14,
+                                "LDS": 15,
+                                "JSR": 16,
+                                "RET": 17,
                                 "OUT": 254,
                                 "HLT": 255,}
                                 
@@ -158,7 +171,7 @@ class Computer:
             for item in items:
                 if item == items[0]:
                     mem_ins = self.op_timestep_map[str(item)]
-                    if 6 <= mem_ins <= 8:
+                    if 6 <= mem_ins <= 8 or 16 <= mem_ins <= 17:
                         # Jump instruction
                         jump = True
                 else:
@@ -246,6 +259,7 @@ class Computer:
         self.halting = 0
         self.carry = 0
         self.zero = 0
+        self.stackpointer = 0
         self.timer_indicator = 0
 
         self.memaddress = self.bus
@@ -330,6 +344,9 @@ class Computer:
         if operation&self.CO:
             self.bus = self.prog_count
 
+        if operation&self.STO:
+            self.bus = self.stackpointer + 224
+
     def clock_high(self):
         """ Updates states that should update on clock-high pulse """
         if self.halting:
@@ -382,6 +399,16 @@ class Computer:
         if operation&self.JZ:
             if self.flagreg&0b01:
                 self.prog_count = self.bus
+
+        if operation&self.INS:
+            self.stackpointer += 1
+            if self.stackpointer >= 16:
+                self.stackpointer = 0
+
+        if operation&self.DES:
+            self.stackpointer -= 1
+            if self.stackpointer < 0:
+                self.stackpointer = 15
 
         return True
 
@@ -634,13 +661,21 @@ class Game:
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
-        self.ctrl_display = BitDisplay(cpos = (950, 700),
+        self.stap_display = BitDisplay(cpos = (840, 650),
+                                       font = self._font_brush,
+                                       textcolor = self.BLACK,
+                                       text = "Stack pointer",
+                                       length = 4,
+                                       oncolor = self.RED,
+                                       offcolor = self.DARKERRED)
+
+        self.ctrl_display = BitDisplay(cpos = (950, 800),
                                        font = self._font_brush,
                                        textcolor = self.BLACK,
                                        text = "Control word",
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE,
-                                       length = 24)
+                                       length = 32)
 
         self.clk_display = BitDisplay(cpos = (50, 60),
                                       font = self._font_brush,
@@ -710,6 +745,7 @@ class Game:
         pygame.draw.rect(self._bg, (0,0,0), self.oprt_display.reg_bg, border_radius = 10)
         pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 10)
         pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.stap_display.reg_bg, border_radius = 10)
         #pygame.draw.rect(self._bg, (0,0,0), self.clk_display.reg_bg, border_radius = 10)
 
         self.keypad1 = BitDisplay(cpos = (1100, 50), length = 3, radius = 15,
@@ -868,6 +904,7 @@ class Game:
         self.insb_display.draw_number(self.computer.inst_reg_b, self._screen)
         self.outp_display.draw_number(self.computer.out_regist, self._screen)
         self.inpt_display.draw_number(self.computer.input_regi, self._screen)
+        self.stap_display.draw_number(self.computer.stackpointer, self._screen)
 
         """ Draw and check the numpad buttons for input """
         i = 0
