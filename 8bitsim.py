@@ -10,6 +10,7 @@ import numpy as np
 class Computer:
     def __init__(self):
         self.memory = np.zeros(256, dtype = np.uint16)
+        self.get_mem_strings()
 
         # microcode definitions
         HLT = self.HLT = 0b100000000000000000000000 # Halt
@@ -192,6 +193,23 @@ class Computer:
 
             outs += f"{s}\n"
         print(outs, end = "")
+
+    def get_mem_strings(self):
+        mem_strings = []
+        for i in range(16):
+            line = self.memory[i*16:i*16 + 16]
+            s = ""
+            for j, item in enumerate(line):
+                item = hex(item).replace("0x", "")
+                if len(item) == 1:
+                    item = "0" + item
+                s += f"{item} "
+                if j == 7:
+                    s += " "
+
+            mem_strings.append(s)
+        self.mem_strings = mem_strings
+        return mem_strings
 
     def printstate(self, debug = True):
         d2b = self.dec2bin
@@ -502,6 +520,7 @@ class Game:
         self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
         self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
+        self._font_verysmall_console = pygame.font.SysFont("monospace", 10)
         self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 11)
         self._font = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 16)
         self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
@@ -772,17 +791,24 @@ class Game:
 
         self.keys_pressed = list(pygame.key.get_pressed())
 
+        
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_RETURN:
-                self.computer.update()
-                self.computer.clock_high()
-                self.computer.printstate()
-
             if event.key == pygame.K_r:
                 self.computer.reset()
+            if not self.autorun:
+                if event.key == pygame.K_RETURN:
+                    self.computer.update()
+                    self.computer.clock_high()
+                    self.computer.printstate()
+
+                if event.key == pygame.K_SPACE:
+                    self.autorun = True
+            else:
+                if event.key == pygame.K_SPACE:
+                    self.autorun = False
 
         if event.type == pygame.KEYUP:
-            if event.key == pygame.K_RETURN:
+            if event.key == pygame.K_RETURN and not self.autorun:
                 self.computer.clock_low()
                 self.computer.update()
 
@@ -814,7 +840,7 @@ class Game:
                 self.computer.update()
                 self.computer.clock_low()
         
-        #self.computer.printmem()
+        self.computer.get_mem_strings()
 
         self.step += 1
         if self.step == 2:
@@ -827,6 +853,7 @@ class Game:
     def render(self):
         self._screen.blit(self._bg, (0,0))
 
+        """ Draw LED displays """
         #self.clk_display.draw_number(self.computer.timer_indicator, self._screen)
         self.bus_display.draw_number(self.computer.bus, self._screen)
         self.cnt_display.draw_number(self.computer.prog_count, self._screen)
@@ -842,6 +869,7 @@ class Game:
         self.outp_display.draw_number(self.computer.out_regist, self._screen)
         self.inpt_display.draw_number(self.computer.input_regi, self._screen)
 
+        """ Draw and check the numpad buttons for input """
         i = 0
         for kp, num in zip(self.keypad_rows, self.keypad_numbers):
             kp.draw_number(num, self._screen)
@@ -877,25 +905,32 @@ class Game:
             text_y = y - kp_text.get_height() / 2
             self._screen.blit(kp_text, (text_x, text_y))
 
+        """ Draw the output display """
         out_string = f"{self.computer.out_regist:>03d}"
         out_text = self._font_segmentdisplay.render(out_string, True, self.BRIGHTRED)
         screen_bg = pygame.Rect(980, 480, out_text.get_width() + 35, out_text.get_height() + 25)
         pygame.draw.rect(self._screen, self.DARKGREY, screen_bg, border_radius = 10)
         self._screen.blit(out_text, (1000, 500))
 
+        """ Draw the control word LED display, and the labels """
         self.ctrl_display.draw_number(self.computer.controlword, self._screen)
         for text, x_center in zip(self.ctrl_word_text_rendered, self.ctrl_display.xvalues):
             text_x = int(x_center - text.get_width()/2)
             text_y = int(self.ctrl_display.y + text.get_height())
             self._screen.blit(text, (text_x, text_y))
 
+        """ Draw the operation timestep LED display """
         operation = int("1" + "0"*self.computer.op_timestep)
         self.oprt_display.draw_bits(operation, self._screen)
         self._screen.blit(self.clockrate, (5,5))
 
+        """ If the timestep is zero, update which instruction from the program
+        is the active one (to draw with green)
+        """
         if self.computer.op_timestep == 0:
             self.display_op = self.computer.prog_count
 
+        """ Draw the program """
         x = 10
         y = 30
         for i, item in enumerate(self.prog_texts_black):
@@ -906,6 +941,14 @@ class Game:
             if y >= self._height - 20:
                 y = 30
                 x += 100
+
+        """ Draw the memory """
+        x = 1230
+        y = 30
+        for i, item in enumerate(self.computer.mem_strings):
+            out_text = self._font_small_console.render(item, True, self.BLACK)
+            self._screen.blit(out_text, (x, y))
+            y += 15
 
         pygame.display.flip()
 
