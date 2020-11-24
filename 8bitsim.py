@@ -40,7 +40,7 @@ class Computer:
             self.assembly[i] = []
 
         """ All operations begin with CO|MI -> RO|IAI|CE """
-        self.assembly[0b00000000] = [] # NOP, 0
+        self.assembly[0b00000000] = [ORE] # NOP, 0
         self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|AI|ORE]                             # LDA, 1, load into A from mem
         self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|BI,             EO|AI|FI|ORE]       # ADD, 2, add to A
         self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,          RO|BI,             EO|AI|FI|SU|ORE]    # SUB, 3, subtract from A
@@ -177,7 +177,7 @@ class Computer:
         self.program = program
     
     def printmem(self):
-        """ Prints the memory to terminal"""
+        """ Prints the memory to terminal """
         outs = "###\n"
         for i in range(16):
             line = self.memory[i*16:i*16 + 16]
@@ -463,8 +463,8 @@ class Game:
     def __init__(self, autorun = True, target_FPS = 300, HZ_multiplier = 1):
         self._running = True
         self._screen = None
-        self._width = 1280
-        self._height = 800
+        self._width = 1600
+        self._height = 900
         self._size = (self._width, self._height)
         self.fps = 0
         self.step = 0
