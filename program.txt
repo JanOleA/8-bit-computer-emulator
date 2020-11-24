@@ -1,87 +1,96 @@
+pressing = 255      ; memory location for storing whatever number the user pressed last
+multiplicand = 254  ; multiplicand for the multiply routine
+multiplier = 253    ; multiplier in the multiply routine (how many times .multiplicand is added up)
+product = 252       ; product of the multiplication, used for adding up the multipicand
+result = 251        ; result of any calculation
+userval = 250       ; the entire inputted number (i.e., if the user presses "2" and then "3", it will be "23")
+
 start:
-  LDI 0           ; clear memory
-  STA 255         ; current pressed number
-  STA 254         ; multiplicand
-  STA 253         ; multiplier
-  STA 251         ; stored result
-  STA 250         ; stored user value
+  LDI 0             ; load 0 to clear variables
+  STA .pressing 
+  STA .multiplicand
+  STA .multiplier
+  STA .product
+  STA .result
+  STA .userval
 check_input:
-  KEI             ; load value from input register
-  ADI 128         ; add 128 to the value
-  JPC input       ; if result > 255, jump to input handling
-  JMP check_input ; otherwise, continue check_input loop
+  KEI               ; load value from input register
+  ADI 128           ; add 128 to the value
+  JPC input         ; if result > 255, jump to input handling
+  JMP check_input   ; otherwise, continue check_input loop
 input:
-  ADI 192         ; add 192 to the value
-  JPC handle_add  ; if carry, add button was pressed
-  ADI 32          ; if not, add 32 to the value
-  JPC handle_sub  ; if carry, sub button was pressed
-  ADI 16          ; if not, add 16 to the value
-  JPC handle_mul  ; if carry, mul button was pressed
-  ADI 16          ; if not, add 16 to clear top 4 bits
-  STA 255         ; store the number the user pressed in 255
-  LDI 10          ; the current input value is stored in 250, must multiply by ten to insert new number at end
-  STA 253         ; put 10 in 253
-  LDA 250         ; load the current input value
-  STA 254         ; put the current input value in 254
-  JSR multiply    ; multiply 253 with 254
-  ADD 255         ; add currently pressed number
-  OUT             ; display the value
-  STA 250         ; store to 250
+  ADI 192           ; add 192 to the value
+  JPC handle_add    ; if carry, add button was pressed
+  ADI 32            ; if not, add 32 to the value
+  JPC handle_sub    ; if carry, sub button was pressed
+  ADI 16            ; if not, add 16 to the value
+  JPC handle_mul    ; if carry, mul button was pressed
+  ADI 16            ; if not, add 16 to clear top 4 bits
 
-chk_no_inpt:      ; loop for checking whether no input is pressed
-  KEI             ; load value from input register
-  ADI 0           ; add zero to it
-  JPZ check_input ; jump to check input, if the result is zero
-  JMP chk_no_inpt ; else, jump back to checking if there is no input
+  STA .pressing
+  LDI 10            ; the current input value is stored in 250, must multiply by ten to insert new number at end
+  STA .multiplier
+  LDA .userval      ; load the current userval to multiply it by 10
+  STA .multiplicand
+  JSR multiply      ; multiply .multiplicand with .multiplier
+  ADD .pressing     ; add the currently pressed number to the result of the multiplication
+  OUT               ; display the value
+  STA .userval      ; store the result to .userval
 
-multiply:         ; multiplies the value in 254 with the value in 253, places it in 252 and the A-register
-  LDA 254
-  STA 252         ; store the multiplicand in the product address
+chk_no_inpt:        ; loop for checking whether no input is pressed
+  KEI               ; load value from input register
+  ADI 0             ; add zero to it
+  JPZ check_input   ; jump to check input, if the result is zero
+  JMP chk_no_inpt   ; else, jump back to checking if there is no input
+
+multiply:           ; multiplies .multiplicand with .multiplier, stores it in .product
+  LDA .multiplicand
+  STA .product      ; store the multiplicand in .product, essentially doing the first addition
 mult_loop:
-  LDA 253         ; load multiplier
-  SUI 1           ; subtract 1 from multiplier
-  JPZ mult_end    ; if result is zero, end multiply
-  STA 253         ; if not, store new multiplier in 254
-  LDA 252         ; load product
-  ADD 254         ; add multiplicand to product
-  STA 252         ; store product
-  JMP mult_loop   ; continue multiply loop
+  LDA .multiplier
+  SUI 1             ; subtract 1 from multiplier
+  JPZ mult_end      ; if result is zero, end multiply
+  STA .multiplier
+  LDA .product
+  ADD .multiplicand
+  STA .product
+  JMP mult_loop     ; continue multiply loop
 mult_end:
-  LDA 252         ; load product into A
-  RET             ; return
+  LDA .product
+  RET               ; return
 
 handle_add:
-  LDA 251         ; load current result
-  ADD 250         ; add current input to it
-  OUT             ; output result
-  STA 251         ; store in 251
+  LDA .result
+  ADD .userval
+  OUT
+  STA .result
   LDI 0
-  STA 250         ; set current input to 0
+  STA .userval      ; set current input to 0
   JMP chk_no_inpt
 
 handle_sub:
-  LDA 251         ; load current result
-  SUB 250         ; subtract current input from it
-  OUT             ; output result
-  STA 251         ; store in 251
+  LDA .result
+  SUB .userval
+  OUT
+  STA .result
   LDI 0
-  STA 250         ; set current input to 0
+  STA .userval      ; set current input to 0
   JMP chk_no_inpt
 
-handle_mul:       ; multiplies the value in 254 with the value in 253, places it in 252 and the A-register
-  LDA 250         ; load current input
-  ADI 0           ; add zero to it
-  JPZ zero        ; if the multiplier is zero, jump to zero
-  STA 253         ; store as multiplier
-  LDA 251         ; load current result
-  STA 254         ; store it in 254 (multiplicand)
-  JSR multiply    ; multiply 254 * 253
+handle_mul:
+  LDA .userval
+  ADI 0             ; add zero to it
+  JPZ zero          ; if the input is zero, the result should be zero, handle that separately
+  STA .multiplier 
+  LDA .result
+  STA .multiplicand
+  JSR multiply      ; multiply
 mult_end_2:
-  OUT             ; output result
-  STA 251         ; store result in 251
+  OUT               ; output result
+  STA .result
   LDI 0
-  STA 250         ; set current input to 0
+  STA .userval      ; set current input to 0
   JMP chk_no_inpt
-zero:             ; if the multiplier is zero, the A register will be zero at this point, and result should be zero
-  STA 252
-  JMP mult_end_2  ;
+zero:               ; if the multiplier is zero, the A register will be zero at this point, and result should be zero
+  STA .product
+  JMP mult_end_2 

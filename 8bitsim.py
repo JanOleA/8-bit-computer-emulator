@@ -135,11 +135,15 @@ class Computer:
         print(f"{i} words of memory used for program")
 
     def assembler_complex(self):
+        """ Assembler for the newer type of assembly language. Supports labeling,
+        jump to labels and more.
+        """
         with open("program.txt", "r") as infile:
             lines = infile.readlines()
 
         addresses = {}
         addresses_line = {}
+        variables = {}
         program = []
 
         address = 0
@@ -158,8 +162,14 @@ class Computer:
                     address += 1
                 progline += 1
             elif not line.startswith(" "):
-                """ Mark an address with a string """
+                if "=" in line:
+                    """ Variables """
+                    line_ = line.strip().split("=")
+                    varname = line_[0].strip()
+                    varvalue = int(line_[1].strip())
+                    variables[varname] = varvalue
                 if ":" in line:
+                    """ Labels """
                     address_name = line.strip().split(":")[0]
                     addresses[address_name] = address
                     addresses_line[address] = progline
@@ -183,7 +193,13 @@ class Computer:
                         mem_ins = int(address)
                         program[i][0][1] = str(addresses_line[addresses[item]])
                     else:
-                        mem_ins = int(item)
+                        if item[0] == ".":
+                            """ Variable """
+                            val = variables[item[1:]]
+                            program[i][0][1] = str(val)
+                        else:
+                            val = item
+                        mem_ins = int(val)
                 self.memory[memaddress] = mem_ins
                 memaddress += 1
 
