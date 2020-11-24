@@ -23,8 +23,7 @@ input:
   STA 253         ; put 10 in 253
   LDA 250         ; load the current input value
   STA 254         ; put the current input value in 254
-  JMP multiply    ; multiply 253 with 254
-cont_inpt:
+  JSR multiply    ; multiply 253 with 254
   ADD 255         ; add currently pressed number
   OUT             ; display the value
   STA 250         ; store to 250
@@ -49,7 +48,7 @@ mult_loop:
   JMP mult_loop   ; continue multiply loop
 mult_end:
   LDA 252         ; load product into A
-  JMP cont_inpt   ; continue input handling
+  RET             ; return
 
 handle_add:
   LDA 251         ; load current result
@@ -70,24 +69,14 @@ handle_sub:
   JMP chk_no_inpt
 
 handle_mul:       ; multiplies the value in 254 with the value in 253, places it in 252 and the A-register
-  LDA 251         ; load current result
-  STA 254         ; store it in 254 (multiplicand)
-  STA 252         ; store the multiplicand in the product address
   LDA 250         ; load current input
   ADI 0           ; add zero to it
   JPZ zero        ; if the multiplier is zero, jump to zero
   STA 253         ; store as multiplier
-mult_loop_2:
-  LDA 253         ; load multiplier
-  SUI 1           ; subtract 1 from multiplier
-  JPZ mult_end_2  ; if result is zero, end multiply
-  STA 253         ; if not, store new multiplier in 254
-  LDA 252         ; load product
-  ADD 254         ; add multiplicand to product
-  STA 252         ; store product
-  JMP mult_loop_2 ; continue multiply loop
+  LDA 251         ; load current result
+  STA 254         ; store it in 254 (multiplicand)
+  JSR multiply    ; multiply 254 * 253
 mult_end_2:
-  LDA 252         ; load product into A
   OUT             ; output result
   STA 251         ; store result in 251
   LDI 0
