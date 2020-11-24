@@ -506,7 +506,7 @@ class BitDisplay:
 
 
 class Game:
-    def __init__(self, autorun = True, target_FPS = 300, HZ_multiplier = 1, draw_mem = False):
+    def __init__(self, autorun = True, target_FPS = 300, HZ_target = None, draw_mem = False):
         self._running = True
         self._screen = None
         self._width = 1600
@@ -517,7 +517,11 @@ class Game:
 
         self.autorun = autorun
         self.target_FPS = target_FPS
-        self.HZ_multiplier = HZ_multiplier
+        if HZ_target is None:
+            self.HZ_target = target_FPS
+        else:
+            self.HZ_target = HZ_target
+        self.HZ_multiplier = max(int(HZ_target/target_FPS), 0)
         self.draw_mem = draw_mem
 
         self.WHITE = (255, 255, 255)
@@ -550,7 +554,9 @@ class Game:
         self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
         self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
+        self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
         self._font_verysmall_console = pygame.font.SysFont("monospace", 10)
+        self._font_verysmall_console_bold = pygame.font.SysFont("monospace", 10, bold = True)
         self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 11)
         self._font = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 16)
         self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
@@ -598,7 +604,7 @@ class Game:
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
 
-        self.flgr_display = BitDisplay(cpos = (1130, 350),
+        self.flgr_display = BitDisplay(cpos = (1110, 350),
                                        font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Flags register",
@@ -628,7 +634,6 @@ class Game:
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
         
-
         self.insa_display = BitDisplay(cpos = (440, 350),
                                        font = self._font_exobold,
                                        textcolor = self.BLACK,
@@ -807,6 +812,20 @@ class Game:
         self.prog_offsets = prog_offsets
         self.display_op = 0
 
+        memcolumn = ""
+        self.memrows = []
+        for i in range(16):
+            text = f"{i:>02d} "
+            if i == 7:
+                text += " "
+            memcolumn += text
+
+            rowtext = f"{i*16:>03d}"
+            self.memrows.append(self._font_small_console_bold.render(rowtext, True, self.BLACK))
+        
+        self.memcolumn = self._font_small_console_bold.render(memcolumn, True, self.BLACK)
+        self.memory_title = self._font_exobold.render("Memory:", True, self.BLACK)
+
     def simple_line(self, pos1, pos2, color, shift1 = (0,0), shift2 = (0,0), width = 5):
         """ Draws a simple line to display connections between registers to the
         background image.
@@ -890,9 +909,19 @@ class Game:
         if self.step == 2:
             self.step = 0
 
+        """ Adjust multiplier to reach FPS and as good as possible HZ """
         self._clock.tick_busy_loop(self.target_FPS)
         self.fps = self._clock.get_fps()
+        HZ = self.fps*HZ_multiplier
+        if self.fps < self.target_FPS:
+            if HZ_multiplier > 1:
+                HZ_multiplier -= 2
+        elif HZ < self.HZ_target:
+            HZ_multiplier += 1
+
+        self.HZ_multiplier = HZ_multiplier
         self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.BLACK)
+        self.fpstext = self._font.render(f"{int(self.fps):d} FPS", True, self.BLACK)
 
     def render(self):
         self._screen.blit(self._bg, (0,0))
@@ -967,7 +996,6 @@ class Game:
         """ Draw the operation timestep LED display """
         operation = int("1" + "0"*self.computer.op_timestep)
         self.oprt_display.draw_bits(operation, self._screen)
-        self._screen.blit(self.clockrate, (5,5))
 
         """ If the timestep is zero, update which instruction from the program
         is the active one (to draw with green)
@@ -989,12 +1017,20 @@ class Game:
 
         """ Draw the memory """
         if self.draw_mem:
-            x = 1230
-            y = 30
+            memwidth = self.memcolumn.get_width()
+            titlewidth = self.memory_title.get_width()
+            x = 1240
+            y = 57
+            self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))
+            self._screen.blit(self.memcolumn, (x, y - 18))
             for i, item in enumerate(self.computer.mem_strings):
                 out_text = self._font_small_console.render(item, True, self.BLACK)
                 self._screen.blit(out_text, (x, y))
+                self._screen.blit(self.memrows[i], (x - 32, y))
                 y += 15
+
+        self._screen.blit(self.clockrate, (5,5))
+        self._screen.blit(self.fpstext, (100,5))
 
         pygame.display.flip()
 
@@ -1014,23 +1050,15 @@ class Game:
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        autorun = sys.argv[1]
-        if autorun == "False":
-            autorun = False
-        else:
-            autorun = True
-    else:
-        autorun = True
-
-    if len(sys.argv) > 2:
-        target_fps = int(sys.argv[2])
+        target_fps = int(sys.argv[1])
     else:
         target_fps = 200
 
-    if len(sys.argv) > 3:
-        hz_mul = int(sys.argv[3])
+    if len(sys.argv) > 2:
+        hz_target = int(sys.argv[2])
     else:
-        hz_mul = 1
-    game = Game(autorun, target_fps, hz_mul)
+        hz_target = target_fps
+
+    game = Game(True, target_fps, hz_target)
     game.execute()
     
