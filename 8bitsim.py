@@ -33,18 +33,26 @@ class Computer:
         FI  = self.FI  = 0b00000000000000000100000000000000 # Flags in
         JC  = self.JC  = 0b00000000000000000010000000000000 # Jump on carry
         JZ  = self.JZ  = 0b00000000000000000001000000000000 # Jump on zero
-        KEI = self.KEI = 0b00000000000000000000100000000000 # Keyboard in
+        KEO = self.KEO = 0b00000000000000000000100000000000 # Keyboard register out
         ORE = self.ORE = 0b00000000000000000000010000000000 # Reset operation counter
         INS = self.INS = 0b00000000000000000000001000000000 # Increment stack pointer
         DES = self.DES = 0b00000000000000000000000100000000 # Decrement stack pointer
         STO = self.STO = 0b00000000000000000000000010000000 # Stack pointer out
 
+        self.microcodes = [HLT, MI, RI, RO, IAO, IAI, IBO, IBI, AI, AO, EO, SU, BI,
+                           OI, CE, CO, JMP, FI, JC, JZ, KEO, ORE, INS, DES, STO]
+        self.microcode_labels = ["Halt", "M.Ad. in", "RAM in", "RAM out", "Ins. AO", "Ins. AI", "Ins. BO",
+                                 "Ins. BI", "A in", "A out", "Sum out", "Sub.", "B in",
+                                 "Disp. in", "Cnt. en.", "Cnt. O", "Jump", "Flg. in", "Jmp cr",
+                                 "Jmp 0", "Key r. O", "OpT rst.", "Inc stk",
+                                 "Dec stk", "Stk O"]
+        
         self.assembly = {}
         for i in range(255):
             self.assembly[i] = []
 
         """ All operations begin with CO|MI -> RO|IAI|CE """
-        self.assembly[0b00000000] = [ORE] # NOP, 0
+        self.assembly[0b00000000] = [] # NOP, 0
         self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|AI|ORE]                                              # LDA, 1, load into A from mem
         self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|ORE]                       # ADD, 2, add to A
         self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|SU|ORE]                    # SUB, 3, subtract from A
@@ -53,7 +61,7 @@ class Computer:
         self.assembly[0b00000110] = [CO|MI,         RO|IBI|CE,      IBO|JMP|ORE]                                                            # JMP, 6, jump
         self.assembly[0b00000111] = [CO|MI,         RO|IBI|CE,      IBO|JC|ORE]                                                             # JPC, 7, jump on carry
         self.assembly[0b00001000] = [CO|MI,         RO|IBI|CE,      IBO|JZ|ORE]                                                             # JPZ, 8, jump on zero
-        self.assembly[0b00001001] = [KEI|AI|ORE]                                                                                            # KEI, 9, loads keyboard input into A
+        self.assembly[0b00001001] = [KEO|AI|ORE]                                                                                            # KEI, 9, loads keyboard input into A
         self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|ORE]                                           # ADI, 10, add immediate to A
         self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|SU|ORE]                                        # SUI, 11, sub immediate from A
         self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              FI|SU|ORE]                          # CMP, 12, compare value from memory with A register. Set zf if equal.
@@ -106,8 +114,6 @@ class Computer:
             for item in items:
                 j += 1
                 i += 1
-
-        print(lines_history)
 
         i = 0
         for k, line in enumerate(lines):
@@ -351,7 +357,7 @@ class Computer:
         
         self.update_ALU(subtract)
 
-        if operation&self.KEI:
+        if operation&self.KEO:
             self.bus = self.input_regi
 
         if operation&self.EO:
@@ -522,7 +528,8 @@ class BitDisplay:
 
 
 class Game:
-    def __init__(self, autorun = True, target_FPS = 300, HZ_target = None, draw_mem = False):
+    def __init__(self, autorun = True, target_FPS = 300, HZ_target = None,
+                 draw_mem = False, draw_ops = False):
         self._running = True
         self._screen = None
         self._width = 1600
@@ -539,6 +546,8 @@ class Game:
             self.HZ_target = HZ_target
         self.HZ_multiplier = max(int(HZ_target/target_FPS), 0)
         self.draw_mem = draw_mem
+        self.draw_ops = draw_ops
+        self.op_address_draw = 0
 
         self.WHITE = (255, 255, 255)
         self.GREY = (115, 115, 115)
@@ -841,6 +850,7 @@ class Game:
         
         self.memcolumn = self._font_small_console_bold.render(memcolumn, True, self.BLACK)
         self.memory_title = self._font_exobold.render("Memory:", True, self.BLACK)
+        self.microins_title = self._font_exobold.render("Current instruction:", True, self.BLACK)
 
     def simple_line(self, pos1, pos2, color, shift1 = (0,0), shift2 = (0,0), width = 5):
         """ Draws a simple line to display connections between registers to the
@@ -874,11 +884,24 @@ class Game:
                     self.draw_mem = False
                 else:
                     self.draw_mem = True
+            if event.key == pygame.K_n:
+                if self.draw_ops:
+                    self.draw_ops = False
+                else:
+                    self.draw_ops = True
+            if event.key == pygame.K_d:
+                # debug mode
+                self.draw_mem = True
+                self.draw_ops = True
+            if event.key == pygame.K_c:
+                # clean mode (no debug)
+                self.draw_mem = False
+                self.draw_ops = False
+
             if not self.autorun:
                 if event.key == pygame.K_RETURN:
                     self.computer.update()
                     self.computer.clock_high()
-                    self.computer.printstate()
 
                 if event.key == pygame.K_SPACE:
                     self.autorun = True
@@ -1044,6 +1067,27 @@ class Game:
                 self._screen.blit(out_text, (x, y))
                 self._screen.blit(self.memrows[i], (x - 32, y))
                 y += 15
+
+        """ Draw the operations included in the current instruction """
+        if self.draw_ops:
+            self._screen.blit(self.microins_title, (1180, 620))
+            if self.computer.op_timestep >= 2:
+                self.op_address_draw = self.computer.inst_reg_a
+            operations = self.computer.assembly[self.op_address_draw].copy()
+            operations.insert(0, self.computer.RO|self.computer.IAI|self.computer.CE)
+            operations.insert(0, self.computer.CO|self.computer.MI)
+            for i, operation in enumerate(operations):
+                if (i >= 2 and self.computer.op_timestep < 2):
+                    continue
+                s = ""
+                for instruction, label in zip(self.computer.microcodes, self.computer.microcode_labels):
+                    if instruction & operation:
+                        s += f"{label:>9s} | "
+                self.arrow = self._font_small_console_bold.render("> " + "_"*(len(s) - 4), "True", self.DARKGREEN)
+                if i == self.computer.op_timestep:
+                    self._screen.blit(self.arrow, (1170, 650 + i*15))
+                out_text = self._font_small_console.render(s[:-2], True, self.BLACK)
+                self._screen.blit(out_text, (1180, 650 + i*15))
 
         self._screen.blit(self.clockrate, (5,5))
         self._screen.blit(self.fpstext, (100,5))
