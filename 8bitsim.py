@@ -428,6 +428,7 @@ class Computer:
         """ Steps the CPU one clock cycle forward """
         self.update()
         result = self.clock_high()
+        self.update()
         self.clock_low()
         self.update()
 
@@ -505,7 +506,7 @@ class BitDisplay:
 
 
 class Game:
-    def __init__(self, autorun = True, target_FPS = 300, HZ_multiplier = 1):
+    def __init__(self, autorun = True, target_FPS = 300, HZ_multiplier = 1, draw_mem = False):
         self._running = True
         self._screen = None
         self._width = 1600
@@ -517,7 +518,8 @@ class Game:
         self.autorun = autorun
         self.target_FPS = target_FPS
         self.HZ_multiplier = HZ_multiplier
-        
+        self.draw_mem = draw_mem
+
         self.WHITE = (255, 255, 255)
         self.GREY = (115, 115, 115)
         self.DARKGREY = (20, 20, 20)
@@ -544,6 +546,7 @@ class Game:
         self._running = True
 
         pygame.font.init()
+        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 21)
         self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
         self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
@@ -561,42 +564,42 @@ class Game:
         self.computer = Computer()
 
         self.bus_display = BitDisplay(cpos = (640, 50),
-                                      font = self._font_brush,
+                                      font = self._font_exobold,
                                       textcolor = self.BLACK,
                                       text = "Bus",
                                       oncolor = self.RED,
                                       offcolor = self.DARKERRED)
 
         self.cnt_display = BitDisplay(cpos = (840, 150),
-                                      font = self._font_brush,
+                                      font = self._font_exobold,
                                       textcolor = self.BLACK,
                                       text = "Program counter",
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
 
         self.areg_display = BitDisplay(cpos = (840, 250),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "A register",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
 
         self.breg_display = BitDisplay(cpos = (840, 450),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "B register",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
 
         self.sreg_display = BitDisplay(cpos = (840, 350),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "ALU (sum)",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
 
         self.flgr_display = BitDisplay(cpos = (1130, 350),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Flags register",
                                        length = 2,
@@ -604,7 +607,7 @@ class Game:
                                        offcolor = self.DARKERGREEN)
 
         self.flag_display = BitDisplay(cpos = (1000, 350),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Flags",
                                        length = 2,
@@ -612,14 +615,14 @@ class Game:
                                        offcolor = self.DARKERBLUE)
 
         self.madd_display = BitDisplay(cpos = (440, 150),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Memory address",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
         self.mcon_display = BitDisplay(cpos = (440, 250),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Memory content",
                                        oncolor = self.RED,
@@ -627,42 +630,42 @@ class Game:
         
 
         self.insa_display = BitDisplay(cpos = (440, 350),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Instruction register A",
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE)
 
         self.insb_display = BitDisplay(cpos = (440, 450),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Instruction register B",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
         self.oprt_display = BitDisplay(cpos = (440, 550),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Operation timestep",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
         self.inpt_display = BitDisplay(cpos = (440, 650),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Input register",
                                        oncolor = self.PURPLEISH,
                                        offcolor = self.DARKERPURPLEISH)
 
         self.outp_display = BitDisplay(cpos = (840, 550),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Output register",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
         self.stap_display = BitDisplay(cpos = (840, 650),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Stack pointer",
                                        length = 4,
@@ -670,7 +673,7 @@ class Game:
                                        offcolor = self.DARKERRED)
 
         self.ctrl_display = BitDisplay(cpos = (950, 800),
-                                       font = self._font_brush,
+                                       font = self._font_exobold,
                                        textcolor = self.BLACK,
                                        text = "Control word",
                                        oncolor = self.BLUE,
@@ -678,7 +681,7 @@ class Game:
                                        length = 32)
 
         self.clk_display = BitDisplay(cpos = (50, 60),
-                                      font = self._font_brush,
+                                      font = self._font_exobold,
                                       textcolor = self.BLACK,
                                       text = "Clock",
                                       length = 1,
@@ -698,6 +701,7 @@ class Game:
         self.simple_line(self.breg_display, (self.bus_display.x, self.breg_display.y), self.RED)
         self.simple_line(self.sreg_display, (self.bus_display.x, self.sreg_display.y), self.RED)
         self.simple_line(self.outp_display, (self.bus_display.x, self.outp_display.y), self.RED)
+        self.simple_line(self.stap_display, (self.bus_display.x, self.stap_display.y), self.RED)
         self.simple_line(self.flag_display, self.flgr_display, self.RED)
 
         self.simple_line(self.madd_display, self.mcon_display, self.BLUE, (85,0), (85,0))
@@ -710,9 +714,8 @@ class Game:
         self.simple_line(self.insa_display, (self.insa_display.x - 130, self.ctrl_display.y), self.PURPLEISH, (-130, -2))
         self.simple_line((self.insa_display.x - 132, self.ctrl_display.y), self.ctrl_display, self.PURPLEISH)
 
-        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKGREEN, (0, 37))
-        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKGREEN, (0, 35), (-660, 35))
-        self.simple_line(self.ctrl_display, self.madd_display, self.DARKGREEN, (-660, 37), (-150, -2))
+        self.simple_line(self.ctrl_display, self.madd_display, self.DARKGREEN, (-660, -47), (-150, -2))
+        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKGREEN, (-662, -47), (-240, -47))
         self.simple_line(self.madd_display, self.madd_display, self.DARKGREEN, (-150, 0))
         self.simple_line(self.mcon_display, self.mcon_display, self.DARKGREEN, (-150, 0))
         self.simple_line(self.insa_display, self.insa_display, self.DARKGREEN, (-150, -5), (0, -5))
@@ -726,6 +729,7 @@ class Game:
         self.simple_line(self.breg_display, self.breg_display, self.DARKGREEN, (0, -5), (-130, -5))
         self.simple_line(self.sreg_display, self.sreg_display, self.DARKGREEN, (0, -5), (-130, -5))
         self.simple_line(self.outp_display, self.outp_display, self.DARKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.stap_display, self.stap_display, self.DARKGREEN, (0, -5), (-130, -5))
 
         self.simple_line(self.flgr_display, self.flgr_display, self.DARKGREEN, (0, 0), (52, 0))
         self.simple_line(self.flgr_display, (self.flgr_display.x + 50, self.ctrl_display.y), self.DARKGREEN, (50, 0))
@@ -774,7 +778,7 @@ class Game:
 
         ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
                           "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
-                          "FI", "JC", "JZ", "KEI", "ORE"]
+                          "FI", "JC", "JZ", "KEI", "ORE", "INS", "DES", "STO"]
 
         self.ctrl_word_text_rendered = []
         for text in ctrl_word_text:
@@ -827,10 +831,14 @@ class Game:
 
         self.keys_pressed = list(pygame.key.get_pressed())
 
-        
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
                 self.computer.reset()
+            if event.key == pygame.K_m:
+                if self.draw_mem:
+                    self.draw_mem = False
+                else:
+                    self.draw_mem = True
             if not self.autorun:
                 if event.key == pygame.K_RETURN:
                     self.computer.update()
@@ -980,12 +988,13 @@ class Game:
                 x += 100
 
         """ Draw the memory """
-        x = 1230
-        y = 30
-        for i, item in enumerate(self.computer.mem_strings):
-            out_text = self._font_small_console.render(item, True, self.BLACK)
-            self._screen.blit(out_text, (x, y))
-            y += 15
+        if self.draw_mem:
+            x = 1230
+            y = 30
+            for i, item in enumerate(self.computer.mem_strings):
+                out_text = self._font_small_console.render(item, True, self.BLACK)
+                self._screen.blit(out_text, (x, y))
+                y += 15
 
         pygame.display.flip()
 
