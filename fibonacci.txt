@@ -1,18 +1,19 @@
+x = 255
+y = 254
+
 start:
   LDI 1
-  STA 255
-  LDI 0
-  STA 254
+  STA .x
+  STA .y
   OUT
 add:
-  LDA 255
-  ADD 254
+  LDA .x
+  ADD .y
   JPC start
   OUT
-  STA 255
-  LDA 255
-  ADD 254
+  STA .x
+  ADD .y
   JPC start
   OUT
-  STA 254
+  STA .y
   JMP add

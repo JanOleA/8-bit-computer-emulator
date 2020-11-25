@@ -1,96 +1,23 @@
-pressing = 255      ; memory location for storing whatever number the user pressed last
-multiplicand = 254  ; multiplicand for the multiply routine
-multiplier = 253    ; multiplier in the multiply routine (how many times .multiplicand is added up)
-product = 252       ; product of the multiplication, used for adding up the multipicand
-result = 251        ; result of any calculation
-userval = 250       ; the entire inputted number (i.e., if the user presses "2" and then "3", it will be "23")
+x = 255       ; memory address for .x
+y = 254       ; memory address for .y
 
 start:
-  LDI 0             ; load 0 to clear variables
-  STA .pressing 
-  STA .multiplicand
-  STA .multiplier
-  STA .product
-  STA .result
-  STA .userval
-check_input:
-  KEI               ; load value from input register
-  ADI 128           ; add 128 to the value
-  JPC input         ; if result > 255, jump to input handling
-  JMP check_input   ; otherwise, continue check_input loop
-input:
-  ADI 192           ; add 192 to the value
-  JPC handle_add    ; if carry, add button was pressed
-  ADI 32            ; if not, add 32 to the value
-  JPC handle_sub    ; if carry, sub button was pressed
-  ADI 16            ; if not, add 16 to the value
-  JPC handle_mul    ; if carry, mul button was pressed
-  ADI 16            ; if not, add 16 to clear top 4 bits
-
-  STA .pressing
-  LDI 10            ; the current input value is stored in 250, must multiply by ten to insert new number at end
-  STA .multiplier
-  LDA .userval      ; load the current userval to multiply it by 10
-  STA .multiplicand
-  JSR multiply      ; multiply .multiplicand with .multiplier
-  ADD .pressing     ; add the currently pressed number to the result of the multiplication
-  OUT               ; display the value
-  STA .userval      ; store the result to .userval
-
-chk_no_inpt:        ; loop for checking whether no input is pressed
-  KEI               ; load value from input register
-  ADI 0             ; add zero to it
-  JPZ check_input   ; jump to check input, if the result is zero
-  JMP chk_no_inpt   ; else, jump back to checking if there is no input
-
-multiply:           ; multiplies .multiplicand with .multiplier, stores it in .product
-  LDA .multiplicand
-  STA .product      ; store the multiplicand in .product, essentially doing the first addition
-mult_loop:
-  LDA .multiplier
-  SUI 1             ; subtract 1 from multiplier
-  JPZ mult_end      ; if result is zero, end multiply
-  STA .multiplier
-  LDA .product
-  ADD .multiplicand
-  STA .product
-  JMP mult_loop     ; continue multiply loop
-mult_end:
-  LDA .product
-  RET               ; return
-
-handle_add:
-  LDA .result
-  ADD .userval
-  OUT
-  STA .result
-  LDI 0
-  STA .userval      ; set current input to 0
-  JMP chk_no_inpt
-
-handle_sub:
-  LDA .result
-  SUB .userval
-  OUT
-  STA .result
-  LDI 0
-  STA .userval      ; set current input to 0
-  JMP chk_no_inpt
-
-handle_mul:
-  LDA .userval
-  ADI 0             ; add zero to it
-  JPZ zero          ; if the input is zero, the result should be zero, handle that separately
-  STA .multiplier 
-  LDA .result
-  STA .multiplicand
-  JSR multiply      ; multiply
-mult_end_2:
-  OUT               ; output result
-  STA .result
-  LDI 0
-  STA .userval      ; set current input to 0
-  JMP chk_no_inpt
-zero:               ; if the multiplier is zero, the A register will be zero at this point, and result should be zero
-  STA .product
-  JMP mult_end_2 
+  LDI 1       ; load 1 into A
+  STA .x      ; store 1 in .x
+  STA .y      ; store 1 in .y
+  OUT         ; display 1
+loop:
+  JSR adds    ; jump to the "adds" subroutine
+  STA .x      ; store A in .x
+  JSR adds    ; jump to the "adds" subroutine
+  STA .y      ; store A in .y
+  JMP loop    ; jump to start of loop
+adds:         ; adds the values in .x and .y and puts them in the A register
+  LDA .x
+  ADD .y
+  JPC ex_adds ; if .x + .y causes a carry (i.e. .x + .y > 255, jump to ex_adds)
+  OUT         ; output the result
+  RET         ; return to where the subroutine was called from
+ex_adds:
+  PLA         ; pull the value from stack into A to dec. stack pointer
+  JMP start   ; jump to start
