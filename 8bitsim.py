@@ -64,7 +64,7 @@ class Computer:
         self.assembly[0b00001001] = [KEO|AI|ORE]                                                                                            # KEI, 9, loads keyboard input into A
         self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|ORE]                                           # ADI, 10, add immediate to A
         self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|SU|ORE]                                        # SUI, 11, sub immediate from A
-        self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              FI|SU|ORE]                          # CMP, 12, compare value from memory with A register. Set zf if equal.
+        self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              FI|SU|ORE]                          # CMP, 12, compare value from memory with A register. Set zf if equal, cf if A is smaller.
         self.assembly[0b00001101] = [STO|MI,        AO|RI|INS|ORE]                                                                          # PHA, 13, push value from A onto the stack
         self.assembly[0b00001110] = [STO|MI,        AI|RO|DES|ORE]                                                                          # PLA, 14, pull value from stack onto A
         self.assembly[0b00001111] = [STO|AI|ORE]                                                                                            # LDS, 15, load the value of the stack pointer into A
@@ -172,7 +172,10 @@ class Computer:
                     """ Variables """
                     line_ = line.strip().split("=")
                     varname = line_[0].strip()
-                    varvalue = int(line_[1].strip())
+                    if line_[1].strip()[0] == ".":
+                        varvalue = variables[line_[1].strip()[1:]]
+                    else:
+                        varvalue = int(line_[1].strip())
                     variables[varname] = varvalue
                 if ":" in line:
                     """ Labels """
@@ -793,11 +796,14 @@ class Game:
                                   offcolor = (40, 40, 40), oncolor = (80, 120, 80))
         self.keypad0 = BitDisplay(cpos = (1030, 120), length = 1, radius = 15,
                                   offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad_div = BitDisplay(cpos = (1030, 165), length = 1, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
 
         self.keypad_rows = [self.keypad1, self.keypad2, self.keypad3, self.keypad4]
         self.keypad_numbers = [0, 0, 0, 0]
         self.keypad = np.zeros((4,3))
         self.keypad_zero_pressed = 0
+        self.keypad_div_pressed = 0
 
         keypad_symbols = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "+", "-", "*"]
         self.keypad_texts_rendered = []
@@ -806,6 +812,7 @@ class Game:
                                                                       True,
                                                                       self.WHITE))
         self.keypad_texts_0 = self._font_small.render("0", True, self.WHITE)
+        self.keypad_texts_div = self._font_small.render("/", True, self.WHITE)
 
         ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
                           "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
@@ -871,6 +878,25 @@ class Game:
                          np.array(pos2) + shift2,
                          width = width)
 
+    def check_display_press(self, display, overlaytext):
+        """ Checks if a (1 length) LED display object is pressed with the left
+        mouse button. Also displays the LED.
+        Returns 1 if pressed, 0 if not.
+        """
+        pressed = 0
+        x = display.x
+        y = display.y
+        mouse_dist = (self.mouse_pos[0] - x)**2 + (self.mouse_pos[1] - y)**2
+        if mouse_dist < self.keypad0.radius**2:
+            if pygame.mouse.get_pressed()[0]:
+                pressed = 1
+        text_x = x - overlaytext.get_width() / 2
+        text_y = y - overlaytext.get_height() / 2
+        display.draw_number(pressed, self._screen)
+        self._screen.blit(overlaytext, (text_x, text_y))
+
+        return pressed
+
     def on_event(self, event):
         if event.type == pygame.QUIT:
             self._running = False
@@ -933,6 +959,9 @@ class Game:
         if self.keypad_zero_pressed:
             input_val = 128
 
+        if self.keypad_div_pressed:
+            input_val = 224
+
         self.computer.input_regi = input_val
 
         HZ_multiplier = self.HZ_multiplier
@@ -968,7 +997,7 @@ class Game:
         HZ = self.fps*HZ_multiplier
         if self.fps < self.target_FPS:
             if HZ_multiplier > 1:
-                HZ_multiplier -= 2
+                HZ_multiplier -= 1
         elif HZ < self.target_HZ:
             HZ_multiplier += 1
 
@@ -1003,19 +1032,11 @@ class Game:
             kp.draw_number(num, self._screen)
             self.keypad_numbers[i] = 0
             i += 1
-        self.keypad0.draw_number(self.keypad_zero_pressed, self._screen)
 
-        self.keypad_zero_pressed = 0
-        x = self.keypad0.x
-        y = self.keypad0.y
-        mouse_dist = (self.mouse_pos[0] - x)**2 + (self.mouse_pos[1] - y)**2
-        if mouse_dist < self.keypad0.radius**2:
-            if pygame.mouse.get_pressed()[0]:
-                self.keypad_zero_pressed = 1
-        kp_text = self.keypad_texts_0
-        text_x = x - kp_text.get_width() / 2
-        text_y = y - kp_text.get_height() / 2
-        self._screen.blit(kp_text, (text_x, text_y))
+        self.keypad_zero_pressed = self.check_display_press(self.keypad0,
+                                                            self.keypad_texts_0)
+        self.keypad_div_pressed = self.check_display_press(self.keypad_div,
+                                                           self.keypad_texts_div)
         
         self.keypad[:,:] = 0
         for i, kp_text in enumerate(self.keypad_texts_rendered):

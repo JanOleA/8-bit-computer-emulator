@@ -1,16 +1,17 @@
 pressing = 255      ; memory location for storing whatever number the user pressed last
 multiplicand = 254  ; multiplicand for the multiply routine
 multiplier = 253    ; multiplier in the multiply routine (how many times .multiplicand is added up)
-product = 252       ; product of the multiplication, used for adding up the multipicand
+product = 252       ; product of the multiplication, or quotient for the division
 result = 251        ; result of any calculation
 userval = 250       ; the entire inputted number (i.e., if the user presses "2" and then "3", it will be "23")
+dividend = 249      ; dividend for divide routine
+divisor = 248       ; divisor for divide routine
+remainder = 247     ; remainder after a division
+quotient = .product
 
 start:
-  LDI 0             ; load 0 to clear variables
-  STA .pressing 
-  STA .multiplicand
-  STA .multiplier
-  STA .product
+  LDI 0             ; load 0 to clear required variables
+  STA .pressing
   STA .result
   STA .userval
 check_input:
@@ -20,7 +21,7 @@ check_input:
   JMP check_input   ; otherwise, continue check_input loop
 input:
   ADI 192           ; add 192 to the value
-  JPC handle_add    ; if carry, add button was pressed
+  JPC handle_add_div; if carry, add or div button was pressed
   ADI 32            ; if not, add 32 to the value
   JPC handle_sub    ; if carry, sub button was pressed
   ADI 16            ; if not, add 16 to the value
@@ -59,23 +60,37 @@ mult_end:
   LDA .product
   RET               ; return
 
+divide:             ; divides .dividend with .divisors, stores the quotient in .quotient
+  LDI 0
+  STA .quotient     ; initialize quotient as 0
+div_loop:
+  LDA .dividend
+  SUB .divisor      ; subtract the divisor from the dividend
+  JPC div_end       ; if carry, the result is negative, and the division is done
+  STA .dividend     ; if not, update dividend and add 1 to quotient
+  LDA .quotient
+  ADI 1
+  STA .quotient     ; add 1 to .quotient, and store back in memory
+  JMP div_loop
+div_end:
+  ADD .divisor      ; add divisor back to the dividend to get the remainder
+  STA .remainder
+  LDA .quotient
+  RET
+
+handle_add_div:
+  JPZ handle_add
+  JMP handle_div
+
 handle_add:
   LDA .result
   ADD .userval
-  OUT
-  STA .result
-  LDI 0
-  STA .userval      ; set current input to 0
-  JMP chk_no_inpt
+  JMP end_calc
 
 handle_sub:
   LDA .result
   SUB .userval
-  OUT
-  STA .result
-  LDI 0
-  STA .userval      ; set current input to 0
-  JMP chk_no_inpt
+  JMP end_calc
 
 handle_mul:
   LDA .userval
@@ -85,12 +100,29 @@ handle_mul:
   LDA .result
   STA .multiplicand
   JSR multiply      ; multiply
-mult_end_2:
+  JMP end_calc
+
+handle_div:
+  LDA .userval
+  ADI 0
+  JPZ disp_rem      ; can't divide by zero, display remainder instead
+  STA .divisor
+  LDA .result
+  STA .dividend
+  JSR divide        ; divide
+  JMP end_calc
+
+disp_rem:           ; load remainder from memory and display it
+  LDA .remainder
+  JMP end_calc
+
+zero:               ; if multiplier or divisor is zero, output the result as 0
+  STA .product      ; .quotient and .product have the same memory address
+  JMP end_calc
+
+end_calc:           ; common instructions after ending any calculation
   OUT               ; output result
   STA .result
   LDI 0
   STA .userval      ; set current input to 0
   JMP chk_no_inpt
-zero:               ; if the multiplier is zero, the A register will be zero at this point, and result should be zero
-  STA .product
-  JMP mult_end_2 
