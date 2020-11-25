@@ -528,7 +528,7 @@ class BitDisplay:
 
 
 class Game:
-    def __init__(self, autorun = True, target_FPS = 300, HZ_target = None,
+    def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
                  draw_mem = False, draw_ops = False):
         self._running = True
         self._screen = None
@@ -537,14 +537,15 @@ class Game:
         self._size = (self._width, self._height)
         self.fps = 0
         self.step = 0
+        self.cyclecounts = 0
 
         self.autorun = autorun
         self.target_FPS = target_FPS
-        if HZ_target is None:
-            self.HZ_target = target_FPS
+        if target_HZ is None:
+            self.target_HZ = target_FPS
         else:
-            self.HZ_target = HZ_target
-        self.HZ_multiplier = max(int(HZ_target/target_FPS), 0)
+            self.target_HZ = target_HZ
+        self.HZ_multiplier = max(int(target_HZ/target_FPS), 0)
         self.draw_mem = draw_mem
         self.draw_ops = draw_ops
         self.op_address_draw = 0
@@ -935,18 +936,31 @@ class Game:
         self.computer.input_regi = input_val
 
         HZ_multiplier = self.HZ_multiplier
-        for i in range(HZ_multiplier):
-            self.computer.update()
-            if self.autorun:
-                self.computer.clock_high()
+        if self.target_HZ >= self.target_FPS:
+            for i in range(HZ_multiplier):
                 self.computer.update()
-                self.computer.clock_low()
+                if self.autorun:
+                    self.computer.clock_high()
+                    self.computer.update()
+                    self.computer.clock_low()
+        else:
+            frames_per_cycle = self.target_FPS/self.target_HZ
+            self.computer.update()
+            if self.step%int(frames_per_cycle) == 0:
+                if self.autorun:
+                    self.computer.clock_high()
+                    self.computer.update()
+                    self.computer.clock_low()
+                    self.cyclecounts += 1
         
         self.computer.get_mem_strings()
 
         self.step += 1
-        if self.step == 2:
+        if self.step >= self.fps:
             self.step = 0
+            if self.target_HZ < self.target_FPS:
+                self.clockrate = self._font.render(f"{int(self.cyclecounts):d} Hz", True, self.BLACK)
+            self.cyclecounts = 0
 
         """ Adjust multiplier to reach FPS and as good as possible HZ """
         self._clock.tick_busy_loop(self.target_FPS)
@@ -955,11 +969,12 @@ class Game:
         if self.fps < self.target_FPS:
             if HZ_multiplier > 1:
                 HZ_multiplier -= 2
-        elif HZ < self.HZ_target:
+        elif HZ < self.target_HZ:
             HZ_multiplier += 1
 
         self.HZ_multiplier = HZ_multiplier
-        self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.BLACK)
+        if self.target_HZ >= self.target_FPS:
+            self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.BLACK)
         self.fpstext = self._font.render(f"{int(self.fps):d} FPS", True, self.BLACK)
 
     def render(self):
@@ -1115,10 +1130,10 @@ if __name__ == "__main__":
         target_fps = 200
 
     if len(sys.argv) > 2:
-        hz_target = int(sys.argv[2])
+        target_HZ = int(sys.argv[2])
     else:
-        hz_target = target_fps
+        target_HZ = target_fps
 
-    game = Game(True, target_fps, hz_target)
+    game = Game(True, target_fps, target_HZ)
     game.execute()
     
