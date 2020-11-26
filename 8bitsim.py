@@ -38,13 +38,16 @@ class Computer:
         INS = self.INS = 0b00000000000000000000001000000000 # Increment stack pointer
         DES = self.DES = 0b00000000000000000000000100000000 # Decrement stack pointer
         STO = self.STO = 0b00000000000000000000000010000000 # Stack pointer out
+        RSA = self.RSA = 0b00000000000000000000000001000000 # Shift A right one time
+        LSA = self.LSA = 0b00000000000000000000000000100000 # Shift A left one time
+
 
         self.microcodes = [HLT, MI, RI, RO, IAO, IAI, IBO, IBI, AI, AO, EO, SU, BI,
                            OI, CE, CO, JMP, FI, JC, JZ, KEO, ORE, INS, DES, STO]
-        self.microcode_labels = ["Halt", "M.Ad. in", "RAM in", "RAM out", "Ins. AO", "Ins. AI", "Ins. BO",
-                                 "Ins. BI", "A in", "A out", "Sum out", "Sub.", "B in",
-                                 "Disp. in", "Cnt. en.", "Cnt. O", "Jump", "Flg. in", "Jmp cr",
-                                 "Jmp 0", "Key r. O", "OpT rst.", "Inc stk",
+        self.microcode_labels = ["Halt", "M.Ad. in", "RAM in", "RAM out", "InstA O", "InstA I", "InstB O",
+                                 "InstB I", "A in", "A out", "Sum out", "Sub", "B in",
+                                 "Disp. I", "Counter", "Cntr. O", "Jump", "Flg. in", "Jmp Cry",
+                                 "Jmp 0", "Inpt. O", "OpT rst", "Inc stk",
                                  "Dec stk", "Stk O"]
         
         self.assembly = {}
@@ -53,28 +56,33 @@ class Computer:
 
         """ All operations begin with CO|MI -> RO|IAI|CE """
         self.assembly[0b00000000] = [] # NOP, 0
-        self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|AI|ORE]                                              # LDA, 1, load into A from mem
-        self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|ORE]                       # ADD, 2, add to A
-        self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|SU|ORE]                    # SUB, 3, subtract from A
-        self.assembly[0b00000100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         AO|RI|ORE]                                              # STA, 4, store A to mem
-        self.assembly[0b00000101] = [CO|MI,         RO|IBI|CE,      IBO|AI|ORE]                                                             # LDI, 5, load immediate (into A)
-        self.assembly[0b00000110] = [CO|MI,         RO|IBI|CE,      IBO|JMP|ORE]                                                            # JMP, 6, jump
-        self.assembly[0b00000111] = [CO|MI,         RO|IBI|CE,      IBO|JC|ORE]                                                             # JPC, 7, jump on carry
-        self.assembly[0b00001000] = [CO|MI,         RO|IBI|CE,      IBO|JZ|ORE]                                                             # JPZ, 8, jump on zero
-        self.assembly[0b00001001] = [KEO|AI|ORE]                                                                                            # KEI, 9, loads keyboard input into A
-        self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|ORE]                                           # ADI, 10, add immediate to A
-        self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|SU|ORE]                                        # SUI, 11, sub immediate from A
-        self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              FI|SU|ORE]                          # CMP, 12, compare value from memory with A register. Set zf if equal, cf if A is smaller.
-        self.assembly[0b00001101] = [STO|MI,        AO|RI|INS|ORE]                                                                          # PHA, 13, push value from A onto the stack
-        self.assembly[0b00001110] = [DES,           STO|MI,         AI|RO|ORE]                                                              # PLA, 14, pull value from stack onto A
-        self.assembly[0b00001111] = [STO|AI|ORE]                                                                                            # LDS, 15, load the value of the stack pointer into A
-        self.assembly[0b00010000] = [CO|MI,         RO|IBI|CE,      STO|MI,         CO|RI|INS,          IBO|JMP|ORE]                        # JSR, 16, jump to subroutine
-        self.assembly[0b00010001] = [DES,           STO|MI,         RO|JMP|ORE]                                                             # RET, 17, return from subroutine
-        self.assembly[0b00010010] = [DES,           STO|MI,         RO|MI,          AO|RI|ORE]                                              # SAS, 18, retrieve a memory address from stack and the value of A in it
-        self.assembly[0b11111110] = [AO|OI|ORE]                                                                                             # OUT, 254
-        self.assembly[0b11111111] = [HLT]                                                                                                   # HLT, 255
+        self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|AI|ORE]                              # LDA   1       load into A from mem
+        self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|ORE]       # ADD   2       add to A
+        self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|SU|ORE]    # SUB   3       subtract from A
+        self.assembly[0b00000100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         AO|RI|ORE]                              # STA   4       store A to mem
+        self.assembly[0b00000101] = [CO|MI,         RO|IBI|CE,      IBO|AI|ORE]                                             # LDI   5       load immediate (into A)
+        self.assembly[0b00000110] = [CO|MI,         RO|IBI|CE,      IBO|JMP|ORE]                                            # JMP   6       jump
+        self.assembly[0b00000111] = [CO|MI,         RO|IBI|CE,      IBO|JC|ORE]                                             # JPC   7       jump on carry
+        self.assembly[0b00001000] = [CO|MI,         RO|IBI|CE,      IBO|JZ|ORE]                                             # JPZ   8       jump on zero
+        self.assembly[0b00001001] = [KEO|AI|ORE]                                                                            # KEI   9       loads keyboard input into A
+        self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|ORE]                           # ADI   10      add immediate to A
+        self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|SU|ORE]                        # SUI   11      sub immediate from A
+        self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              FI|SU|ORE]          # CMP   12      compare value from memory with A register. Set zf if equal, cf if A is GEQ
+        self.assembly[0b00001101] = [STO|MI,        AO|RI|INS|ORE]                                                          # PHA   13      push value from A onto the stack                                                NOTE: increments the stack pointer
+        self.assembly[0b00001110] = [DES,           STO|MI,         AI|RO|ORE]                                              # PLA   14      pull value from stack onto A                                                    NOTE: decrements the stack pointer
+        self.assembly[0b00001111] = [STO|AI|ORE]                                                                            # LDS   15      load the value of the stack pointer into A
+        self.assembly[0b00010000] = [CO|MI,         RO|IBI|CE,      STO|MI,         CO|RI|INS,          IBO|JMP|ORE]        # JSR   16      jump to subroutine                                                              NOTE: increments the stack pointer
+        self.assembly[0b00010001] = [DES,           STO|MI,         RO|JMP|ORE]                                             # RET   17      return from subroutine                                                          NOTE: decrements the stack pointer
+        self.assembly[0b00010010] = [DES,           STO|MI,         RO|MI,          AO|RI|ORE]                              # SAS   18      retrieve a memory address from stack and store the value of A into mem          NOTE: decrements the stack pointer
+        self.assembly[0b00010011] = [DES,           STO|MI,         RO|MI,          AI|RO|ORE]                              # LAS   19      retrieve a memory address from stack and load the value from mem into A         NOTE: decrements the stack pointer
+        self.assembly[0b00010100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI|ORE]                              # LDB   20      load into B from mem
+        self.assembly[0b00010101] = [CO|MI,         RO|IBI|CE,      IBO|BI,         FI|SU|ORE]                              # CPI   21      compare immediate value with A register. Set zf if equal, cf if A is GEQ
+        self.assembly[0b00010110] = [RSA|ORE]                                                                               # RSA   22      Shift A one position to the right (A = A//2)
+        self.assembly[0b00010111] = [LSA|ORE]                                                                               # LSA   23      Shift A one position to the left (A = A*2)
+        self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT   254     display the value from A on the output display
+        self.assembly[0b11111111] = [HLT]                                                                                   # HLT   255     halt operation
 
-        self.op_timestep_map = {"NOP": 0,
+        self.instruction_map = {"NOP": 0,
                                 "LDA": 1,
                                 "ADD": 2,
                                 "SUB": 3,
@@ -93,56 +101,23 @@ class Computer:
                                 "JSR": 16,
                                 "RET": 17,
                                 "SAS": 18,
+                                "LAS": 19,
+                                "LDB": 20,
+                                "CPI": 21,
+                                "RSA": 22,
+                                "LSA": 23,
                                 "OUT": 254,
                                 "HLT": 255,}
 
-        self.assembler_complex(progload)
+        self.assembler(progload)
         self.reset()
 
-    def assembler_legacy(self):
-        """ Reads a program from program.txt and assembles it into memory """
-        with open("oldprograms/fibonacci.txt", "r") as infile:
-            lines = infile.readlines()
-        
-        i = 0
-        lines_history = []
-        for k, line in enumerate(lines):
-            line = line.strip().split("#")[0]
-            items = line.strip().split(" ")[:2]
-            lines_history.append([items, i - k])
-            j = 0
-            for item in items:
-                j += 1
-                i += 1
+    def assembler(self, progload):
+        """ Assembles a program file into values in memory for the computer to
+        run. See assembler docs for more info.
 
-        i = 0
-        for k, line in enumerate(lines):
-            line = line.strip().split("#")[0]
-            items = line.strip().split(" ")[:2]
-            j = 0
-            jump = False
-            for item in items:
-                if j == 0:
-                    mem_ins = self.op_timestep_map[str(item)]
-                    if 6 <= mem_ins <= 8:
-                        # Jump instruction
-                        jump = True
-                else:
-                    mem_ins = int(item)
-                    if jump:
-                        # shift jump x number of lines to account for
-                        # instructions which take two memory locations
-                        mem_ins += lines_history[mem_ins][1]
-                self.memory[i] = mem_ins
-                j += 1
-                i += 1
-
-        self.program = lines_history
-        print(f"{i} words of memory used for program")
-
-    def assembler_complex(self, progload):
-        """ Assembler for the newer type of assembly language. Supports labeling,
-        jump to labels and more.
+        Arguments:
+        progload    -   filename to read program from, string
         """
         if not os.path.isfile(progload):
             print("Enter a valid file to read the program from.")
@@ -214,7 +189,7 @@ class Computer:
             items = line[0]
             for item in items:
                 if item == items[0]:
-                    mem_ins = self.op_timestep_map[str(item)]
+                    mem_ins = self.instruction_map[str(item)]
                     if 6 <= mem_ins <= 8 or 16 <= mem_ins <= 17:
                         # Jump instruction
                         jump = True
@@ -244,24 +219,16 @@ class Computer:
         print(f"{memaddress} bytes of memory ({memaddress / 224 * 100:2.2f}%) used for program (max 224 bytes).")
         self.program = program
     
-    def printmem(self):
-        """ Prints the memory to terminal """
-        outs = "###\n"
-        for i in range(16):
-            line = self.memory[i*16:i*16 + 16]
-            s = ""
-            for j, item in enumerate(line):
-                item = hex(item).replace("0x", "")
-                if len(item) == 1:
-                    item = "0" + item
-                s += f"{item} "
-                if j == 7:
-                    s += " "
-
-            outs += f"{s}\n"
-        print(outs, end = "")
-
     def get_mem_strings(self):
+        """ Compiles a list of strings with the memory contents of the computer
+        for easy printing.
+
+        Each element of the list is a string containing the first 16 bytes of
+        memory.
+
+        Returns:
+        mem_strings -   list containing memory strings
+        """
         mem_strings = []
         for i in range(16):
             line = self.memory[i*16:i*16 + 16]
@@ -278,23 +245,8 @@ class Computer:
         self.mem_strings = mem_strings
         return mem_strings
 
-    def printstate(self, debug = True):
-        d2b = self.dec2bin
-        print(f"\n{self.prog_count}.{self.op_timestep}")
-        if not debug:
-            return
-        print(f"         Bus: {d2b(self.bus)            :>08d} | Prog count: {d2b(self.prog_count):>08d}")
-        print(f"Mem. address: {d2b(self.memaddress)     :>08d} |      A reg: {d2b(self.areg):>08d}")
-        print(f"Mem. content: {d2b(self.memcontent)     :>08d} |    Sum reg: {d2b(self.sumreg):>08d} | Flag reg: {d2b(self.flagreg):>02d}")
-        print(f"Inst. reg. A: {d2b(self.inst_reg_a)     :>08d} |      B reg: {d2b(self.breg):>08d}")
-        print(f"Inst. reg. B: {d2b(self.inst_reg_b)     :>08d} |    Out reg: {d2b(self.out_regist):>08d}")
-        print(f"Opcode:       {d2b(self.op_timestep)    :>08d} |  Ctrl word: {d2b(self.controlword):>024d}")
-        print(f"                                     HMRRIIIIAAESBOCCJF")
-        print(f"                                     LIIOAABBIOOUIIEOMI")
-        print(f"                                     T   OIOI        P ")
-
     def reset(self):
-        """ Initialize storage and registers """
+        """ Initialize/reset registers """
         self.bus = 0
         self.areg = 0
         self.breg = 0
@@ -319,18 +271,19 @@ class Computer:
         self.memaddress = self.bus
         self.memcontent = self.memory[self.memaddress]
 
-    def update_ALU(self, subtract = False):
+    def update_ALU(self):
         """ Updates the value stored in the ALU based on the current values in
         the A and B registers, and the subtract control signal.
-
-        TODO: Fix so the carry bit will be set for appropriate subtracts.
         """
         self.carry = 0
         self.zero = 0
         a = int(self.areg)
         b = int(self.breg)
-        if subtract:
-            self.sumreg = a - b
+
+        if self.controlword&self.SU:
+            self.sumreg = a + (256 - b) # two's complement subtraction
+                                        # in order to set carry flag
+                                        # for subtractions where a >= b
         else:
             self.sumreg = a + b
 
@@ -351,6 +304,7 @@ class Computer:
 
     def update(self):
         """ Updates the value on the appropriate registers and bus.
+
         Any states that would update regardless of what the clock is doing
         should be updated here.
         """
@@ -381,13 +335,8 @@ class Computer:
 
         if operation&self.AO:
             self.bus = self.areg
-
-        if operation&self.SU:
-            subtract = 1
-        else:
-            subtract = 0
         
-        self.update_ALU(subtract)
+        self.update_ALU()
 
         if operation&self.KEO:
             self.bus = self.input_regi
@@ -399,6 +348,7 @@ class Computer:
             self.bus = self.prog_count
 
         if operation&self.STO:
+            # stackpointer is 4 bit. By adding 224 to it, we get values from 224 to 239 used for stack.
             self.bus = self.stackpointer + 224
 
     def clock_high(self):
@@ -433,6 +383,14 @@ class Computer:
 
         if operation&self.AI:
             self.areg = self.bus
+
+        if operation&self.RSA:
+            self.areg = self.areg // 2
+
+        if operation&self.LSA:
+            self.areg *= 2
+            if self.areg >= 256:
+                self.areg -= 256
 
         if operation&self.BI:
             self.breg = self.bus
@@ -488,23 +446,43 @@ class Computer:
 
         return result
 
-    def dec2bin(self, dec_in):
-        """ Takes a decimal number in and converts to binary integer """
-        bin_out = int(bin(dec_in).replace("0b", ""))
-        return bin_out
-
-    def bin2dec(self, binary_in):
-        """ Takes a binary integer in and converts to decimal number """
-        dec_out = int(str(binary_in), 2)
-        return dec_out
-
 
 class BitDisplay:
-    """ Class for making instances of an 8-bit LED display """
+    """ Class for making LED displays """
     def __init__(self, oncolor = (0, 255, 0), offcolor = (0, 50, 0),
                  cpos = (0,0), length = 8, text = "Display",
                  font = None, textcolor = (255, 255, 255),
                  radius = 10):
+        """ LED Display.
+        If a Pygame font provided, the text to display above the LED's will be 
+        rendered. LED's will be drawn with 5 pixels of separation between them.
+
+        Arguments:
+        oncolor     -   color of an LED when on     (R,G,B)
+        offcolor    -   color of an LED when off    (R,G,B)
+        cpos        -   center position of display  (x,y)
+        length      -   number of LED's
+        text        -   text to display above the LED display
+        font        -   pygame font object
+        textcolor   -   color of title text
+        radius      -   radius of the LED's
+
+        Attributes:
+        length      -   see arguments
+        text        -   see arguments
+        x           -   center x position
+        y           -   center y position
+        cpos        -   see arguments
+        oncolor     -   see arguments
+        offcolor    -   see arguments
+        radius      -   see arguments
+        reg_bg      -   pygame rectangle object extending 5 pixels outside the
+                        display on each side
+        text_rendered - the rendered pygame text, if a font is provided
+                        otherwise None
+
+
+        """
         self.length = length
         self.text = text
         self.x = cpos[0]
@@ -514,12 +492,12 @@ class BitDisplay:
         self.offcolor = offcolor
 
         self.radius = radius
-        self.separation = 5
-        self.width = length*self.radius*2 + (length - 1)*self.separation
+        self._separation = 5
+        self._width = length*self.radius*2 + (length - 1)*self._separation
 
-        self.reg_bg = pygame.Rect(int(self.x - self.width/2 - 5),
+        self.reg_bg = pygame.Rect(int(self.x - self._width/2 - 5),
                                   int(self.y - self.radius - 5),
-                                  int(self.width + 10), int(self.radius*2 + 10))
+                                  int(self._width + 10), int(self.radius*2 + 10))
         
         if not font is None:
             self.text_rendered = font.render(self.text, True, textcolor)
@@ -527,6 +505,16 @@ class BitDisplay:
             self.text_rendered = None
 
     def draw_bits(self, int_in, screen):
+        """ Draws the LED's with the bits on corresponding to the 1's in an
+        integer. I.e. if the integer passed is 10000001, the first and last
+        LED will be on and the others will be off (for length = 8).
+
+        Also draws the title if self.text_rendered is not None.
+
+        Arguments:
+        int_in      -   The integer determining which LED's are on.
+        screen      -   The Pygame surface to draw to.
+        """
         self.xvalues = []
         bitstring = f"{int_in:d}"
         while len(bitstring) < self.length:
@@ -534,9 +522,7 @@ class BitDisplay:
         bitstring = bitstring[-self.length:]
         
         y = int(self.y)
-        x = int(self.x - self.width/2 + self.radius)
-
-        #pygame.draw.rect(screen, (0,0,0), self.reg_bg)
+        x = int(self.x - self._width/2 + self.radius)
 
         for bit_value in bitstring:
             if bit_value == "1":
@@ -545,7 +531,7 @@ class BitDisplay:
                 color = self.offcolor
             pygame.draw.circle(screen, color, (x,y), self.radius)
             self.xvalues.append(x)
-            x += self.radius*2 + self.separation
+            x += self.radius*2 + self._separation
 
         if self.text_rendered is not None:
             textwidth = self.text_rendered.get_width()
@@ -555,11 +541,20 @@ class BitDisplay:
             screen.blit(self.text_rendered, (text_x, text_y))
 
     def draw_number(self, num_in, screen):
+        """ Draws the LED screen with the bits on corresponding to a decimal
+        value. I.e. if 170 is passed (10101010 in binary), every other LED
+        will be on, beginning with the topmost bit (for length = 8).
+
+        Arguments:
+        num_in      -   The number determining which LED's are on.
+        screen      -   The Pygame surface to draw to.        
+        """
         bin_out = int(bin(num_in).replace("0b", ""))
         self.draw_bits(bin_out, screen)
 
 
 class Game:
+    """ Main control class. Handles rendering, timing control and user input. """
     def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
                  draw_mem = False, draw_ops = False, progload = "program.txt"):
         self._running = True
@@ -970,6 +965,10 @@ class Game:
                 self.draw_mem = False
                 self.draw_ops = False
 
+            if event.key == pygame.K_KP_PLUS:
+                self.target_HZ = int(self.target_HZ*2)
+            if event.key == pygame.K_KP_MINUS:
+                self.target_HZ = max(int(self.target_HZ/2), 0)
             if event.key == pygame.K_KP1:
                 self.target_HZ = int(target_fps/5)
             elif event.key == pygame.K_KP2:
@@ -988,6 +987,8 @@ class Game:
                 self.target_HZ = int(target_fps*10)
             elif event.key == pygame.K_KP9:
                 self.target_HZ = int(target_fps*100)
+            elif event.key == pygame.K_KP0:
+                self.target_HZ = int(target_fps*100000)
 
             if not self.autorun:
                 if event.key == pygame.K_RETURN:
@@ -1183,7 +1184,7 @@ class Game:
                 s = ""
                 for instruction, label in zip(self.computer.microcodes, self.computer.microcode_labels):
                     if instruction & operation:
-                        s += f"{label:>9s} | "
+                        s += f"{label:>8s} | "
                 self.arrow = self._font_small_console_bold.render("> " + "_"*(len(s) - 4), "True", self.DARKKGREEN)
                 if i == self.computer.op_timestep:
                     self._screen.blit(self.arrow, (1170, 650 + i*15))

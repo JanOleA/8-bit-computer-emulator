@@ -5,11 +5,12 @@ product = 252             ; product of the multiplication, or quotient for the d
 userval = 251             ; the entire inputted number (i.e., if the user presses "2" and then "3", it will be "23")
 wrt_address = 250         ; where in memory to write the new instructions/operands
 temp = 249                ;
-min_ad = 248              ;
+min_ad = 248              ; do not allow programmer to go equal or below this address
 
 start:
   LDI 128
   STA .wrt_address
+  LDI 127
   STA .min_ad
   JMP end_inputs
 check_input:
@@ -78,7 +79,7 @@ handle_sub:
   LDA .wrt_address
   SUI 1
   CMP .min_ad
-  JPC end_inputs
+  JPZ end_inputs
   STA .wrt_address
   JMP end_inputs
 

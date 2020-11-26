@@ -1,0 +1,18 @@
+start:
+  LDI 43
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  LSA
+  LSA
+  JMP start

@@ -1,9 +1,0 @@
-LDI 6 # load 6 into A
-STA 255 # store value of A in mem(255)
-LDI 251 # load 251 into A
-ADD 255 # add value from mem(255) to A
-JPC 6 # if carry, jump to 6
-HLT # if not carry, halt
-ADD 255 # 6: add value from mem(255) to A
-OUT # display the value
-HLT # halt
