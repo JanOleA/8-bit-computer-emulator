@@ -8,7 +8,7 @@ import numpy as np
 
 
 class Computer:
-    def __init__(self):
+    def __init__(self, progload):
         self.memory = np.zeros(256, dtype = np.uint16)
         self.get_mem_strings()
 
@@ -66,10 +66,11 @@ class Computer:
         self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|SU|ORE]                                        # SUI, 11, sub immediate from A
         self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              FI|SU|ORE]                          # CMP, 12, compare value from memory with A register. Set zf if equal, cf if A is smaller.
         self.assembly[0b00001101] = [STO|MI,        AO|RI|INS|ORE]                                                                          # PHA, 13, push value from A onto the stack
-        self.assembly[0b00001110] = [STO|MI,        AI|RO|DES|ORE]                                                                          # PLA, 14, pull value from stack onto A
+        self.assembly[0b00001110] = [DES,           STO|MI,         AI|RO|ORE]                                                              # PLA, 14, pull value from stack onto A
         self.assembly[0b00001111] = [STO|AI|ORE]                                                                                            # LDS, 15, load the value of the stack pointer into A
         self.assembly[0b00010000] = [CO|MI,         RO|IBI|CE,      STO|MI,         CO|RI|INS,          IBO|JMP|ORE]                        # JSR, 16, jump to subroutine
         self.assembly[0b00010001] = [DES,           STO|MI,         RO|JMP|ORE]                                                             # RET, 17, return from subroutine
+        self.assembly[0b00010010] = [DES,           STO|MI,         RO|MI,          AO|RI|ORE]                                              # SAS, 18, retrieve a memory address from stack and the value of A in it
         self.assembly[0b11111110] = [AO|OI|ORE]                                                                                             # OUT, 254
         self.assembly[0b11111111] = [HLT]                                                                                                   # HLT, 255
 
@@ -91,15 +92,14 @@ class Computer:
                                 "LDS": 15,
                                 "JSR": 16,
                                 "RET": 17,
+                                "SAS": 18,
                                 "OUT": 254,
                                 "HLT": 255,}
-                                
 
-        #self.assembler_simple()
-        self.assembler_complex()
+        self.assembler_complex(progload)
         self.reset()
 
-    def assembler_simple(self):
+    def assembler_legacy(self):
         """ Reads a program from program.txt and assembles it into memory """
         with open("oldprograms/fibonacci.txt", "r") as infile:
             lines = infile.readlines()
@@ -140,12 +140,22 @@ class Computer:
         self.program = lines_history
         print(f"{i} words of memory used for program")
 
-    def assembler_complex(self):
+    def assembler_complex(self, progload):
         """ Assembler for the newer type of assembly language. Supports labeling,
         jump to labels and more.
         """
-        with open("program.txt", "r") as infile:
-            lines = infile.readlines()
+        if not os.path.isfile(progload):
+            print("Enter a valid file to read the program from.")
+            raise IOError(f"Couldn't locate file: {progload}")
+
+        try:
+            with open(progload, "r") as infile:
+                lines = infile.readlines()
+        except Exception as e:
+            print("Assembler couldn't read file:")
+            raise e
+
+        print(f"Assembling: {progload}")
 
         addresses = {}
         addresses_line = {}
@@ -154,6 +164,8 @@ class Computer:
 
         address = 0
         progline = 0
+        s = ""
+        print("First pass...")
         for i, line in enumerate(lines):
             line = line.split(";")[0]
             if line.startswith("  ") and line[2] != " ":
@@ -164,6 +176,9 @@ class Computer:
                     sys.exit(1)
 
                 program.append([instruction, address - progline])
+                print(len(s)*" ", end = "\r")
+                s = f"{instruction[0]} in address {address}"
+                print(s, end = "\r")
                 for item in instruction:
                     address += 1
                 progline += 1
@@ -177,12 +192,22 @@ class Computer:
                     else:
                         varvalue = int(line_[1].strip())
                     variables[varname] = varvalue
+                    print(len(s)*" ", end = "\r")
+                    s = f"variable {varname:>20s} = {varvalue:>5d}"
+                    print(s)
+
                 if ":" in line:
                     """ Labels """
                     address_name = line.strip().split(":")[0]
                     addresses[address_name] = address
                     addresses_line[address] = progline
+                    print(len(s)*" ", end = "\r")
+                    s = f"label {address_name:>20s} | address {address:>5d} | progline {progline:>5d}"
+                    print(s)
 
+        print(len(s)*" ", end = "\r")
+        print("Second pass...")
+        print("[" + " "*50 + "]", end = "\r")
         memaddress = 0
         for i, line in enumerate(program):
             jump = False
@@ -197,10 +222,11 @@ class Computer:
                     if jump:
                         if item[0] == "#":
                             address = item[1:]
+                            program[i][0][1] = item[1:]
                         else:
                             address = addresses[item]
+                            program[i][0][1] = str(addresses_line[addresses[item]])
                         mem_ins = int(address)
-                        program[i][0][1] = str(addresses_line[addresses[item]])
                     else:
                         if item[0] == ".":
                             """ Variable """
@@ -211,8 +237,11 @@ class Computer:
                         mem_ins = int(val)
                 self.memory[memaddress] = mem_ins
                 memaddress += 1
+            half_pct = min(int((i + 1)/len(program)*50), 50)
+            print("[" + "#"*half_pct + " "*(50 - half_pct) + "]", end = "\r")
+        print("\nProgram assembled.")
 
-        print(f"{memaddress} words of memory used for program")
+        print(f"{memaddress} bytes of memory ({memaddress / 224 * 100:2.2f}%) used for program (max 224 bytes).")
         self.program = program
     
     def printmem(self):
@@ -532,7 +561,7 @@ class BitDisplay:
 
 class Game:
     def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
-                 draw_mem = False, draw_ops = False):
+                 draw_mem = False, draw_ops = False, progload = "program.txt"):
         self._running = True
         self._screen = None
         self._width = 1600
@@ -541,6 +570,7 @@ class Game:
         self.fps = 0
         self.step = 0
         self.cyclecounts = 0
+        self.progload = progload
 
         self.autorun = autorun
         self.target_FPS = target_FPS
@@ -554,6 +584,7 @@ class Game:
         self.op_address_draw = 0
 
         self.WHITE = (255, 255, 255)
+        self.TEXTGREY = (180, 180, 180)
         self.GREY = (115, 115, 115)
         self.DARKGREY = (20, 20, 20)
         self.BRIGHTRED = (255, 75, 75)
@@ -565,6 +596,7 @@ class Game:
         self.DARKERPURPLEISH = (5, 0, 15)
         self.GREEN = (0, 255, 0)
         self.DARKGREEN = (0, 200, 0)
+        self.DARKKGREEN = (0, 130, 0)
         self.DARKERGREEN = (0, 30, 0)
         self.BLUE = (0, 0, 255)
         self.DARKBLUE = (0, 0, 200)
@@ -579,7 +611,8 @@ class Game:
         self._running = True
 
         pygame.font.init()
-        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 21)
+        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 19)
+        self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 13)
         self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
         self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
@@ -593,49 +626,49 @@ class Game:
         self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 64)
 
         self._bg = pygame.Surface(self._size)
-        self._bg.fill(self.WHITE)
+        self._bg.fill((20, 20, 20))
         self._clock = pygame.time.Clock()
 
-        self.computer = Computer()
+        self.computer = Computer(self.progload)
 
         self.bus_display = BitDisplay(cpos = (640, 50),
                                       font = self._font_exobold,
-                                      textcolor = self.BLACK,
+                                      textcolor = self.TEXTGREY,
                                       text = "Bus",
                                       oncolor = self.RED,
                                       offcolor = self.DARKERRED)
 
         self.cnt_display = BitDisplay(cpos = (840, 150),
                                       font = self._font_exobold,
-                                      textcolor = self.BLACK,
+                                      textcolor = self.TEXTGREY,
                                       text = "Program counter",
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
 
         self.areg_display = BitDisplay(cpos = (840, 250),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "A register",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
 
         self.breg_display = BitDisplay(cpos = (840, 450),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "B register",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
 
         self.sreg_display = BitDisplay(cpos = (840, 350),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "ALU (sum)",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
 
         self.flgr_display = BitDisplay(cpos = (1110, 350),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Flags register",
                                        length = 2,
                                        oncolor = self.GREEN,
@@ -643,7 +676,7 @@ class Game:
 
         self.flag_display = BitDisplay(cpos = (1000, 350),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Flags",
                                        length = 2,
                                        oncolor = self.BLUE,
@@ -651,56 +684,56 @@ class Game:
 
         self.madd_display = BitDisplay(cpos = (440, 150),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Memory address",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
         self.mcon_display = BitDisplay(cpos = (440, 250),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Memory content",
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
         
         self.insa_display = BitDisplay(cpos = (440, 350),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Instruction register A",
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE)
 
         self.insb_display = BitDisplay(cpos = (440, 450),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Instruction register B",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
         self.oprt_display = BitDisplay(cpos = (440, 550),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Operation timestep",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
         self.inpt_display = BitDisplay(cpos = (440, 650),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Input register",
                                        oncolor = self.PURPLEISH,
                                        offcolor = self.DARKERPURPLEISH)
 
         self.outp_display = BitDisplay(cpos = (840, 550),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Output register",
                                        oncolor = self.GREEN,
                                        offcolor = self.DARKERGREEN)
 
         self.stap_display = BitDisplay(cpos = (840, 650),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Stack pointer",
                                        length = 4,
                                        oncolor = self.RED,
@@ -708,7 +741,7 @@ class Game:
 
         self.ctrl_display = BitDisplay(cpos = (950, 800),
                                        font = self._font_exobold,
-                                       textcolor = self.BLACK,
+                                       textcolor = self.TEXTGREY,
                                        text = "Control word",
                                        oncolor = self.BLUE,
                                        offcolor = self.DARKERBLUE,
@@ -716,74 +749,74 @@ class Game:
 
         self.clk_display = BitDisplay(cpos = (50, 60),
                                       font = self._font_exobold,
-                                      textcolor = self.BLACK,
+                                      textcolor = self.TEXTGREY,
                                       text = "Clock",
                                       length = 1,
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
 
         # Draw line connections
-        self.simple_line(self.bus_display, (self.bus_display.x, self.inpt_display.y), self.RED)
-        self.simple_line(self.madd_display, (self.bus_display.x, self.madd_display.y), self.RED)
-        self.simple_line(self.mcon_display, (self.bus_display.x, self.mcon_display.y), self.RED)
-        self.simple_line(self.insa_display, (self.bus_display.x, self.insa_display.y), self.RED)
-        self.simple_line(self.insb_display, (self.bus_display.x, self.insb_display.y), self.RED)
-        self.simple_line(self.oprt_display, (self.bus_display.x, self.oprt_display.y), self.RED)
-        self.simple_line(self.inpt_display, (self.bus_display.x + 2, self.inpt_display.y), self.RED)
-        self.simple_line(self.cnt_display, (self.bus_display.x, self.cnt_display.y), self.RED)
-        self.simple_line(self.areg_display, (self.bus_display.x, self.areg_display.y), self.RED)
-        self.simple_line(self.breg_display, (self.bus_display.x, self.breg_display.y), self.RED)
-        self.simple_line(self.sreg_display, (self.bus_display.x, self.sreg_display.y), self.RED)
-        self.simple_line(self.outp_display, (self.bus_display.x, self.outp_display.y), self.RED)
-        self.simple_line(self.stap_display, (self.bus_display.x, self.stap_display.y), self.RED)
-        self.simple_line(self.flag_display, self.flgr_display, self.RED)
+        self.simple_line(self.bus_display, (self.bus_display.x, self.inpt_display.y), self.DARKRED)
+        self.simple_line(self.madd_display, (self.bus_display.x, self.madd_display.y), self.DARKRED)
+        self.simple_line(self.mcon_display, (self.bus_display.x, self.mcon_display.y), self.DARKRED)
+        self.simple_line(self.insa_display, (self.bus_display.x, self.insa_display.y), self.DARKRED)
+        self.simple_line(self.insb_display, (self.bus_display.x, self.insb_display.y), self.DARKRED)
+        self.simple_line(self.oprt_display, (self.bus_display.x, self.oprt_display.y), self.DARKRED)
+        self.simple_line(self.inpt_display, (self.bus_display.x + 2, self.inpt_display.y), self.DARKRED)
+        self.simple_line(self.cnt_display, (self.bus_display.x, self.cnt_display.y), self.DARKRED)
+        self.simple_line(self.areg_display, (self.bus_display.x, self.areg_display.y), self.DARKRED)
+        self.simple_line(self.breg_display, (self.bus_display.x, self.breg_display.y), self.DARKRED)
+        self.simple_line(self.sreg_display, (self.bus_display.x, self.sreg_display.y), self.DARKRED)
+        self.simple_line(self.outp_display, (self.bus_display.x, self.outp_display.y), self.DARKRED)
+        self.simple_line(self.stap_display, (self.bus_display.x, self.stap_display.y), self.DARKRED)
+        self.simple_line(self.flag_display, self.flgr_display, self.DARKRED)
 
-        self.simple_line(self.madd_display, self.mcon_display, self.BLUE, (85,0), (85,0))
-        self.simple_line(self.areg_display, self.breg_display, self.BLUE, (65,0), (65,0))
-        self.simple_line(self.sreg_display, self.flag_display, self.BLUE)
-        self.simple_line(self.outp_display, self.outp_display, self.BLUE, (200, 0))
+        self.simple_line(self.madd_display, self.mcon_display, self.DARKBLUE, (85,0), (85,0))
+        self.simple_line(self.areg_display, self.breg_display, self.DARKBLUE, (65,0), (65,0))
+        self.simple_line(self.sreg_display, self.flag_display, self.DARKBLUE)
+        self.simple_line(self.outp_display, self.outp_display, self.DARKBLUE, (200, 0))
 
         self.simple_line(self.oprt_display, self.oprt_display, self.PURPLEISH, (-130, 0))
         self.simple_line(self.insa_display, self.insa_display, self.PURPLEISH, (-130, 0))
         self.simple_line(self.insa_display, (self.insa_display.x - 130, self.ctrl_display.y), self.PURPLEISH, (-130, -2))
         self.simple_line((self.insa_display.x - 132, self.ctrl_display.y), self.ctrl_display, self.PURPLEISH)
 
-        self.simple_line(self.ctrl_display, self.madd_display, self.DARKGREEN, (-660, -47), (-150, -2))
-        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKGREEN, (-662, -47), (-240, -47))
-        self.simple_line(self.madd_display, self.madd_display, self.DARKGREEN, (-150, 0))
-        self.simple_line(self.mcon_display, self.mcon_display, self.DARKGREEN, (-150, 0))
-        self.simple_line(self.insa_display, self.insa_display, self.DARKGREEN, (-150, -5), (0, -5))
-        self.simple_line(self.insb_display, self.insb_display, self.DARKGREEN, (-150, 0))
-        self.simple_line(self.inpt_display, self.inpt_display, self.DARKGREEN, (-150, 0))
-        self.simple_line(self.oprt_display, self.oprt_display, self.DARKGREEN, (-150, -5), (0, -5))
+        self.simple_line(self.ctrl_display, self.madd_display, self.DARKKGREEN, (-650, -47), (-140, -2))
+        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKKGREEN, (-652, -47), (-240, -47))
+        self.simple_line(self.madd_display, self.madd_display, self.DARKKGREEN, (-140, 0))
+        self.simple_line(self.mcon_display, self.mcon_display, self.DARKKGREEN, (-140, 0))
+        self.simple_line(self.insa_display, self.insa_display, self.DARKKGREEN, (-140, -5), (0, -5))
+        self.simple_line(self.insb_display, self.insb_display, self.DARKKGREEN, (-140, 0))
+        self.simple_line(self.inpt_display, self.inpt_display, self.DARKKGREEN, (-140, 0))
+        self.simple_line(self.oprt_display, self.oprt_display, self.DARKKGREEN, (-140, -5), (0, -5))
         
-        self.simple_line(self.ctrl_display, self.cnt_display, self.DARKGREEN, (-240, 0), (-130, -7))
-        self.simple_line(self.cnt_display, self.cnt_display, self.DARKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.areg_display, self.areg_display, self.DARKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.breg_display, self.breg_display, self.DARKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.sreg_display, self.sreg_display, self.DARKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.outp_display, self.outp_display, self.DARKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.stap_display, self.stap_display, self.DARKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.ctrl_display, self.cnt_display, self.DARKKGREEN, (-240, 0), (-130, -7))
+        self.simple_line(self.cnt_display, self.cnt_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.areg_display, self.areg_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.breg_display, self.breg_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.sreg_display, self.sreg_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.outp_display, self.outp_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.stap_display, self.stap_display, self.DARKKGREEN, (0, -5), (-130, -5))
 
-        self.simple_line(self.flgr_display, self.flgr_display, self.DARKGREEN, (0, 0), (52, 0))
-        self.simple_line(self.flgr_display, (self.flgr_display.x + 50, self.ctrl_display.y), self.DARKGREEN, (50, 0))
+        self.simple_line(self.flgr_display, self.flgr_display, self.DARKKGREEN, (0, 0), (52, 0))
+        self.simple_line(self.flgr_display, (self.flgr_display.x + 50, self.ctrl_display.y), self.DARKKGREEN, (50, 0))
 
-        pygame.draw.rect(self._bg, (0,0,0), self.bus_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.cnt_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.areg_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.breg_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.sreg_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.flgr_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.flag_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.madd_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.mcon_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.insa_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.insb_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.inpt_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.oprt_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 10)
-        pygame.draw.rect(self._bg, (0,0,0), self.stap_display.reg_bg, border_radius = 10)
+        pygame.draw.rect(self._bg, (0,0,0), self.bus_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.cnt_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.areg_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.breg_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.sreg_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.flgr_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.flag_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.madd_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.mcon_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.insa_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.insb_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.inpt_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.oprt_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.stap_display.reg_bg, border_radius = 12)
         #pygame.draw.rect(self._bg, (0,0,0), self.clk_display.reg_bg, border_radius = 10)
 
         self.keypad1 = BitDisplay(cpos = (1100, 50), length = 3, radius = 15,
@@ -798,6 +831,11 @@ class Game:
                                   offcolor = (40, 40, 40), oncolor = (80, 120, 80))
         self.keypad_div = BitDisplay(cpos = (1030, 165), length = 1, radius = 15,
                                   offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+
+        keypad_bg = pygame.Rect(self.keypad_div.x - 30, self.keypad1.y - 30,
+                                self.keypad1.width + self.keypad_div.width + 35,
+                                self.keypad_div.y - self.keypad1.y + 60)
+        pygame.draw.rect(self._bg, self.BLACK, keypad_bg, border_radius = 30)
 
         self.keypad_rows = [self.keypad1, self.keypad2, self.keypad3, self.keypad4]
         self.keypad_numbers = [0, 0, 0, 0]
@@ -822,7 +860,7 @@ class Game:
         for text in ctrl_word_text:
             self.ctrl_word_text_rendered.append(self._font_small.render(text,
                                                                         True,
-                                                                        self.BLACK))
+                                                                        self.TEXTGREY))
 
         prog_texts_black = []
         prog_texts_green = []
@@ -834,7 +872,7 @@ class Game:
             text = f"{i:>03d} {instruction[0][0]:>3s} {instruction[0][1]:>3s}"
             prog_texts_black.append(self._font_small_console.render(text,
                                                                     True,
-                                                                    self.BLACK))
+                                                                    self.GREY))
             prog_texts_green.append(self._font_small_console.render(text,
                                                                     True,
                                                                     self.DARKGREEN))
@@ -854,11 +892,18 @@ class Game:
             memcolumn += text
 
             rowtext = f"{i*16:>03d}"
-            self.memrows.append(self._font_small_console_bold.render(rowtext, True, self.BLACK))
+            self.memrows.append(self._font_small_console_bold.render(rowtext, True, self.TEXTGREY))
         
-        self.memcolumn = self._font_small_console_bold.render(memcolumn, True, self.BLACK)
-        self.memory_title = self._font_exobold.render("Memory:", True, self.BLACK)
-        self.microins_title = self._font_exobold.render("Current instruction:", True, self.BLACK)
+        self.memcolumn = self._font_small_console_bold.render(memcolumn, True, self.TEXTGREY)
+        self.memory_title = self._font_exobold.render("Memory:", True, self.TEXTGREY)
+        self.microins_title = self._font_exobold.render("Current instruction:", True, self.TEXTGREY)
+
+        self.helptext_1 = "Press 'D' for debug mode.   Press 'C' to end debug mode.   Press 'M' to show/hide memory.   Press 'N' to show/hide microinstruction list.   Press 'R' for reset (won't clear RAM)."
+        self.helptext_rendered = self._font_exobold_small.render(self.helptext_1, True, self.TEXTGREY)
+        self._bg.blit(self.helptext_rendered, (300, self._height - 50))
+        self.helptext_2 = "Press the spacebar to stop automatic execution.   Press the enter key to cycle the clock manually when automatic execution is stopped.   Press the numbers on your numpad to change the HZ target."
+        self.helptext_rendered = self._font_exobold_small.render(self.helptext_2, True, self.TEXTGREY)
+        self._bg.blit(self.helptext_rendered, (300, self._height - 30))
 
     def simple_line(self, pos1, pos2, color, shift1 = (0,0), shift2 = (0,0), width = 5):
         """ Draws a simple line to display connections between registers to the
@@ -925,6 +970,25 @@ class Game:
                 self.draw_mem = False
                 self.draw_ops = False
 
+            if event.key == pygame.K_KP1:
+                self.target_HZ = int(target_fps/5)
+            elif event.key == pygame.K_KP2:
+                self.target_HZ = int(target_fps/4)
+            elif event.key == pygame.K_KP3:
+                self.target_HZ = int(target_fps/3)
+            elif event.key == pygame.K_KP4:
+                self.target_HZ = int(target_fps/2)
+            elif event.key == pygame.K_KP5:
+                self.target_HZ = int(target_fps)
+            elif event.key == pygame.K_KP6:
+                self.target_HZ = int(target_fps*2)
+            elif event.key == pygame.K_KP7:
+                self.target_HZ = int(target_fps*4)
+            elif event.key == pygame.K_KP8:
+                self.target_HZ = int(target_fps*10)
+            elif event.key == pygame.K_KP9:
+                self.target_HZ = int(target_fps*100)
+
             if not self.autorun:
                 if event.key == pygame.K_RETURN:
                     self.computer.update()
@@ -982,20 +1046,21 @@ class Game:
                     self.computer.clock_low()
                     self.cyclecounts += 1
         
-        self.computer.get_mem_strings()
+        if self.draw_mem:
+            self.computer.get_mem_strings()
 
         self.step += 1
         if self.step >= self.fps:
             self.step = 0
             if self.target_HZ < self.target_FPS:
-                self.clockrate = self._font.render(f"{int(self.cyclecounts):d} Hz", True, self.BLACK)
+                self.clockrate = self._font.render(f"{int(self.cyclecounts):d} Hz", True, self.TEXTGREY)
             self.cyclecounts = 0
 
         """ Adjust multiplier to reach FPS and as good as possible HZ """
         self._clock.tick_busy_loop(self.target_FPS)
         self.fps = self._clock.get_fps()
         HZ = self.fps*HZ_multiplier
-        if self.fps < self.target_FPS:
+        if self.fps < self.target_FPS or HZ > self.target_HZ:
             if HZ_multiplier > 1:
                 HZ_multiplier -= 1
         elif HZ < self.target_HZ:
@@ -1003,8 +1068,8 @@ class Game:
 
         self.HZ_multiplier = HZ_multiplier
         if self.target_HZ >= self.target_FPS:
-            self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.BLACK)
-        self.fpstext = self._font.render(f"{int(self.fps):d} FPS", True, self.BLACK)
+            self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.TEXTGREY)
+        self.fpstext = self._font.render(f"{int(self.fps):d} FPS", True, self.TEXTGREY)
 
     def render(self):
         self._screen.blit(self._bg, (0,0))
@@ -1058,14 +1123,14 @@ class Game:
         out_string = f"{self.computer.out_regist:>03d}"
         out_text = self._font_segmentdisplay.render(out_string, True, self.BRIGHTRED)
         screen_bg = pygame.Rect(980, 480, out_text.get_width() + 35, out_text.get_height() + 25)
-        pygame.draw.rect(self._screen, self.DARKGREY, screen_bg, border_radius = 10)
+        pygame.draw.rect(self._screen, self.BLACK, screen_bg, border_radius = 10)
         self._screen.blit(out_text, (1000, 500))
 
         """ Draw the control word LED display, and the labels """
         self.ctrl_display.draw_number(self.computer.controlword, self._screen)
         for text, x_center in zip(self.ctrl_word_text_rendered, self.ctrl_display.xvalues):
             text_x = int(x_center - text.get_width()/2)
-            text_y = int(self.ctrl_display.y + text.get_height())
+            text_y = int(self.ctrl_display.y + text.get_height()) + 5
             self._screen.blit(text, (text_x, text_y))
 
         """ Draw the operation timestep LED display """
@@ -1088,7 +1153,7 @@ class Game:
             y += 15
             if y >= self._height - 20:
                 y = 30
-                x += 100
+                x += 95
 
         """ Draw the memory """
         if self.draw_mem:
@@ -1099,7 +1164,7 @@ class Game:
             self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))
             self._screen.blit(self.memcolumn, (x, y - 18))
             for i, item in enumerate(self.computer.mem_strings):
-                out_text = self._font_small_console.render(item, True, self.BLACK)
+                out_text = self._font_small_console.render(item, True, self.TEXTGREY)
                 self._screen.blit(out_text, (x, y))
                 self._screen.blit(self.memrows[i], (x - 32, y))
                 y += 15
@@ -1119,10 +1184,10 @@ class Game:
                 for instruction, label in zip(self.computer.microcodes, self.computer.microcode_labels):
                     if instruction & operation:
                         s += f"{label:>9s} | "
-                self.arrow = self._font_small_console_bold.render("> " + "_"*(len(s) - 4), "True", self.DARKGREEN)
+                self.arrow = self._font_small_console_bold.render("> " + "_"*(len(s) - 4), "True", self.DARKKGREEN)
                 if i == self.computer.op_timestep:
                     self._screen.blit(self.arrow, (1170, 650 + i*15))
-                out_text = self._font_small_console.render(s[:-2], True, self.BLACK)
+                out_text = self._font_small_console.render(s[:-2], True, self.TEXTGREY)
                 self._screen.blit(out_text, (1180, 650 + i*15))
 
         self._screen.blit(self.clockrate, (5,5))
@@ -1146,15 +1211,20 @@ class Game:
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        target_fps = int(sys.argv[1])
+        progload = str(sys.argv[1])
+    else:
+        progload = "program.txt"
+
+    if len(sys.argv) > 2:
+        target_fps = int(sys.argv[2])
     else:
         target_fps = 200
 
-    if len(sys.argv) > 2:
-        target_HZ = int(sys.argv[2])
+    if len(sys.argv) > 3:
+        target_HZ = int(sys.argv[3])
     else:
         target_HZ = target_fps
 
-    game = Game(True, target_fps, target_HZ)
+    game = Game(True, target_fps, target_HZ, progload = progload)
     game.execute()
     
