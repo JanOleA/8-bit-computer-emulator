@@ -2,18 +2,18 @@ x = 255
 y = 254
 
 start:
-  LDI 1
-  STA .x
-  STA .y
-  OUT
+  LDI 1       ; Load (immediate) a value of 1 into the A register
+  STA .x      ; Store A in the memory address x points to
+  STA .y      ; Store A in the memory address y points to
+  OUT         ; Display A
 add:
-  LDA .x
-  ADD .y
-  JPC start
-  OUT
-  STA .x
-  ADD .y
-  JPC start
-  OUT
-  STA .y
-  JMP add
+  LDA .x      ; Load the value from the memroy address x points to, into A
+  ADD .y      ; Add the value from the memroy address y points to, to A
+  JPC start   ; If the result > 255, return to start
+  OUT         ; If not, continue, and display the result
+  STA .x      ; Store the result in the memory address x points to
+  ADD .y      ; Add the value from the memory address y points to, to A
+  JPC start   ; If the result > 255, return to start
+  OUT         ; Display the result
+  STA .y      ; Store the result in the memory address y points to
+  JMP add     ; Jump to the start of the "add" loop
