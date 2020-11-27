@@ -149,3 +149,20 @@ The stack pointer will increment by 1 on a clock-high pulse if the "increment st
 The stack pointer will decrement by 1 on a clock-high pulse if the "decrement stack (DES)" control signal is active.
 
 The stack pointer can output its value to the bus if the "stack out (STO)" control signal is active. When the stack pointer outputs its value to the bus, 224 `[1110 0000]` is added to the value, so that the actual values put onto the bus will range from 224 to 239.
+
+## Drawn connections
+The drawn connections and their colors represent different things. The "wires" connect components which are connected to eachother in some way.
+
+The connection from the numpad to the input register is not drawn.
+
+### Red wires:
+Represents connections that are active only when some control signal allows it.
+
+### Blue wires:
+Represents connections that are always active.
+
+### Green wires:
+Represents connections from the control word to components which may in some way be affected by any of the control signals.
+
+### Purple wires:
+Control signal connections from the instruction A register and the operation timestep. Always active, but drawn separate from blue because these require some control word decoding to function.
