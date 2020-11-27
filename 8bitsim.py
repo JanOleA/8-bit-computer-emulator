@@ -974,7 +974,7 @@ class Game:
             if event.key == pygame.K_KP_PLUS:
                 self.target_HZ = int(self.target_HZ*2)
             if event.key == pygame.K_KP_MINUS:
-                self.target_HZ = max(int(self.target_HZ/2), 0)
+                self.target_HZ = max(int(self.target_HZ/2), 1)
             if event.key == pygame.K_KP1:
                 self.target_HZ = int(target_fps/5)
             elif event.key == pygame.K_KP2:
@@ -1225,12 +1225,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         target_fps = int(sys.argv[2])
     else:
-        target_fps = 200
+        target_fps = 50
 
     if len(sys.argv) > 3:
         target_HZ = int(sys.argv[3])
     else:
-        target_HZ = target_fps
+        target_HZ = 25
 
     game = Game(True, target_fps, target_HZ, progload = progload)
     game.execute()

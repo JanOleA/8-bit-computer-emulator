@@ -66,17 +66,20 @@ divide:             ; divides .dividend with .divisors, stores the quotient in .
 div_loop:
   LDA .dividend
   SUB .divisor      ; subtract the divisor from the dividend
-  JPC div_end       ; if carry, the result is negative, and the division is done
-  STA .dividend     ; if not, update dividend and add 1 to quotient
+  JPZ div_end       ; if zero, division ends with remainder of zero
+  JPC continue      ; if carry, the result is positive, and division continues
+                    ; if not, the result was negative
+  ADD .divisor      ; add divisor back to the dividend to get the remainder
+div_end:
+  STA .remainder
+  LDA .quotient
+  RET
+continue:
+  STA .dividend     ; update dividend and add 1 to quotient
   LDA .quotient
   ADI 1
   STA .quotient     ; add 1 to .quotient, and store back in memory
   JMP div_loop
-div_end:
-  ADD .divisor      ; add divisor back to the dividend to get the remainder
-  STA .remainder
-  LDA .quotient
-  RET
 
 handle_add_div:
   JPZ handle_add
