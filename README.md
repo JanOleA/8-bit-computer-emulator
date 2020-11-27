@@ -19,7 +19,7 @@ start:
   STA .y      ; Store A in the memory address y points to
   OUT         ; Display A
 add:
-  LDA .x      ; Load the value from the memroy address x points to, into A
+  LDA .x      ; Load the value from the memory address x points to, into A
   ADD .y      ; Add the value from the memroy address y points to, to A
   JPC start   ; If the result > 255, return to start
   OUT         ; If not, continue, and display the result
