@@ -40,3 +40,4 @@ More examples of programs can be found in the root directory.
 [Emulator usage](docs/usage.md)  
 [Computer architecture](docs/architecture.md)  
 [Assembler usage and instruction set](docs/assembler.md)  
+[Included programs](docs/programs.md)  
