@@ -55,7 +55,7 @@ class Computer:
             self.assembly[i] = []
 
         """ All operations begin with CO|MI -> RO|IAI|CE """
-        self.assembly[0b00000000] = [] # NOP, 0
+        self.assembly[0b00000000] = [ORE] # NOP, 0
         self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|AI|ORE]                              # LDA   1       load into A from mem
         self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|ORE]       # ADD   2       add to A
         self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|SU|ORE]    # SUB   3       subtract from A
@@ -143,7 +143,7 @@ class Computer:
         print("First pass...")
         for i, line in enumerate(lines):
             line = line.split(";")[0]
-            if line.startswith("  ") and line[2] != " ":
+            if line.startswith("  ") and line[2] != " " and line[2:] != "\n":
                 """ Instruction line """
                 instruction = line.strip().split(" ")
                 if len(instruction) > 2:
@@ -551,6 +551,10 @@ class BitDisplay:
         """
         bin_out = int(bin(num_in).replace("0b", ""))
         self.draw_bits(bin_out, screen)
+
+    @property
+    def width(self):
+        return self._width
 
 
 class Game:
