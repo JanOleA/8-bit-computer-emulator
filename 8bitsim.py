@@ -33,7 +33,7 @@ class Computer:
         FI  = self.FI  = 0b00000000000000000100000000000000 # Flags in
         JC  = self.JC  = 0b00000000000000000010000000000000 # Jump on carry
         JZ  = self.JZ  = 0b00000000000000000001000000000000 # Jump on zero
-        KEO = self.KEO = 0b00000000000000000000100000000000 # Keyboard register out
+        KEO = self.KEO = 0b00000000000000000000100000000000 # Keypad register out
         ORE = self.ORE = 0b00000000000000000000010000000000 # Reset operation counter
         INS = self.INS = 0b00000000000000000000001000000000 # Increment stack pointer
         DES = self.DES = 0b00000000000000000000000100000000 # Decrement stack pointer
@@ -854,7 +854,7 @@ class Game:
 
         ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
                           "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
-                          "FI", "JC", "JZ", "KEI", "ORE", "INS", "DES", "STO",
+                          "FI", "JC", "JZ", "KEO", "ORE", "INS", "DES", "STO",
                           "RSA", "LSA"]
 
         self.ctrl_word_text_rendered = []

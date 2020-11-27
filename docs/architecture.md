@@ -21,10 +21,15 @@ In real life, this could be implemented with a logic circuit, but the circuit wo
 
 ### Program counter
 #### 8-bit counter
-
 The program counter starts at 0 and increments by one on a clock-high pulse if the "counter enable (CE)" control signal is active.
 
-The program counter can also read a value from the bus. This happens on a clock-high pulse if the "counter in (CI)" control signal is active.
+The program counter can also read a value from the bus. This happens on a clock-high pulse if the "jump (JMP)" control signal is active.
+
+There are also conditional jump signals. These are the "jump if carry (JC)" and "jump if zero (JZ)" control signals.
+
+The program counter will read a value from the bus on a clock-high pulse if both the "jump if carry" control signal is active _and_ the carry bit of the flags register is active.
+
+The program counter will read a value from the bus on a clock-high pulse if both the "jump if zero" control signal is active _and_ the zero bit of the flags register is active.
 
 ### Memory address register
 #### 8-bit register
@@ -66,3 +71,81 @@ This register is as-of-now not technically necessary. The temporary values could
 The register reads a value from the bus on a clock-high pulse if the "instruction B in (IBI)" control signal is active.
 
 It can also output its contents onto the bus if the "instruction B out (IBO)" control signal is active.
+
+### A register
+#### 8-bit register
+The A register is one of the registers (together with the B register), which is used for mathematical operations.
+
+The register reads a value from the bus on a clock-high pulse if the "A register in (AI)" control signal is active.
+
+It can also output its contents onto the bus if the "A register out (AO)" control signal is active.
+
+It is also possible to shift the values of the A register either to the right or the left. The values will be shifted on a clock-high pulse if either the "right shift A (RSA)" or the "left shift A (LSA)" control signal is active.
+
+Right shift example: `[0110 1001]` -> `[0011 0100]`  
+Left shift example: `[1001 1001]` -> `[0011 0010]`
+
+### B register
+#### 8-bit register
+The B register is one of the registers (together with the A register), which is used for mathematical operations.
+
+The register reads a value from the bus on a clock-high pulse if the "B register in (BI)" control signal is active.
+
+It currently does not support outputting the contents of the register onto the bus.
+
+### ALU (sum)
+#### 8-bit adder
+The ALU adds or subtracts the values in the A and B registers. This operation is continuous (not dependent on the clock cycle).
+
+If the "subtract (SU)" control signal is active, the result will be A - B. Otherwise the result is A + B.
+
+The flags bits directly correspond to the result of the calculation. If the calculation results in an overflow, the first bit will be active. If the result of the calculation is zero, the second bit will be active.
+
+For subtraction, any subtraction where A >= B will result in the carry bit being active. This is because subtraction is done by two's complement. See Ben Eater's video on the subject if interested in detail.
+
+The ALU can put its value onto the bus if the "sum out (EO)" control signal is active.
+
+### Flags register
+#### 2-bit register
+The function of the flags register is to remember which flag bits were active during the previous calculation.
+
+It reads and stores the value of the flags on a clock-high pulse if the "flags in (FI)" control signal is active.
+
+### Output register
+#### 8-bit register
+The output register is directly connected to a segment display which is decoded in some fashion to display the value of the register in decimal numbers.
+
+See Ben Eater's video on it to see how a decoder may function-
+
+The output register can read a value from the bus on a clock-high pulse if the "output in (OI)" control signal is active.
+
+### Input register
+#### 8-bit "register"
+The input register is not a true register. Instead its value depends entirely on which button on the on-screen numpad is pressed. And the values are as follows:
+- `0`: `[1000 0000]`
+- `1`: `[1000 0001]`
+- `2`: `[1000 0010]`
+- `3`: `[1000 0011]`
+- `4`: `[1000 0100]`
+- `5`: `[1000 0101]`
+- `6`: `[1000 0110]`
+- `7`: `[1000 0111]`
+- `8`: `[1000 1000]`
+- `9`: `[1000 1001]`
+- `/`: `[1110 0000]`
+- `+`: `[1100 0000]`
+- `-`: `[1010 0000]`
+- `*`: `[1001 0000]`
+
+The register outputs this value onto the bus if the "keypad out (KEO)" control signal is active.
+
+### Stack pointer
+#### 4-bit counter
+The stack pointer is a four bit counter used to keep track of how many values have been added to the stack.
+The stack is a reserved part of memory from address 224 to 239.
+
+The stack pointer will increment by 1 on a clock-high pulse if the "increment stack (INS)" control signal is active.
+
+The stack pointer will decrement by 1 on a clock-high pulse if the "decrement stack (DES)" control signal is active.
+
+The stack pointer can output its value to the bus if the "stack out (STO)" control signal is active. When the stack pointer outputs its value to the bus, 224 `[1110 0000]` is added to the value, so that the actual values put onto the bus will range from 224 to 239.
