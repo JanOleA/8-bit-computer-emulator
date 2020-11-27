@@ -31,7 +31,7 @@ Finally, you can add a clock cycle frequency target, by adding a third command-l
 This last example will load the program from [fibonacci.txt](../fibonacci.txt), and attempt to run at 100 FPS with a clock cycle of 200 Hz.
 
 ### Note about clock cycle and FPS
-If the clock cycle is higher than the frame rate, the emulator will not be able to display every state of the computer (as some of the computation is done between frames), so you may see the it jump between seemingly unrelated states.
+If the clock cycle is higher than the frame rate, the emulator will not be able to display every state of the computer (as some of the computation is done between frames), so you may see it jump between seemingly unrelated states.
 
 ### Note about command line arguments
 For now, the command line arguments must be provided in order, so if you want to give a Hz target, you must also give the program name and the FPS target. Adding flags for more flexibility is on the to-do list.
