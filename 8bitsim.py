@@ -12,7 +12,7 @@ class Computer:
         self.memory = np.zeros(256, dtype = np.uint16)
         self.get_mem_strings()
 
-        # microcode definitions
+        # control signal definitions
         HLT = self.HLT = 0b10000000000000000000000000000000 # Halt
         MI  = self.MI  = 0b01000000000000000000000000000000 # Memory address in
         RI  = self.RI  = 0b00100000000000000000000000000000 # RAM in
@@ -54,6 +54,7 @@ class Computer:
         for i in range(255):
             self.assembly[i] = []
 
+        # instruction definitions
         """ All operations begin with CO|MI -> RO|IAI|CE """
         self.assembly[0b00000000] = [ORE] # NOP, 0
         self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|AI|ORE]                              # LDA   1       load into A from mem
@@ -853,7 +854,8 @@ class Game:
 
         ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
                           "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
-                          "FI", "JC", "JZ", "KEI", "ORE", "INS", "DES", "STO"]
+                          "FI", "JC", "JZ", "KEI", "ORE", "INS", "DES", "STO",
+                          "RSA", "LSA"]
 
         self.ctrl_word_text_rendered = []
         for text in ctrl_word_text:
