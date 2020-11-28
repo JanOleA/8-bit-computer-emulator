@@ -40,15 +40,18 @@ class Computer:
         STO = self.STO = 0b00000000000000000000000010000000 # Stack pointer out
         RSA = self.RSA = 0b00000000000000000000000001000000 # Shift A right one time
         LSA = self.LSA = 0b00000000000000000000000000100000 # Shift A left one time
+        DDI = self.DDI = 0b00000000000000000000000000010000 # LCD screen (Display) data in
+        DCI = self.DCI = 0b00000000000000000000000000001000 # LCD screen (Display) control signals in
 
 
         self.microcodes = [HLT, MI, RI, RO, IAO, IAI, IBO, IBI, AI, AO, EO, SU, BI,
-                           OI, CE, CO, JMP, FI, JC, JZ, KEO, ORE, INS, DES, STO]
+                           OI, CE, CO, JMP, FI, JC, JZ, KEO, ORE, INS, DES, STO,
+                           RSA, LSA, DDI, DCI]
         self.microcode_labels = ["Halt", "M.Ad. in", "RAM in", "RAM out", "InstA O", "InstA I", "InstB O",
                                  "InstB I", "A in", "A out", "Sum out", "Sub", "B in",
                                  "Disp. I", "Counter", "Cntr. O", "Jump", "Flg. in", "Jmp Cry",
-                                 "Jmp 0", "Inpt. O", "OpT rst", "Inc stk",
-                                 "Dec stk", "Stk O"]
+                                 "Jmp 0", "Inpt. O", "OpT rst", "Inc stk", "Dec stk", "Stk O",
+                                 "Shft A+", "Shft A-", "DispD I", "DispC I"]
         
         self.assembly = {}
         for i in range(255):
@@ -80,6 +83,9 @@ class Computer:
         self.assembly[0b00010101] = [CO|MI,         RO|IBI|CE,      IBO|BI,         FI|SU|ORE]                              # CPI   21      compare immediate value with A register. Set zf if equal, cf if A is GEQ
         self.assembly[0b00010110] = [RSA|ORE]                                                                               # RSA   22      Shift A one position to the right (A = A//2)
         self.assembly[0b00010111] = [LSA|ORE]                                                                               # LSA   23      Shift A one position to the left (A = A*2)
+        self.assembly[0b00011000] = [CO|MI,         RO|IBI|CE,      IBO|DDI|ORE]                                            # DIS   24      load immediate (into display data)
+        self.assembly[0b00011001] = [CO|MI,         RO|IBI|CE,      IBO|DCI|ORE]                                            # DIC   25      load immediate (into display control)
+        self.assembly[0b00011010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|DDI|ORE]                             # LDD   26      load from mem (into display data)
         self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT   254     display the value from A on the output display
         self.assembly[0b11111111] = [HLT]                                                                                   # HLT   255     halt operation
 
@@ -107,6 +113,9 @@ class Computer:
                                 "CPI": 21,
                                 "RSA": 22,
                                 "LSA": 23,
+                                "DIS": 24,
+                                "DIC": 25,
+                                "LDD": 26,
                                 "OUT": 254,
                                 "HLT": 255,}
 
@@ -269,6 +278,8 @@ class Computer:
         self.stackpointer = 0
         self.timer_indicator = 0
         self.clockcycles_ran = 0
+        self.screen_data = 0
+        self.screen_control = 0
 
         self.memaddress = self.bus
         self.memcontent = self.memory[self.memaddress]
@@ -403,6 +414,12 @@ class Computer:
 
         if operation&self.CE:
             self.prog_count += 1
+
+        if operation&self.DDI:
+            self.screen_data = self.bus
+
+        if operation&self.DCI:
+            self.screen_control = self.bus//(2**5)
 
         if operation&self.JMP:
             self.prog_count = self.bus
@@ -563,7 +580,8 @@ class BitDisplay:
 class Game:
     """ Main control class. Handles rendering, timing control and user input. """
     def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
-                 draw_mem = False, draw_ops = False, progload = "program.txt"):
+                 draw_mem = False, draw_ops = False, progload = "program.txt",
+                 LCD_display = False):
         self._running = True
         self._screen = None
         self._width = 1600
@@ -573,6 +591,7 @@ class Game:
         self.step = 0
         self.cyclecounts = 0
         self.progload = progload
+        self.use_LCD_display = LCD_display
 
         self.autorun = autorun
         self.target_FPS = target_FPS
@@ -617,6 +636,7 @@ class Game:
         self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 13)
         self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
         self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
+        self._font_console_bold = pygame.font.SysFont("monospace", 17, bold = True)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
         self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
         self._font_verysmall_console = pygame.font.SysFont("monospace", 10)
@@ -741,6 +761,21 @@ class Game:
                                        oncolor = self.RED,
                                        offcolor = self.DARKERRED)
 
+        self.disd_display = BitDisplay(cpos = (1310, 450),
+                                       font = self._font_exobold,
+                                       textcolor = self.TEXTGREY,
+                                       text = "Display data register",
+                                       oncolor = self.RED,
+                                       offcolor = self.DARKERRED)
+
+        self.disc_display = BitDisplay(cpos = (1500, 450),
+                                       font = self._font_exobold,
+                                       textcolor = self.TEXTGREY,
+                                       text = "Control register",
+                                       length = 3,
+                                       oncolor = self.GREEN,
+                                       offcolor = self.DARKERGREEN)
+
         self.ctrl_display = BitDisplay(cpos = (950, 800),
                                        font = self._font_exobold,
                                        textcolor = self.TEXTGREY,
@@ -819,6 +854,9 @@ class Game:
         pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 12)
         pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 12)
         pygame.draw.rect(self._bg, (0,0,0), self.stap_display.reg_bg, border_radius = 12)
+        if self.use_LCD_display: 
+            pygame.draw.rect(self._bg, (0,0,0), self.disd_display.reg_bg, border_radius = 12)
+            pygame.draw.rect(self._bg, (0,0,0), self.disc_display.reg_bg, border_radius = 12)
         #pygame.draw.rect(self._bg, (0,0,0), self.clk_display.reg_bg, border_radius = 10)
 
         self.keypad1 = BitDisplay(cpos = (1100, 50), length = 3, radius = 15,
@@ -857,7 +895,7 @@ class Game:
         ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
                           "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
                           "FI", "JC", "JZ", "KEO", "ORE", "INS", "DES", "STO",
-                          "RSA", "LSA"]
+                          "RSA", "LSA", "DDI", "DCI"]
 
         self.ctrl_word_text_rendered = []
         for text in ctrl_word_text:
@@ -908,6 +946,8 @@ class Game:
         self.helptext_rendered = self._font_exobold_small.render(self.helptext_2, True, self.TEXTGREY)
         self._bg.blit(self.helptext_rendered, (300, self._height - 30))
 
+        self.LCD_display = LCD_display(self._font_console_bold, position = (1210, 500))
+
     def simple_line(self, pos1, pos2, color, shift1 = (0,0), shift2 = (0,0), width = 5):
         """ Draws a simple line to display connections between registers to the
         background image.
@@ -944,6 +984,10 @@ class Game:
         self._screen.blit(overlaytext, (text_x, text_y))
 
         return pressed
+
+    def update_LCD_display(self):
+        self.LCD_display.set_data_lines(self.computer.screen_data)
+        self.LCD_display.set_control_bits(self.computer.screen_control*2**5)
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
@@ -1002,6 +1046,7 @@ class Game:
                 if event.key == pygame.K_RETURN:
                     self.computer.update()
                     self.computer.clock_high()
+                    if self.use_LCD_display: self.update_LCD_display()
 
                 if event.key == pygame.K_SPACE:
                     self.autorun = True
@@ -1013,6 +1058,7 @@ class Game:
             if event.key == pygame.K_RETURN and not self.autorun:
                 self.computer.clock_low()
                 self.computer.update()
+                if self.use_LCD_display: self.update_LCD_display()
 
     def loop(self):
         self.mouse_pos = np.array(pygame.mouse.get_pos())
@@ -1044,6 +1090,7 @@ class Game:
                 if self.autorun:
                     self.computer.clock_high()
                     self.computer.update()
+                    if self.use_LCD_display: self.update_LCD_display()
                     self.computer.clock_low()
         else:
             frames_per_cycle = self.target_FPS/self.target_HZ
@@ -1052,6 +1099,7 @@ class Game:
                 if self.autorun:
                     self.computer.clock_high()
                     self.computer.update()
+                    if self.use_LCD_display: self.update_LCD_display()
                     self.computer.clock_low()
                     self.cyclecounts += 1
         
@@ -1099,6 +1147,11 @@ class Game:
         self.outp_display.draw_number(self.computer.out_regist, self._screen)
         self.inpt_display.draw_number(self.computer.input_regi, self._screen)
         self.stap_display.draw_number(self.computer.stackpointer, self._screen)
+
+        """ LCD display registers """
+        if self.use_LCD_display:
+            self.disd_display.draw_number(self.computer.screen_data, self._screen)
+            self.disc_display.draw_number(self.computer.screen_control, self._screen)
 
         """ Draw and check the numpad buttons for input """
         i = 0
@@ -1205,6 +1258,8 @@ class Game:
         self._screen.blit(self.fpstext, (100,5))
         self._screen.blit(self._text_cycles_ran, (300,5))
 
+        if self.use_LCD_display: self.LCD_display.render(self._screen)
+
         pygame.display.flip()
 
     def cleanup(self):
@@ -1220,6 +1275,130 @@ class Game:
             self.loop()
             self.render()
         self.cleanup()
+
+
+class LCD_display:
+    def __init__(self, font, size = (16, 2), position = (0, 0)):
+        self.size = np.array(size)
+        self.data = 0
+        self.control = 0
+        self.previous_enable = 0
+        self.cursor_pos = np.zeros(2, dtype = int)
+        self.cursoron = False
+        self.cursordraw = False
+        self.cursorblink = False
+        self.position = position # top left
+        self.font = font
+        self.time = time.time()
+        self.cursor_dir = 1
+
+        self.lettercolor = (0, 0, 0)
+        self.bgcolor = (210, 235, 100)
+
+        self.cursor = self.font.render("_", True, self.lettercolor)
+
+        symbol = font.render("0", True, self.lettercolor)
+        self.symbolheight = symbol.get_height()
+        self.symbolwidth = symbol.get_width()
+
+        self.pixelsize = self.size*(self.symbolwidth + 4, self.symbolheight + 4)
+        
+        self.bg_rect = pygame.Rect(self.position[0], self.position[1],
+                                   self.pixelsize[0], self.pixelsize[1])
+
+        self.bg_border = pygame.Rect(self.position[0] - 5, self.position[1] - 5,
+                                     self.pixelsize[0] + 10, self.pixelsize[1] + 10)
+
+        self.memory = np.zeros(size, dtype = int)
+
+    def enable_set(self):
+        if 0b01000000 & self.control:
+            if 0b10000000 & self.control:
+                """ Read """
+                self.memory[tuple(self.cursor_pos)] = self.data
+                if self.cursor_dir == 1:
+                    self.cursor_pos += [1, 0]
+                else:
+                    self.cursor_pos -= [1, 0]
+        else:
+            if   0b10000000 & self.data:
+                pass
+            elif 0b01000000 & self.data:
+                pass
+            elif 0b00100000 & self.data:
+                pass
+            elif 0b00010000 & self.data:
+                """ Cursor and shift control """
+                direction = int(bin(self.data)[-4])
+                if direction == 1:
+                    self.cursor_pos += [1, 0]
+                else:
+                    self.cursor_pos -= [1, 0]
+            elif 0b00001000 & self.data:
+                """ Display on/off control
+                    Always on
+                """
+                self.cursoron = int(bin(self.data)[-2])
+                self.cursorblink = int(bin(self.data)[-1])
+            elif 0b00000100 & self.data:
+                """ Entry mode set """
+                self.cursor_dir = int(bin(self.data)[-2])
+            elif 0b00000010 & self.data:
+                """ Return home """
+                self.cursor_pos = np.zeros(2, dtype = int)
+            elif 0b00000001 & self.data:
+                """ Clear display """
+
+                self.memory = np.zeros(self.size, dtype = int)
+                self.cursor_pos = np.zeros(2, dtype = int)
+
+
+    def set_data_lines(self, value):
+        self.data = value
+
+    def set_control_bits(self, value):
+        self.control = value
+
+        if self.control&0b10000000:
+            if not self.previous_enable:
+                """ enable bit toggled high """
+                self.enable_set()
+
+            self.previous_enable = True
+        else:
+            self.previous_enable = False
+                
+    def render(self, screen):
+        pygame.draw.rect(screen, (0, 0, 0), self.bg_border, border_radius = 10)
+        pygame.draw.rect(screen, self.bgcolor, self.bg_rect, border_radius = 5)
+
+        cursor = self.cursor
+
+        if time.time() - self.time > 0.5:
+            if self.cursordraw:
+                self.cursordraw = False
+            else:
+                self.cursordraw = True
+            self.time = time.time()
+
+        for col in range(self.size[0]):
+            x = 1 + (self.symbolwidth + 4)*col + self.position[0]
+            for row in range(self.size[1]):
+                y = 2 + (self.symbolheight + 4)*row + self.position[1]
+
+                mem = self.memory[col, row]
+                character = chr(mem)
+                try:
+                    text = self.font.render(character, True, self.lettercolor)
+                    screen.blit(text, (x, y))
+                except ValueError as e:
+                    pass # null characters aren't drawn
+
+                if self.cursordraw and self.cursoron:
+                    if np.all(self.cursor_pos == (col, row)):
+                        screen.blit(cursor, (x, y))
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -1237,6 +1416,14 @@ if __name__ == "__main__":
     else:
         target_HZ = 25
 
-    game = Game(True, target_fps, target_HZ, progload = progload)
+    if len(sys.argv) > 4:
+        if sys.argv[4].lower() == "true":
+            lcd = True
+        else:
+            lcd = False
+    else:
+        lcd = False
+
+    game = Game(True, target_fps, target_HZ, progload = progload, LCD_display = lcd)
     game.execute()
     

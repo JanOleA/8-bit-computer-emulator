@@ -1,0 +1,70 @@
+char = 255
+
+start:
+  DIS 1                 ; clear display
+  JSR instruction
+  DIS 15                ; set on, display cursor, cursor blink
+  JSR instruction
+
+  LDI 72                ; H
+  STA .char
+  JSR write_char
+
+  LDI 101               ; e
+  STA .char
+  JSR write_char
+
+  LDI 108               ; l
+  STA .char
+  JSR write_char
+
+  LDI 108               ; l
+  STA .char
+  JSR write_char
+
+  LDI 111               ; l
+  STA .char
+  JSR write_char
+
+  LDI 32                ; space
+  STA .char
+  JSR write_char
+
+  LDI 87                ; W
+  STA .char
+  JSR write_char
+
+  LDI 111               ; o
+  STA .char
+  JSR write_char
+
+  LDI 114               ; r
+  STA .char
+  JSR write_char
+
+  LDI 108               ; l
+  STA .char
+  JSR write_char
+
+  LDI 100               ; d
+  STA .char
+  JSR write_char
+
+  LDI 33                ; !
+  STA .char
+  JSR write_char
+
+  HLT
+
+write_char:
+  LDD .char
+  DIC 0
+  DIC 192
+  DIC 0
+  RET
+
+instruction:
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
