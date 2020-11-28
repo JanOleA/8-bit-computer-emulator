@@ -44,8 +44,8 @@ check_prime:
   LDA .check_value
   RSA               ; right shift A to divide by 2
   STA .half_check   ; store half of .check_value in .half_check
-  LDI 2
-  STA .loop_index   ; set loop index to 2
+  LDI 3
+  STA .loop_index   ; set loop index to 3
 prime_loop:
   LDA .loop_index
   CMP .half_check   ; compare the loop_index to the value we are checking

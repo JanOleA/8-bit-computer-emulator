@@ -268,6 +268,7 @@ class Computer:
         self.zero = 0
         self.stackpointer = 0
         self.timer_indicator = 0
+        self.clockcycles_ran = 0
 
         self.memaddress = self.bus
         self.memcontent = self.memory[self.memaddress]
@@ -357,6 +358,7 @@ class Computer:
         if self.halting:
             return False
         self.timer_indicator = 1
+        self.clockcycles_ran += 1
 
         operation = self.controlword
 
@@ -1197,8 +1199,11 @@ class Game:
                 out_text = self._font_small_console.render(s[:-2], True, self.TEXTGREY)
                 self._screen.blit(out_text, (1180, 650 + i*15))
 
+        self._text_cycles_ran = self._font.render(f"Clock cycles ran: {self.computer.clockcycles_ran:>10d}", True, self.TEXTGREY)
+
         self._screen.blit(self.clockrate, (5,5))
         self._screen.blit(self.fpstext, (100,5))
+        self._screen.blit(self._text_cycles_ran, (300,5))
 
         pygame.display.flip()
 
