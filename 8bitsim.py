@@ -1278,12 +1278,12 @@ class Game:
 
 
 class LCD_display:
-    def __init__(self, font, size = (16, 2), position = (0, 0)):
-        self.size = np.array(size)
+    def __init__(self, font, position = (0, 0)):
+        self.size = np.array((16, 2))
         self.data = 0
         self.control = 0
         self.previous_enable = 0
-        self.cursor_pos = np.zeros(2, dtype = int)
+        self.cursor_pos = 0
         self.cursoron = False
         self.cursordraw = False
         self.cursorblink = False
@@ -1291,6 +1291,8 @@ class LCD_display:
         self.font = font
         self.time = time.time()
         self.cursor_dir = 1
+        self.shift_dir = 1
+        self.shift = 0
 
         self.lettercolor = (0, 0, 0)
         self.bgcolor = (210, 235, 100)
@@ -1309,17 +1311,17 @@ class LCD_display:
         self.bg_border = pygame.Rect(self.position[0] - 5, self.position[1] - 5,
                                      self.pixelsize[0] + 10, self.pixelsize[1] + 10)
 
-        self.memory = np.zeros(size, dtype = int)
+        self.memory = np.zeros(128, dtype = int)
 
     def enable_set(self):
         if 0b01000000 & self.control:
             if 0b10000000 & self.control:
                 """ Read """
-                self.memory[tuple(self.cursor_pos)] = self.data
+                self.memory[self.cursor_pos] = self.data
                 if self.cursor_dir == 1:
-                    self.cursor_pos += [1, 0]
+                    self.cursor_pos += 1
                 else:
-                    self.cursor_pos -= [1, 0]
+                    self.cursor_pos -= 1
         else:
             if   0b10000000 & self.data:
                 pass
@@ -1331,9 +1333,9 @@ class LCD_display:
                 """ Cursor and shift control """
                 direction = int(bin(self.data)[-4])
                 if direction == 1:
-                    self.cursor_pos += [1, 0]
+                    self.cursor_pos += 1
                 else:
-                    self.cursor_pos -= [1, 0]
+                    self.cursor_pos -= 1
             elif 0b00001000 & self.data:
                 """ Display on/off control
                     Always on
@@ -1345,12 +1347,12 @@ class LCD_display:
                 self.cursor_dir = int(bin(self.data)[-2])
             elif 0b00000010 & self.data:
                 """ Return home """
-                self.cursor_pos = np.zeros(2, dtype = int)
+                self.cursor_pos = 0
             elif 0b00000001 & self.data:
                 """ Clear display """
 
-                self.memory = np.zeros(self.size, dtype = int)
-                self.cursor_pos = np.zeros(2, dtype = int)
+                self.memory[:] = 0
+                self.cursor_pos = 0
 
 
     def set_data_lines(self, value):
@@ -1381,13 +1383,20 @@ class LCD_display:
                 self.cursordraw = True
             self.time = time.time()
 
-        for col in range(self.size[0]):
-            x = 1 + (self.symbolwidth + 4)*col + self.position[0]
-            for row in range(self.size[1]):
-                y = 2 + (self.symbolheight + 4)*row + self.position[1]
+        row1 = self.memory[0:40]
+        row2 = self.memory[64:104]
 
-                mem = self.memory[col, row]
-                character = chr(mem)
+        row1 = np.roll(row1, self.shift*self.shift_dir)
+        row2 = np.roll(row2, self.shift*self.shift_dir)
+
+        for i, val1 in enumerate(row1[:16]):
+            val2 = row2[i]
+            vals = [val1, val2]
+            x = 1 + (self.symbolwidth + 4)*i + self.position[0]
+            for j, val in enumerate(vals):
+                y = 2 + (self.symbolheight + 4)*j + self.position[1]
+
+                character = chr(val)
                 try:
                     text = self.font.render(character, True, self.lettercolor)
                     screen.blit(text, (x, y))
@@ -1395,7 +1404,7 @@ class LCD_display:
                     pass # null characters aren't drawn
 
                 if self.cursordraw and self.cursoron:
-                    if np.all(self.cursor_pos == (col, row)):
+                    if (self.cursor_pos + self.shift*self.shift_dir) == i + 64*j:
                         screen.blit(cursor, (x, y))
 
 

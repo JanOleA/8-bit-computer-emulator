@@ -1,11 +1,15 @@
 char = 255
+loopval = 254
 
+  LDI 52
+  STA .loopval
 start:
   DIS 1                 ; clear display
   JSR instruction
   DIS 15                ; set on, display cursor, cursor blink
   JSR instruction
 
+helloworld:
   LDI 72                ; H
   STA .char
   JSR write_char
@@ -54,11 +58,25 @@ start:
   STA .char
   JSR write_char
 
+  LDA .loopval
+  CPI 0
+  JPZ end_loop
+loop:
+  LDI 32                ; space
+  STA .char
+  JSR write_char
+  LDA .loopval
+  SUI 1
+  STA .loopval
+  JPZ helloworld
+  JMP loop
+end_loop:
   HLT
 
 write_char:
   LDD .char
   DIC 0
+  DIC 64
   DIC 192
   DIC 0
   RET
