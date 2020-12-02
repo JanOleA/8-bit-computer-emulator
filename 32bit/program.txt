@@ -1,0 +1,69 @@
+dividend = 254              ; dividend for the divide routine
+divisor = 253               ; divisor for the divide routine
+quotient = 252              ; quotient of the division
+remainder = 251             ; remainder in the division
+check_value = 250           ; value to check if it is prime
+loop_index = 249            ; index of the loop
+half_check = 248            ; half of the value we are checking
+
+start:
+  LDI 2
+  OUT
+  LDI 3             ; load 0 to clear required variables
+  STA .check_value
+main_loop:
+  JSR check_prime
+  LDA .check_value
+  ADI 2
+  JPC start
+  STA .check_value
+  JMP main_loop
+
+divide:             ; divides .dividend with .divisors, stores the quotient in .quotient
+  LDI 0
+  STA .quotient     ; initialize quotient as 0
+div_loop:
+  LDA .dividend
+  SUB .divisor      ; subtract the divisor from the dividend
+  JPZ div_end       ; if zero, division ends with remainder of zero
+  JPC continue      ; if carry, the result is positive, and division continues
+                    ; if not, the result was negative
+  ADD .divisor      ; add divisor back to the dividend to get the remainder
+div_end:
+  STA .remainder
+  LDA .quotient
+  RET
+continue:
+  STA .dividend     ; update dividend and add 1 to quotient
+  LDA .quotient
+  ADI 1
+  STA .quotient     ; add 1 to .quotient, and store back in memory
+  JMP div_loop
+
+check_prime:
+  LDA .check_value
+  RSA               ; right shift A to divide by 2
+  STA .half_check   ; store half of .check_value in .half_check
+  LDI 3
+  STA .loop_index   ; set loop index to 3
+prime_loop:
+  LDA .loop_index
+  CMP .half_check   ; compare the loop_index to the value we are checking
+  JPC prime         ; if A >= check_value//2, the value is prime
+  STA .divisor      ; store loop_index as divisor
+  LDA .check_value
+  STA .dividend     ; store the check value as the dividend
+  JSR divide        ; divide the values
+  LDA .remainder    ; load the remainder into ADD
+  CPI 0             ; if the remainder is zero, the number is divisible
+  JPZ not_prime     ; zero flag will be set if remainder is zero
+  LDA .loop_index   ; if not, add 1 to the loop index
+  ADI 1
+  STA .loop_index
+  JMP prime_loop    ; and loop again
+not_prime:
+  RET
+prime:
+  LDA .check_value
+  OUT
+  RET

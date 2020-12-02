@@ -1,4 +1,0 @@
-  OUT
-  LDI 0
-  SUI 0
-  HLT

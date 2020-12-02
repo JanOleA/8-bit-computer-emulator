@@ -1,0 +1,143 @@
+dividend = 224              ; dividend for the divide routine
+divisor = 225               ; divisor for the divide routine
+quotient = 226              ; quotient of the division
+remainder = 227             ; remainder in the division
+check_value = 228           ; value to check if it is prime
+loop_index = 229            ; index of the loop
+half_check = 230            ; half of the value we are checking
+square_val = 231            ; squaring variable
+square_result = 232         ; result of squaring
+prime = 233                 ; prime boolean
+square_sum = 234            ; squared sum
+num_primes = 235            ; current number of primes
+finds = 236                 ; storing the finds at this address and higher
+multiplicand = 237          ; multiplicand for multiply routine
+multiplier = 238            ; etc.
+product = 239               ; ...
+
+start:
+  LDI 4
+  STA .square_sum   ; initialize the squared sum as 4
+  LDI 3
+  STA .check_value  ; first value to check if prime is 3
+  LDI 1
+  STA .num_primes   ; 2 is prime, so we currently have one prime
+  LDI 240
+  STA .finds        ; store 240 as the memory address to begin storing results at
+main_loop:
+  JSR check_prime   ; check if the current value we are checking is prime
+  CPI 0             ; compare the returned value to 0
+  JPZ next_val      ; if it is, the value is not prime, jump to next_val
+  
+its_prime:
+  LDA .num_primes
+  ADI 1             ; add 1 to num_primes
+  STA .num_primes
+  STA .divisor      ; store the number of found primes as divisor
+  LDA .check_value  ; load the prime
+  STA .square_val   ; store it as the value to square
+  JSR square        ; square it
+  LDA .square_sum   ; load the current square sum
+  ADD .square_result  ; add the result of the squaring to it
+  STA .square_sum   ; store it as the new square_sum
+  STA .dividend     ; also store it as the dividend
+  JSR divide        ; divide the values
+  LDA .remainder    ; load the remainder
+  CPI 0             ; compare to zero
+  JPZ found_one     ; found one!
+  JMP next_val      ; didn't find one, jump to next value
+
+found_one:          ; found one!
+  LDA .finds        ; address in memory to store the result
+  PHA               ; push the address to stack
+  ADI 1             ; add one to it to increment for the next value
+  STA .finds        ; store it again
+  LDA .num_primes
+  OUT               ; display the result
+  SAS               ; store the result in the memory address left in stack
+
+next_val:
+  LDA .check_value
+  ADI 2
+  JPC start         ; if we overflow, we can't find any more primes
+  STA .check_value
+  JMP main_loop
+
+
+square:             ;;;; routine for squaring the value in .square
+  LDA .square_val
+  STA .multiplicand
+  STA .multiplier
+  JSR multiply      ; multiply square_val with itself
+  STA .square_result
+  RET               ;;;; end of squaring routine
+
+
+multiply:           ; multiplies .multiplicand with .multiplier, stores it in .product
+  LDA .multiplicand
+  STA .product      ; store the multiplicand in .product, essentially doing the first addition
+mult_loop:
+  LDA .multiplier
+  SUI 1             ; subtract 1 from multiplier
+  JPZ mult_end      ; if result is zero, end multiply
+  STA .multiplier
+  LDA .product
+  ADD .multiplicand
+  STA .product
+  JMP mult_loop     ; continue multiply loop
+mult_end:
+  LDA .product
+  RET               ; return
+
+
+divide:             ;;;; divides .dividend with .divisor, stores the quotient in .quotient, remainder in .remainder
+  LDI 0
+  STA .quotient     ; initialize quotient as 0
+div_loop:
+  LDA .dividend
+  SUB .divisor      ; subtract the divisor from the dividend
+  JPZ div_end       ; if zero, division ends with remainder of zero
+  JPC continue      ; if carry, the result is positive, and division continues
+                    ; if not, the result was negative
+  ADD .divisor      ; add divisor back to the dividend to get the remainder
+div_end:
+  STA .remainder
+  LDA .quotient
+  RET
+continue:
+  STA .dividend     ; update dividend and add 1 to quotient
+  LDA .quotient
+  ADI 1
+  STA .quotient     ; add 1 to .quotient, and store back in memory
+  JMP div_loop      ;;;; divide routine end
+
+
+check_prime:        ;;;; routine which checks whether the value of .check_value is prime or not
+  LDA .check_value
+  RSA               ; right shift A to divide by 2
+  STA .half_check   ; store half of .check_value in .half_check
+  LDI 3
+  STA .loop_index   ; set loop index to 3
+prime_loop:
+  LDA .loop_index
+  CMP .half_check   ; compare the loop_index to the value we are checking
+  JPC prime         ; if A >= check_value//2, the value is prime
+  STA .divisor      ; store loop_index as divisor
+  LDA .check_value
+  STA .dividend     ; store the check value as the dividend
+  JSR divide        ; divide the values
+  LDA .remainder    ; load the remainder into ADD
+  CPI 0             ; if the remainder is zero, the number is divisible
+  JPZ not_prime     ; zero flag will be set if remainder is zero
+  LDA .loop_index   ; if not, add 1 to the loop index
+  ADI 1
+  STA .loop_index
+  JMP prime_loop    ; and loop again
+not_prime:
+  LDI 0
+  STA .prime
+  RET
+prime:
+  LDI 1
+  STA .prime
+  RET               ;;;; check_prime routine end
