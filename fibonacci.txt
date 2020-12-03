@@ -4,6 +4,7 @@ y = 254
 start:
   LDI 1       ; Load (immediate) a value of 1 into the A register
   STA .x      ; Store A in the memory address x points to
+  LDI 0
   STA .y      ; Store A in the memory address y points to
   OUT         ; Display A
 add:

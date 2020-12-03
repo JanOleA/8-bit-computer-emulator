@@ -625,7 +625,7 @@ class Game:
 
         self._screen = pygame.display.set_mode(self._size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self._running = True
-
+        
         pygame.font.init()
         self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 19)
         self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 13)
@@ -943,6 +943,12 @@ class Game:
 
         self.LCD_display = LCD_display(self._font_console_bold, position = (1210, 500))
 
+        prog_text = "".join(self.progload.split('.')[:-1])
+        if prog_text[:1] == "\\":
+            prog_text = prog_text[1:]
+        self._loaded_program_text = self._font.render(f"Loaded program: {prog_text}", True, self.TEXTGREY)
+        self._start_time = time.time()
+
     def simple_line(self, pos1, pos2, color, shift1 = (0,0), shift2 = (0,0), width = 5):
         """ Draws a simple line to display connections between registers to the
         background image.
@@ -1249,9 +1255,22 @@ class Game:
 
         self._text_cycles_ran = self._font.render(f"Clock cycles ran: {self.computer.clockcycles_ran:>10d}", True, self.TEXTGREY)
 
+        uptime = time.time() - self._start_time
+        hours = uptime/3600
+        minutes = (hours - np.floor(hours))*60
+        seconds = (minutes - np.floor(minutes))*60
+
+        hours = int(np.floor(hours))
+        minutes = int(np.floor(minutes))
+        seconds = int(np.floor(seconds))
+
+        self._text_uptime = self._font.render(f"Uptime: {hours:>02d}:{minutes:>02d}:{seconds:>02d}", True, self.TEXTGREY)
+
         self._screen.blit(self.clockrate, (5,5))
         self._screen.blit(self.fpstext, (100,5))
-        self._screen.blit(self._text_cycles_ran, (300,5))
+        self._screen.blit(self._text_cycles_ran, (280,5))
+        self._screen.blit(self._loaded_program_text, (280,25))
+        self._screen.blit(self._text_uptime, (280,45))
 
         if self.use_LCD_display: self.LCD_display.render(self._screen)
 

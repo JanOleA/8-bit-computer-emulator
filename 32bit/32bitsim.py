@@ -13,7 +13,7 @@ class Computer:
                  stackpointer_start = None):
         self.bits = bits
         self.bits_stackpointer = bits_stackpointer
-        self.memory = np.zeros(2**bits, dtype = int)
+        self.memory = np.zeros(2**bits, dtype = np.uint64)
         self.get_mem_strings()
 
         if stackpointer_start is None:
@@ -393,7 +393,7 @@ class Computer:
 
         if operation&self.MI:
             self.memaddress = self.bus
-            self.memcontent = self.memory[self.memaddress]
+            self.memcontent = self.memory[int(self.memaddress)]
 
         if operation&self.RI:
             self.memcontent = self.bus

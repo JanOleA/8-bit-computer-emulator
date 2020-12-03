@@ -1,13 +1,16 @@
-dividend = 254              ; dividend for the divide routine
-divisor = 253               ; divisor for the divide routine
-quotient = 252              ; quotient of the division
-remainder = 251             ; remainder in the division
-check_value = 250           ; value to check if it is prime
-loop_index = 249            ; index of the loop
-half_check = 248            ; half of the value we are checking
-pow2 = 247
+dividend = 145              ; dividend for the divide routine
+divisor = 146               ; divisor for the divide routine
+quotient = 147              ; quotient of the division
+remainder = 148             ; remainder in the division
+check_value = 149           ; value to check if it is prime
+loop_index = 150            ; index of the loop
+half_check = 151            ; half of the value we are checking
+pow2 = 152
+finds = 153                 ; storing the finds at this address and higher
 
 start:
+  LDI 160
+  STA .finds
   LDI 2
   OUT
   LDI 3             ; load 0 to clear required variables
@@ -92,6 +95,11 @@ prime_loop:
 not_prime:
   RET
 prime:
+  LDA .finds
+  PHA
+  ADI 1
+  STA .finds
   LDA .check_value
   OUT
+  SAS
   RET

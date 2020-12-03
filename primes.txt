@@ -5,6 +5,7 @@ remainder = 251             ; remainder in the division
 check_value = 250           ; value to check if it is prime
 loop_index = 249            ; index of the loop
 half_check = 248            ; half of the value we are checking
+pow2 = 247
 
 start:
   LDI 2
@@ -19,26 +20,51 @@ main_loop:
   STA .check_value
   JMP main_loop
 
-divide:             ; divides .dividend with .divisors, stores the quotient in .quotient
+divide:             ; divides .dividend with .divisor, stores the quotient in .quotient
   LDI 0
   STA .quotient     ; initialize quotient as 0
+  LDI 1
+  STA .pow2         ; initialize pow2 as 1
+inc_b:              ; increase the .divisor by dividing by 2 as many times as possible
+                    ; while keeping it below the dividend
+  LDA .divisor      ; load divisor into A
+  LSA               ; left shift (i.e. mult. by 2)
+  JPC div_loop      ; if the left shift causes a carry, done increasing .divisor
+  CMP .dividend     ; compare with dividend
+  JPC div_loop      ; done increasing .divisor
+  STA .divisor      ; store divisor*2 as new divisor
+  LDA .pow2
+  LSA               ; multiply pow2 by 2 as well
+  STA .pow2         ; store it as new pow2
+  JMP inc_b         ; go back to inc_b
 div_loop:
+  LDA .pow2
+  CPI 0             ; compare pow2 to zero
+  JPZ div_end       ; if zero, done divide
   LDA .dividend
-  SUB .divisor      ; subtract the divisor from the dividend
-  JPZ div_end       ; if zero, division ends with remainder of zero
-  JPC continue      ; if carry, the result is positive, and division continues
-                    ; if not, the result was negative
-  ADD .divisor      ; add divisor back to the dividend to get the remainder
+  CMP .divisor      ; compare dividend to divisor
+  JPC a_geq_b       ; if dividend >= divisor
+  JMP continue      ; else
+a_geq_b:
+  LDA .quotient
+  ADD .pow2         
+  STA .quotient     ; add pow2 to the quotient and store it
+  LDA .dividend
+  SUB .divisor
+  STA .dividend     ; subtract divisor from the dividend and store it
+continue:
+  LDA .divisor
+  RSA
+  STA .divisor      ; divide divisor by 2 and store
+  LDA .pow2
+  RSA
+  STA .pow2         ; divide pow2 by 2 and store
+  JMP div_loop
 div_end:
+  LDA .dividend
   STA .remainder
   LDA .quotient
   RET
-continue:
-  STA .dividend     ; update dividend and add 1 to quotient
-  LDA .quotient
-  ADI 1
-  STA .quotient     ; add 1 to .quotient, and store back in memory
-  JMP div_loop
 
 check_prime:
   LDA .check_value
