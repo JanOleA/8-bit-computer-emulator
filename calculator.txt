@@ -4,10 +4,11 @@ multiplier = 253          ; multiplier in the multiply routine (how many times .
 product = 252             ; product of the multiplication, or quotient for the division
 result = 251              ; result of any calculation
 userval = 250             ; the entire inputted number (i.e., if the user presses "2" and then "3", it will be "23")
-dividend = .multiplicand  ; dividend for divide routine, reuse same address as .multiplicand
-divisor = .multiplier     ; divisor for divide routine, reuse same address as .multiplier
 remainder = 249           ; remainder after a division
-quotient = .product       ; reuse same address as .product
+pow2 = 248
+quotient = 247            ;
+dividend = 246            ; dividend for divide routine
+divisor = 245             ; divisor for divide routine
 
 start:
   LDI 0             ; load 0 to clear required variables
@@ -60,26 +61,51 @@ mult_end:
   LDA .product
   RET               ; return
 
-divide:             ; divides .dividend with .divisors, stores the quotient in .quotient
+divide:             ; divides .dividend with .divisor, stores the quotient in .quotient
   LDI 0
   STA .quotient     ; initialize quotient as 0
+  LDI 1
+  STA .pow2         ; initialize pow2 as 1
+inc_b:              ; increase the .divisor by dividing by 2 as many times as possible
+                    ; while keeping it below the dividend
+  LDA .divisor      ; load divisor into A
+  LSA               ; left shift (i.e. mult. by 2)
+  JPC div_loop      ; if the left shift causes a carry, done increasing .divisor
+  CMP .dividend     ; compare with dividend
+  JPC div_loop      ; done increasing .divisor
+  STA .divisor      ; store divisor*2 as new divisor
+  LDA .pow2
+  LSA               ; multiply pow2 by 2 as well
+  STA .pow2         ; store it as new pow2
+  JMP inc_b         ; go back to inc_b
 div_loop:
+  LDA .pow2
+  CPI 0             ; compare pow2 to zero
+  JPZ div_end       ; if zero, done divide
   LDA .dividend
-  SUB .divisor      ; subtract the divisor from the dividend
-  JPZ div_end       ; if zero, division ends with remainder of zero
-  JPC continue      ; if carry, the result is positive, and division continues
-                    ; if not, the result was negative
-  ADD .divisor      ; add divisor back to the dividend to get the remainder
+  CMP .divisor      ; compare dividend to divisor
+  JPC a_geq_b       ; if dividend >= divisor
+  JMP continue      ; else
+a_geq_b:
+  LDA .quotient
+  ADD .pow2         
+  STA .quotient     ; add pow2 to the quotient and store it
+  LDA .dividend
+  SUB .divisor
+  STA .dividend     ; subtract divisor from the dividend and store it
+continue:
+  LDA .divisor
+  RSA
+  STA .divisor      ; divide divisor by 2 and store
+  LDA .pow2
+  RSA
+  STA .pow2         ; divide pow2 by 2 and store
+  JMP div_loop
 div_end:
+  LDA .dividend
   STA .remainder
   LDA .quotient
   RET
-continue:
-  STA .dividend     ; update dividend and add 1 to quotient
-  LDA .quotient
-  ADI 1
-  STA .quotient     ; add 1 to .quotient, and store back in memory
-  JMP div_loop
 
 handle_add_div:
   JPZ handle_add

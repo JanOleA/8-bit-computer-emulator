@@ -51,7 +51,7 @@ class Computer:
                                  "InstB I", "A in", "A out", "Sum out", "Sub", "B in",
                                  "Disp. I", "Counter", "Cntr. O", "Jump", "Flg. in", "Jmp Cry",
                                  "Jmp 0", "Inpt. O", "OpT rst", "Inc stk", "Dec stk", "Stk O",
-                                 "Shft A+", "Shft A-", "DispD I", "DispC I"]
+                                 "Shft A-", "Shft A+", "DispD I", "DispC I"]
         
         self.assembly = {}
         for i in range(255):
@@ -82,7 +82,7 @@ class Computer:
         self.assembly[0b00010100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI|ORE]                              # LDB   20      load into B from mem
         self.assembly[0b00010101] = [CO|MI,         RO|IBI|CE,      IBO|BI,         FI|SU|ORE]                              # CPI   21      compare immediate value with A register. Set zf if equal, cf if A is GEQ
         self.assembly[0b00010110] = [RSA|ORE]                                                                               # RSA   22      Shift A one position to the right (A = A//2)
-        self.assembly[0b00010111] = [LSA|ORE]                                                                               # LSA   23      Shift A one position to the left (A = A*2)
+        self.assembly[0b00010111] = [AO|BI, EO|AI|FI|ORE]                                                                   # LSA   23      Shift A one position to the left (A = A*2)
         self.assembly[0b00011000] = [CO|MI,         RO|IBI|CE,      IBO|DDI|ORE]                                            # DIS   24      load immediate (into display data)
         self.assembly[0b00011001] = [CO|MI,         RO|IBI|CE,      IBO|DCI|ORE]                                            # DIC   25      load immediate (into display control)
         self.assembly[0b00011010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|DDI|ORE]                             # LDD   26      load from mem (into display data)
@@ -400,11 +400,6 @@ class Computer:
 
         if operation&self.RSA:
             self.areg = self.areg // 2
-
-        if operation&self.LSA:
-            self.areg *= 2
-            if self.areg >= 256:
-                self.areg -= 256
 
         if operation&self.BI:
             self.breg = self.bus
