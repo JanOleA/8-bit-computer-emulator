@@ -62,7 +62,7 @@ class Computer:
                                  "InstB I", "A in", "A out", "Sum out", "Sub", "B in",
                                  "Disp. I", "Counter", "Cntr. O", "Jump", "Flg. in", "Jmp Cry",
                                  "Jmp 0", "Inpt. O", "OpT rst", "Inc stk", "Dec stk", "Stk O",
-                                 "Shft A+", "Shft A-", "DispD I", "DispC I"]
+                                 "Shft A-", "Shft A+", "DispD I", "DispC I"]
         
         self.assembly = {}
         for i in range(255):
@@ -93,7 +93,7 @@ class Computer:
         self.assembly[0b00010100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI|ORE]                              # LDB   20      load into B from mem
         self.assembly[0b00010101] = [CO|MI,         RO|IBI|CE,      IBO|BI,         FI|SU|ORE]                              # CPI   21      compare immediate value with A register. Set zf if equal, cf if A is GEQ
         self.assembly[0b00010110] = [RSA|ORE]                                                                               # RSA   22      Shift A one position to the right (A = A//2)
-        self.assembly[0b00010111] = [LSA|ORE]                                                                               # LSA   23      Shift A one position to the left (A = A*2)
+        self.assembly[0b00010111] = [AO|BI, EO|AI|FI|ORE]                                                                   # LSA   23      Shift A one position to the left (A = A*2)
         self.assembly[0b00011000] = [CO|MI,         RO|IBI|CE,      IBO|DDI|ORE]                                            # DIS   24      load immediate (into display data)
         self.assembly[0b00011001] = [CO|MI,         RO|IBI|CE,      IBO|DCI|ORE]                                            # DIC   25      load immediate (into display control)
         self.assembly[0b00011010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|DDI|ORE]                             # LDD   26      load from mem (into display data)
@@ -256,7 +256,7 @@ class Computer:
             s = ""
             for j, item in enumerate(line):
                 item = hex(item).replace("0x", "")
-                while len(item) < 4:
+                while len(item) < 8:
                     item = "0" + item
                 s += f"{item} "
 
@@ -410,12 +410,6 @@ class Computer:
 
         if operation&self.RSA:
             self.areg = self.areg // 2
-
-        if operation&self.LSA:
-            self.areg *= 2
-            maximum = 2**self.bits
-            if self.areg >= maximum:
-                self.areg -= maximum
 
         if operation&self.BI:
             self.breg = self.bus
@@ -599,7 +593,7 @@ class Game:
                  LCD_display = False, cpubits = 8, stackbits = 4):
         self._running = True
         self._screen = None
-        self._width = 1600
+        self._width = 1650
         self._height = 900
         self._size = (self._width, self._height)
         self.fps = 0
@@ -658,6 +652,8 @@ class Game:
         self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
         self._font_verysmall_console = pygame.font.SysFont("monospace", 10)
         self._font_verysmall_console_bold = pygame.font.SysFont("monospace", 10, bold = True)
+        self._font_veryverysmall_console = pygame.font.SysFont("monospace", 9)
+        self._font_veryverysmall_console_bold = pygame.font.SysFont("monospace", 9, bold = True)
         self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 11)
         self._font = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 16)
         self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 25)
@@ -964,14 +960,14 @@ class Game:
         memcolumn = ""
         self.memrows = []
         for i in range(8):
-            text = f"{i:>04d} "
+            text = f"{i:>08d} "
             memcolumn += text
 
         for i in range(32):
             rowtext = f"{i*8:>03d}"
-            self.memrows.append(self._font_small_console_bold.render(rowtext, True, self.TEXTGREY))
+            self.memrows.append(self._font_verysmall_console_bold.render(rowtext, True, self.TEXTGREY))
         
-        self.memcolumn = self._font_small_console_bold.render(memcolumn, True, self.TEXTGREY)
+        self.memcolumn = self._font_verysmall_console_bold.render(memcolumn, True, self.TEXTGREY)
         self.memory_title = self._font_exobold.render("Memory:", True, self.TEXTGREY)
         self.microins_title = self._font_exobold.render("Current instruction:", True, self.TEXTGREY)
 
@@ -1257,14 +1253,14 @@ class Game:
         if self.draw_mem:
             memwidth = self.memcolumn.get_width()
             titlewidth = self.memory_title.get_width()
-            x = 1240
+            x = 1210
             y = 57
             self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))
             self._screen.blit(self.memcolumn, (x, y - 18))
             for i, item in enumerate(self.computer.mem_strings):
-                out_text = self._font_small_console.render(item, True, self.TEXTGREY)
+                out_text = self._font_verysmall_console.render(item, True, self.TEXTGREY)
                 self._screen.blit(out_text, (x, y))
-                self._screen.blit(self.memrows[i], (x - 32, y))
+                self._screen.blit(self.memrows[i], (x - 22, y))
                 y += 15
 
         """ Draw the operations included in the current instruction """

@@ -1,19 +1,20 @@
-dividend = 224              ; dividend for the divide routine
-divisor = 225               ; divisor for the divide routine
-quotient = 226              ; quotient of the division
-remainder = 227             ; remainder in the division
-check_value = 228           ; value to check if it is prime
-loop_index = 229            ; index of the loop
-half_check = 230            ; half of the value we are checking
-square_val = 231            ; squaring variable
-square_result = 232         ; result of squaring
-prime = 233                 ; prime boolean
-square_sum = 234            ; squared sum
-num_primes = 235            ; current number of primes
-finds = 236                 ; storing the finds at this address and higher
-multiplicand = 237          ; multiplicand for multiply routine
-multiplier = 238            ; etc.
-product = 239               ; ...
+dividend = 248              ; dividend for the divide routine
+divisor = 249               ; divisor for the divide routine
+quotient = 250              ; quotient of the division
+remainder = 2003            ; remainder in the division
+check_value = 251           ; value to check if it is prime
+loop_index = 2005           ; index of the loop
+half_check = 2006           ; half of the value we are checking
+square_val = 2007           ; squaring variable
+square_result = 2008        ; result of squaring
+prime = 2009                ; prime boolean
+square_sum = 2010           ; squared sum
+num_primes = 252            ; current number of primes
+finds = 2012                ; storing the finds at this address and higher
+multiplicand = 2013         ; multiplicand for multiply routine
+multiplier = 2014           ; etc.
+product = 2015              ; ...
+pow2 = 2016                 ;
 
 start:
   LDI 4
@@ -22,7 +23,7 @@ start:
   STA .check_value  ; first value to check if prime is 3
   LDI 1
   STA .num_primes   ; 2 is prime, so we currently have one prime
-  LDI 240
+  LDI 232
   STA .finds        ; store 240 as the memory address to begin storing results at
 main_loop:
   JSR check_prime   ; check if the current value we are checking is prime
@@ -90,26 +91,51 @@ mult_end:
   RET               ; return
 
 
-divide:             ;;;; divides .dividend with .divisor, stores the quotient in .quotient, remainder in .remainder
+divide:             ; divides .dividend with .divisor, stores the quotient in .quotient
   LDI 0
   STA .quotient     ; initialize quotient as 0
+  LDI 1
+  STA .pow2         ; initialize pow2 as 1
+inc_b:              ; increase the .divisor by dividing by 2 as many times as possible
+                    ; while keeping it below the dividend
+  LDA .divisor      ; load divisor into A
+  LSA               ; left shift (i.e. mult. by 2)
+  JPC div_loop      ; if the left shift causes a carry, done increasing .divisor
+  CMP .dividend     ; compare with dividend
+  JPC div_loop      ; done increasing .divisor
+  STA .divisor      ; store divisor*2 as new divisor
+  LDA .pow2
+  LSA               ; multiply pow2 by 2 as well
+  STA .pow2         ; store it as new pow2
+  JMP inc_b         ; go back to inc_b
 div_loop:
+  LDA .pow2
+  CPI 0             ; compare pow2 to zero
+  JPZ div_end       ; if zero, done divide
   LDA .dividend
-  SUB .divisor      ; subtract the divisor from the dividend
-  JPZ div_end       ; if zero, division ends with remainder of zero
-  JPC continue      ; if carry, the result is positive, and division continues
-                    ; if not, the result was negative
-  ADD .divisor      ; add divisor back to the dividend to get the remainder
+  CMP .divisor      ; compare dividend to divisor
+  JPC a_geq_b       ; if dividend >= divisor
+  JMP continue      ; else
+a_geq_b:
+  LDA .quotient
+  ADD .pow2         
+  STA .quotient     ; add pow2 to the quotient and store it
+  LDA .dividend
+  SUB .divisor
+  STA .dividend     ; subtract divisor from the dividend and store it
+continue:
+  LDA .divisor
+  RSA
+  STA .divisor      ; divide divisor by 2 and store
+  LDA .pow2
+  RSA
+  STA .pow2         ; divide pow2 by 2 and store
+  JMP div_loop
 div_end:
+  LDA .dividend
   STA .remainder
   LDA .quotient
   RET
-continue:
-  STA .dividend     ; update dividend and add 1 to quotient
-  LDA .quotient
-  ADI 1
-  STA .quotient     ; add 1 to .quotient, and store back in memory
-  JMP div_loop      ;;;; divide routine end
 
 
 check_prime:        ;;;; routine which checks whether the value of .check_value is prime or not
@@ -130,7 +156,7 @@ prime_loop:
   CPI 0             ; if the remainder is zero, the number is divisible
   JPZ not_prime     ; zero flag will be set if remainder is zero
   LDA .loop_index   ; if not, add 1 to the loop index
-  ADI 1
+  ADI 2
   STA .loop_index
   JMP prime_loop    ; and loop again
 not_prime:
