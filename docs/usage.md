@@ -10,23 +10,23 @@ I have not made a pre-compiled version yet. I may make one for Windows and/or Li
 ## Running the emulator
 With everything installed, you can run the emulator with the following command:
 ~~~~
-> python 8bitsim.py
+> python cpu_sim.py
 ~~~~
 By default, this attempts to read the program from the file `program.txt`. It will run at 50 FPS, with a clock cycle of 15 Hz.
 
 You can specify the file to read the program from by adding a command-line argument:
 ~~~~
-> python 8bitsim.py fibonacci.txt
+> python cpu_sim.py fibonacci.txt
 ~~~~
 
 You can also add an FPS target, if you want to change the FPS the emulator attempts to run at:
 ~~~~
-> python 8bitsim.py fibonacci.txt 100
+> python cpu_sim.py fibonacci.txt 100
 ~~~~
 
 Finally, you can add a clock cycle frequency target, by adding a third command-line argument:
 ~~~~
-> python 8bitsim.py fibonacci.txt 100 200
+> python cpu_sim.py fibonacci.txt 100 200
 ~~~~
 This last example will load the program from [fibonacci.txt](../fibonacci.txt), and attempt to run at 100 FPS with a clock cycle of 200 Hz.
 

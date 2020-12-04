@@ -11,7 +11,21 @@ class Computer:
     def __init__(self, progload):
         self.memory = np.zeros(256, dtype = np.uint16)
         self.get_mem_strings()
+        self.overflow_limit = 256
+        self.stackpointer_start = 224
+        self.bits_stackpointer = 4
 
+        print(f"Stack range: {hex(self.stackpointer_start)} : {hex(self.stackpointer_start+ 2**self.bits_stackpointer)}")
+        print(f"Stack size: {2**self.bits_stackpointer}")
+
+        self.setup_instructions()
+        self.assembler(progload)
+        self.reset()
+
+    def setup_instructions(self):
+        """ Sets up control signals, microcode definitions and instruction
+        definitions
+        """
         # control signal definitions
         HLT = self.HLT = 0b10000000000000000000000000000000 # Halt
         MI  = self.MI  = 0b01000000000000000000000000000000 # Memory address in
@@ -119,9 +133,6 @@ class Computer:
                                 "OUT": 254,
                                 "HLT": 255,}
 
-        self.assembler(progload)
-        self.reset()
-
     def assembler(self, progload):
         """ Assembles a program file into values in memory for the computer to
         run. See assembler docs for more info.
@@ -226,10 +237,10 @@ class Computer:
             print("[" + "#"*half_pct + " "*(50 - half_pct) + "]", end = "\r")
         print("\nProgram assembled.")
 
-        print(f"{memaddress} bytes of memory ({memaddress / 224 * 100:2.2f}%) used for program (max 224 bytes).")
+        print(f"{memaddress} bytes of memory used for program.")
         self.program = program
     
-    def get_mem_strings(self):
+    def get_mem_strings(self, rows = 16, rowlength = 16, space = True, textlength = 2):
         """ Compiles a list of strings with the memory contents of the computer
         for easy printing.
 
@@ -240,15 +251,15 @@ class Computer:
         mem_strings -   list containing memory strings
         """
         mem_strings = []
-        for i in range(16):
-            line = self.memory[i*16:i*16 + 16]
+        for i in range(rows):
+            line = self.memory[i*rowlength:i*rowlength + rowlength]
             s = ""
             for j, item in enumerate(line):
                 item = hex(item).replace("0x", "")
-                if len(item) == 1:
+                while len(item) < textlength:
                     item = "0" + item
                 s += f"{item} "
-                if j == 7:
+                if j == 7 and space:
                     s += " "
 
             mem_strings.append(s)
@@ -293,18 +304,20 @@ class Computer:
         a = int(self.areg)
         b = int(self.breg)
 
+        maximum = self.overflow_limit
+
         if self.controlword&self.SU:
-            self.sumreg = a + (256 - b) # two's complement subtraction
-                                        # in order to set carry flag
-                                        # for subtractions where a >= b
+            self.sumreg = a + (maximum - b) # two's complement subtraction
+                                            # in order to set carry flag
+                                            # for subtractions where a >= b
         else:
             self.sumreg = a + b
 
-        while self.sumreg >= 256:
-            self.sumreg -= 256
+        while self.sumreg >= maximum:
+            self.sumreg -= maximum
             self.carry = 1
         while self.sumreg < 0:
-            self.sumreg += 256
+            self.sumreg += maximum
             self.carry = 1
         if self.sumreg == 0:
             self.zero = 1
@@ -361,8 +374,7 @@ class Computer:
             self.bus = self.prog_count
 
         if operation&self.STO:
-            # stackpointer is 4 bit. By adding 224 to it, we get values from 224 to 239 used for stack.
-            self.bus = self.stackpointer + 224
+            self.bus = self.stackpointer + self.stackpointer_start
 
     def clock_high(self):
         """ Updates states that should update on clock-high pulse """
@@ -383,7 +395,7 @@ class Computer:
 
         if operation&self.MI:
             self.memaddress = self.bus
-            self.memcontent = self.memory[self.memaddress]
+            self.memcontent = self.memory[int(self.memaddress)]
 
         if operation&self.RI:
             self.memcontent = self.bus
@@ -429,13 +441,13 @@ class Computer:
 
         if operation&self.INS:
             self.stackpointer += 1
-            if self.stackpointer >= 16:
+            if self.stackpointer >= 2**self.bits_stackpointer:
                 self.stackpointer = 0
 
         if operation&self.DES:
             self.stackpointer -= 1
             if self.stackpointer < 0:
-                self.stackpointer = 15
+                self.stackpointer = 2**self.bits_stackpointer - 1
 
         return True
 
@@ -448,7 +460,7 @@ class Computer:
         if self.op_timestep >= 8 or self.controlword&self.ORE:
             self.op_timestep = 0
 
-        if self.prog_count >= 256:
+        if self.prog_count >= self.overflow_limit:
             self.halting = True
 
     def step(self):
@@ -508,6 +520,10 @@ class BitDisplay:
 
         self.radius = radius
         self._separation = 5
+        if length > 8 and radius < 8:
+            self._separation = 4
+        if length > 16 and radius < 6:
+            self._separation = 1
         self._width = length*self.radius*2 + (length - 1)*self._separation
 
         self.reg_bg = pygame.Rect(int(self.x - self._width/2 - 5),
@@ -564,7 +580,7 @@ class BitDisplay:
         num_in      -   The number determining which LED's are on.
         screen      -   The Pygame surface to draw to.        
         """
-        bin_out = int(bin(num_in).replace("0b", ""))
+        bin_out = int(bin(int(num_in)).replace("0b", ""))
         self.draw_bits(bin_out, screen)
 
     @property
@@ -587,6 +603,8 @@ class Game:
         self.cyclecounts = 0
         self.progload = progload
         self.use_LCD_display = LCD_display
+        self.cpubits = 8
+        self.stackbits = 4
 
         self.autorun = autorun
         self.target_FPS = target_FPS
@@ -619,6 +637,175 @@ class Game:
         self.DARKERBLUE = (0, 0, 30)
         self.BLACK = (0, 0, 0)
 
+    def setup_fonts(self):
+        pygame.font.init()
+        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "ExoBold-qxl5.otf"), 19)
+        self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "ExoBold-qxl5.otf"), 13)
+        self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "BrushSpidol.otf"), 25)
+        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "28segment.ttf"), 80)
+        self._font_console_bold = pygame.font.SysFont("monospace", 17, bold = True)
+        self._font_small_console = pygame.font.SysFont("monospace", 11)
+        self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
+        self._font_verysmall_console = pygame.font.SysFont("monospace", 10)
+        self._font_verysmall_console_bold = pygame.font.SysFont("monospace", 10, bold = True)
+        self._font_veryverysmall_console = pygame.font.SysFont("monospace", 9)
+        self._font_veryverysmall_console_bold = pygame.font.SysFont("monospace", 9, bold = True)
+        self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 11)
+        self._font = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 16)
+        self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 25)
+        self._font_larger = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 45)
+        self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 64)
+
+    def make_static_graphics(self):
+        # Draw line connections
+        self.simple_line(self.bus_display, (self.bus_display.x, self.inpt_display.y), self.DARKRED)
+        self.simple_line(self.madd_display, (self.bus_display.x, self.madd_display.y), self.DARKRED)
+        self.simple_line(self.mcon_display, (self.bus_display.x, self.mcon_display.y), self.DARKRED)
+        self.simple_line(self.insa_display, (self.bus_display.x, self.insa_display.y), self.DARKRED)
+        self.simple_line(self.insb_display, (self.bus_display.x, self.insb_display.y), self.DARKRED)
+        self.simple_line(self.oprt_display, (self.bus_display.x, self.oprt_display.y), self.DARKRED)
+        self.simple_line(self.inpt_display, (self.bus_display.x + 2, self.inpt_display.y), self.DARKRED)
+        self.simple_line(self.cnt_display, (self.bus_display.x, self.cnt_display.y), self.DARKRED)
+        self.simple_line(self.areg_display, (self.bus_display.x, self.areg_display.y), self.DARKRED)
+        self.simple_line(self.breg_display, (self.bus_display.x, self.breg_display.y), self.DARKRED)
+        self.simple_line(self.sreg_display, (self.bus_display.x, self.sreg_display.y), self.DARKRED)
+        self.simple_line(self.outp_display, (self.bus_display.x, self.outp_display.y), self.DARKRED)
+        self.simple_line(self.stap_display, (self.bus_display.x, self.stap_display.y), self.DARKRED)
+        self.simple_line(self.flag_display, self.flgr_display, self.DARKRED)
+
+        self.simple_line(self.madd_display, self.mcon_display, self.DARKBLUE, (85,0), (85,0))
+        self.simple_line(self.areg_display, self.breg_display, self.DARKBLUE, (65,0), (65,0))
+        self.simple_line(self.sreg_display, self.flag_display, self.DARKBLUE)
+        self.simple_line(self.outp_display, self.outp_display, self.DARKBLUE, (200, 0))
+
+        self.simple_line(self.oprt_display, self.oprt_display, self.PURPLEISH, (-130, 0))
+        self.simple_line(self.insa_display, self.insa_display, self.PURPLEISH, (-130, 0))
+        self.simple_line(self.insa_display, (self.insa_display.x - 130, self.ctrl_display.y), self.PURPLEISH, (-130, -2))
+        self.simple_line((self.insa_display.x - 132, self.ctrl_display.y), self.ctrl_display, self.PURPLEISH)
+
+        self.simple_line(self.ctrl_display, self.madd_display, self.DARKKGREEN, (-650, -47), (-140, -2))
+        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKKGREEN, (-652, -47), (-240, -47))
+        self.simple_line(self.madd_display, self.madd_display, self.DARKKGREEN, (-140, 0))
+        self.simple_line(self.mcon_display, self.mcon_display, self.DARKKGREEN, (-140, 0))
+        self.simple_line(self.insa_display, self.insa_display, self.DARKKGREEN, (-140, -5), (0, -5))
+        self.simple_line(self.insb_display, self.insb_display, self.DARKKGREEN, (-140, 0))
+        self.simple_line(self.inpt_display, self.inpt_display, self.DARKKGREEN, (-140, 0))
+        self.simple_line(self.oprt_display, self.oprt_display, self.DARKKGREEN, (-140, -5), (0, -5))
+        
+        self.simple_line(self.ctrl_display, self.cnt_display, self.DARKKGREEN, (-240, 0), (-130, -7))
+        self.simple_line(self.cnt_display, self.cnt_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.areg_display, self.areg_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.breg_display, self.breg_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.sreg_display, self.sreg_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.outp_display, self.outp_display, self.DARKKGREEN, (0, -5), (-130, -5))
+        self.simple_line(self.stap_display, self.stap_display, self.DARKKGREEN, (0, -5), (-130, -5))
+
+        self.simple_line(self.flgr_display, self.flgr_display, self.DARKKGREEN, (0, 0), (52, 0))
+        self.simple_line(self.flgr_display, (self.flgr_display.x + 50, self.ctrl_display.y), self.DARKKGREEN, (50, 0))
+
+        pygame.draw.rect(self._bg, (0,0,0), self.bus_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.cnt_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.areg_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.breg_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.sreg_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.flgr_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.flag_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.madd_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.mcon_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.insa_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.insb_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.inpt_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.oprt_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 12)
+        pygame.draw.rect(self._bg, (0,0,0), self.stap_display.reg_bg, border_radius = 12)
+        if self.use_LCD_display: 
+            pygame.draw.rect(self._bg, (0,0,0), self.disd_display.reg_bg, border_radius = 12)
+            pygame.draw.rect(self._bg, (0,0,0), self.disc_display.reg_bg, border_radius = 12)
+        #pygame.draw.rect(self._bg, (0,0,0), self.clk_display.reg_bg, border_radius = 10)
+
+        self.keypad1 = BitDisplay(cpos = (1100, 50), length = 3, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad2 = BitDisplay(cpos = (1100, 85), length = 3, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad3 = BitDisplay(cpos = (1100, 120), length = 3, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad4 = BitDisplay(cpos = (1100, 165), length = 3, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad0 = BitDisplay(cpos = (1030, 120), length = 1, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+        self.keypad_div = BitDisplay(cpos = (1030, 165), length = 1, radius = 15,
+                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+
+        keypad_bg = pygame.Rect(self.keypad_div.x - 30, self.keypad1.y - 30,
+                                self.keypad1.width + self.keypad_div.width + 35,
+                                self.keypad_div.y - self.keypad1.y + 60)
+        pygame.draw.rect(self._bg, self.BLACK, keypad_bg, border_radius = 30)
+
+        self.keypad_rows = [self.keypad1, self.keypad2, self.keypad3, self.keypad4]
+        self.keypad_numbers = [0, 0, 0, 0]
+        self.keypad = np.zeros((4,3))
+        self.keypad_zero_pressed = 0
+        self.keypad_div_pressed = 0
+
+        keypad_symbols = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "+", "-", "*"]
+        self.keypad_texts_rendered = []
+        for text in keypad_symbols:
+            self.keypad_texts_rendered.append(self._font_small.render(text,
+                                                                      True,
+                                                                      self.WHITE))
+        self.keypad_texts_0 = self._font_small.render("0", True, self.WHITE)
+        self.keypad_texts_div = self._font_small.render("/", True, self.WHITE)
+
+        ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
+                          "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
+                          "FI", "JC", "JZ", "KEO", "ORE", "INS", "DES", "STO",
+                          "RSA", "LSA", "DDI", "DCI"]
+
+        self.ctrl_word_text_rendered = []
+        for text in ctrl_word_text:
+            self.ctrl_word_text_rendered.append(self._font_small.render(text,
+                                                                        True,
+                                                                        self.TEXTGREY))
+
+        prog_texts_black = []
+        prog_texts_green = []
+        prog_offsets = []
+
+        for i, instruction in enumerate(self.computer.program):
+            if len(instruction[0]) == 1:
+                instruction[0].append("")
+            text = f"{i:>03d} {instruction[0][0]:>3s} {instruction[0][1]:>3s}"
+            prog_texts_black.append(self._font_small_console.render(text,
+                                                                    True,
+                                                                    self.GREY))
+            prog_texts_green.append(self._font_small_console.render(text,
+                                                                    True,
+                                                                    self.DARKGREEN))
+            prog_offsets.append(instruction[1])
+
+        self.prog_texts_black = prog_texts_black
+        self.prog_texts_green = prog_texts_green
+        self.prog_offsets = prog_offsets
+        self.display_op = 0
+
+        self.memory_title = self._font_exobold.render("Memory:", True, self.TEXTGREY)
+        self.microins_title = self._font_exobold.render("Current instruction:", True, self.TEXTGREY)
+
+        self.helptext_1 = "Press 'D' for debug mode.   Press 'C' to end debug mode.   Press 'M' to show/hide memory.   Press 'N' to show/hide microinstruction list.   Press 'R' for reset (won't clear RAM)."
+        self.helptext_rendered = self._font_exobold_small.render(self.helptext_1, True, self.TEXTGREY)
+        self._bg.blit(self.helptext_rendered, (300, self._height - 50))
+        self.helptext_2 = "Press the spacebar to stop automatic execution.   Press the enter key to cycle the clock manually when automatic execution is stopped.   Press the numbers on your numpad to change the HZ target."
+        self.helptext_rendered = self._font_exobold_small.render(self.helptext_2, True, self.TEXTGREY)
+        self._bg.blit(self.helptext_rendered, (300, self._height - 30))
+
+        self.LCD_display = LCD_display(self._font_console_bold, position = (1210, 500))
+
+        prog_text = "".join(self.progload.split('.')[:-1])
+        if prog_text[:1] == "\\":
+            prog_text = prog_text[1:]
+        self._loaded_program_text = self._font.render(f"Loaded program: {prog_text}", True, self.TEXTGREY)
+
     def init_game(self):
         pygame.init()
         pygame.display.set_caption("8 bit computer")
@@ -626,21 +813,7 @@ class Game:
         self._screen = pygame.display.set_mode(self._size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self._running = True
         
-        pygame.font.init()
-        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 19)
-        self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 13)
-        self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
-        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
-        self._font_console_bold = pygame.font.SysFont("monospace", 17, bold = True)
-        self._font_small_console = pygame.font.SysFont("monospace", 11)
-        self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
-        self._font_verysmall_console = pygame.font.SysFont("monospace", 10)
-        self._font_verysmall_console_bold = pygame.font.SysFont("monospace", 10, bold = True)
-        self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 11)
-        self._font = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 16)
-        self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
-        self._font_larger = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 45)
-        self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 64)
+        self.setup_fonts()
 
         self._bg = pygame.Surface(self._size)
         self._bg.fill((20, 20, 20))
@@ -787,137 +960,7 @@ class Game:
                                       oncolor = self.GREEN,
                                       offcolor = self.DARKERGREEN)
 
-        # Draw line connections
-        self.simple_line(self.bus_display, (self.bus_display.x, self.inpt_display.y), self.DARKRED)
-        self.simple_line(self.madd_display, (self.bus_display.x, self.madd_display.y), self.DARKRED)
-        self.simple_line(self.mcon_display, (self.bus_display.x, self.mcon_display.y), self.DARKRED)
-        self.simple_line(self.insa_display, (self.bus_display.x, self.insa_display.y), self.DARKRED)
-        self.simple_line(self.insb_display, (self.bus_display.x, self.insb_display.y), self.DARKRED)
-        self.simple_line(self.oprt_display, (self.bus_display.x, self.oprt_display.y), self.DARKRED)
-        self.simple_line(self.inpt_display, (self.bus_display.x + 2, self.inpt_display.y), self.DARKRED)
-        self.simple_line(self.cnt_display, (self.bus_display.x, self.cnt_display.y), self.DARKRED)
-        self.simple_line(self.areg_display, (self.bus_display.x, self.areg_display.y), self.DARKRED)
-        self.simple_line(self.breg_display, (self.bus_display.x, self.breg_display.y), self.DARKRED)
-        self.simple_line(self.sreg_display, (self.bus_display.x, self.sreg_display.y), self.DARKRED)
-        self.simple_line(self.outp_display, (self.bus_display.x, self.outp_display.y), self.DARKRED)
-        self.simple_line(self.stap_display, (self.bus_display.x, self.stap_display.y), self.DARKRED)
-        self.simple_line(self.flag_display, self.flgr_display, self.DARKRED)
-
-        self.simple_line(self.madd_display, self.mcon_display, self.DARKBLUE, (85,0), (85,0))
-        self.simple_line(self.areg_display, self.breg_display, self.DARKBLUE, (65,0), (65,0))
-        self.simple_line(self.sreg_display, self.flag_display, self.DARKBLUE)
-        self.simple_line(self.outp_display, self.outp_display, self.DARKBLUE, (200, 0))
-
-        self.simple_line(self.oprt_display, self.oprt_display, self.PURPLEISH, (-130, 0))
-        self.simple_line(self.insa_display, self.insa_display, self.PURPLEISH, (-130, 0))
-        self.simple_line(self.insa_display, (self.insa_display.x - 130, self.ctrl_display.y), self.PURPLEISH, (-130, -2))
-        self.simple_line((self.insa_display.x - 132, self.ctrl_display.y), self.ctrl_display, self.PURPLEISH)
-
-        self.simple_line(self.ctrl_display, self.madd_display, self.DARKKGREEN, (-650, -47), (-140, -2))
-        self.simple_line(self.ctrl_display, self.ctrl_display, self.DARKKGREEN, (-652, -47), (-240, -47))
-        self.simple_line(self.madd_display, self.madd_display, self.DARKKGREEN, (-140, 0))
-        self.simple_line(self.mcon_display, self.mcon_display, self.DARKKGREEN, (-140, 0))
-        self.simple_line(self.insa_display, self.insa_display, self.DARKKGREEN, (-140, -5), (0, -5))
-        self.simple_line(self.insb_display, self.insb_display, self.DARKKGREEN, (-140, 0))
-        self.simple_line(self.inpt_display, self.inpt_display, self.DARKKGREEN, (-140, 0))
-        self.simple_line(self.oprt_display, self.oprt_display, self.DARKKGREEN, (-140, -5), (0, -5))
-        
-        self.simple_line(self.ctrl_display, self.cnt_display, self.DARKKGREEN, (-240, 0), (-130, -7))
-        self.simple_line(self.cnt_display, self.cnt_display, self.DARKKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.areg_display, self.areg_display, self.DARKKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.breg_display, self.breg_display, self.DARKKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.sreg_display, self.sreg_display, self.DARKKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.outp_display, self.outp_display, self.DARKKGREEN, (0, -5), (-130, -5))
-        self.simple_line(self.stap_display, self.stap_display, self.DARKKGREEN, (0, -5), (-130, -5))
-
-        self.simple_line(self.flgr_display, self.flgr_display, self.DARKKGREEN, (0, 0), (52, 0))
-        self.simple_line(self.flgr_display, (self.flgr_display.x + 50, self.ctrl_display.y), self.DARKKGREEN, (50, 0))
-
-        pygame.draw.rect(self._bg, (0,0,0), self.bus_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.cnt_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.areg_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.breg_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.sreg_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.flgr_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.flag_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.madd_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.mcon_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.insa_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.insb_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.inpt_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.oprt_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.outp_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.ctrl_display.reg_bg, border_radius = 12)
-        pygame.draw.rect(self._bg, (0,0,0), self.stap_display.reg_bg, border_radius = 12)
-        if self.use_LCD_display: 
-            pygame.draw.rect(self._bg, (0,0,0), self.disd_display.reg_bg, border_radius = 12)
-            pygame.draw.rect(self._bg, (0,0,0), self.disc_display.reg_bg, border_radius = 12)
-        #pygame.draw.rect(self._bg, (0,0,0), self.clk_display.reg_bg, border_radius = 10)
-
-        self.keypad1 = BitDisplay(cpos = (1100, 50), length = 3, radius = 15,
-                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
-        self.keypad2 = BitDisplay(cpos = (1100, 85), length = 3, radius = 15,
-                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
-        self.keypad3 = BitDisplay(cpos = (1100, 120), length = 3, radius = 15,
-                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
-        self.keypad4 = BitDisplay(cpos = (1100, 165), length = 3, radius = 15,
-                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
-        self.keypad0 = BitDisplay(cpos = (1030, 120), length = 1, radius = 15,
-                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
-        self.keypad_div = BitDisplay(cpos = (1030, 165), length = 1, radius = 15,
-                                  offcolor = (40, 40, 40), oncolor = (80, 120, 80))
-
-        keypad_bg = pygame.Rect(self.keypad_div.x - 30, self.keypad1.y - 30,
-                                self.keypad1.width + self.keypad_div.width + 35,
-                                self.keypad_div.y - self.keypad1.y + 60)
-        pygame.draw.rect(self._bg, self.BLACK, keypad_bg, border_radius = 30)
-
-        self.keypad_rows = [self.keypad1, self.keypad2, self.keypad3, self.keypad4]
-        self.keypad_numbers = [0, 0, 0, 0]
-        self.keypad = np.zeros((4,3))
-        self.keypad_zero_pressed = 0
-        self.keypad_div_pressed = 0
-
-        keypad_symbols = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "+", "-", "*"]
-        self.keypad_texts_rendered = []
-        for text in keypad_symbols:
-            self.keypad_texts_rendered.append(self._font_small.render(text,
-                                                                      True,
-                                                                      self.WHITE))
-        self.keypad_texts_0 = self._font_small.render("0", True, self.WHITE)
-        self.keypad_texts_div = self._font_small.render("/", True, self.WHITE)
-
-        ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
-                          "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
-                          "FI", "JC", "JZ", "KEO", "ORE", "INS", "DES", "STO",
-                          "RSA", "LSA", "DDI", "DCI"]
-
-        self.ctrl_word_text_rendered = []
-        for text in ctrl_word_text:
-            self.ctrl_word_text_rendered.append(self._font_small.render(text,
-                                                                        True,
-                                                                        self.TEXTGREY))
-
-        prog_texts_black = []
-        prog_texts_green = []
-        prog_offsets = []
-
-        for i, instruction in enumerate(self.computer.program):
-            if len(instruction[0]) == 1:
-                instruction[0].append("")
-            text = f"{i:>03d} {instruction[0][0]:>3s} {instruction[0][1]:>3s}"
-            prog_texts_black.append(self._font_small_console.render(text,
-                                                                    True,
-                                                                    self.GREY))
-            prog_texts_green.append(self._font_small_console.render(text,
-                                                                    True,
-                                                                    self.DARKGREEN))
-            prog_offsets.append(instruction[1])
-
-        self.prog_texts_black = prog_texts_black
-        self.prog_texts_green = prog_texts_green
-        self.prog_offsets = prog_offsets
-        self.display_op = 0
+        self.make_static_graphics()
 
         memcolumn = ""
         self.memrows = []
@@ -931,22 +974,7 @@ class Game:
             self.memrows.append(self._font_small_console_bold.render(rowtext, True, self.TEXTGREY))
         
         self.memcolumn = self._font_small_console_bold.render(memcolumn, True, self.TEXTGREY)
-        self.memory_title = self._font_exobold.render("Memory:", True, self.TEXTGREY)
-        self.microins_title = self._font_exobold.render("Current instruction:", True, self.TEXTGREY)
 
-        self.helptext_1 = "Press 'D' for debug mode.   Press 'C' to end debug mode.   Press 'M' to show/hide memory.   Press 'N' to show/hide microinstruction list.   Press 'R' for reset (won't clear RAM)."
-        self.helptext_rendered = self._font_exobold_small.render(self.helptext_1, True, self.TEXTGREY)
-        self._bg.blit(self.helptext_rendered, (300, self._height - 50))
-        self.helptext_2 = "Press the spacebar to stop automatic execution.   Press the enter key to cycle the clock manually when automatic execution is stopped.   Press the numbers on your numpad to change the HZ target."
-        self.helptext_rendered = self._font_exobold_small.render(self.helptext_2, True, self.TEXTGREY)
-        self._bg.blit(self.helptext_rendered, (300, self._height - 30))
-
-        self.LCD_display = LCD_display(self._font_console_bold, position = (1210, 500))
-
-        prog_text = "".join(self.progload.split('.')[:-1])
-        if prog_text[:1] == "\\":
-            prog_text = prog_text[1:]
-        self._loaded_program_text = self._font.render(f"Loaded program: {prog_text}", True, self.TEXTGREY)
         self._start_time = time.time()
 
     def simple_line(self, pos1, pos2, color, shift1 = (0,0), shift2 = (0,0), width = 5):
@@ -1129,6 +1157,19 @@ class Game:
             self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.TEXTGREY)
         self.fpstext = self._font.render(f"{int(self.fps):d} FPS", True, self.TEXTGREY)
 
+    def draw_memory(self):
+        memwidth = self.memcolumn.get_width()
+        titlewidth = self.memory_title.get_width()
+        x = 1240
+        y = 57
+        self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))
+        self._screen.blit(self.memcolumn, (x, y - 18))
+        for i, item in enumerate(self.computer.mem_strings):
+            out_text = self._font_small_console.render(item, True, self.TEXTGREY)
+            self._screen.blit(out_text, (x, y))
+            self._screen.blit(self.memrows[i], (x - 32, y))
+            y += 15
+
     def render(self):
         self._screen.blit(self._bg, (0,0))
 
@@ -1220,17 +1261,7 @@ class Game:
 
         """ Draw the memory """
         if self.draw_mem:
-            memwidth = self.memcolumn.get_width()
-            titlewidth = self.memory_title.get_width()
-            x = 1240
-            y = 57
-            self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))
-            self._screen.blit(self.memcolumn, (x, y - 18))
-            for i, item in enumerate(self.computer.mem_strings):
-                out_text = self._font_small_console.render(item, True, self.TEXTGREY)
-                self._screen.blit(out_text, (x, y))
-                self._screen.blit(self.memrows[i], (x - 32, y))
-                y += 15
+            self.draw_memory()
 
         """ Draw the operations included in the current instruction """
         if self.draw_ops:
@@ -1368,7 +1399,6 @@ class LCD_display:
                 self.memory[:] = 0
                 self.cursor_pos = 0
 
-
     def set_data_lines(self, value):
         self.data = value
 
@@ -1420,7 +1450,6 @@ class LCD_display:
                 if self.cursordraw and self.cursoron:
                     if (self.cursor_pos + self.shift*self.shift_dir) == i + 64*j:
                         screen.blit(cursor, (x, y))
-
 
 
 if __name__ == "__main__":

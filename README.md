@@ -8,7 +8,7 @@ Check out his excellent series on how to build this in real life [here](https://
 ## Quickstart
 To run the fibonacci program, run:
 ~~~~
-> python 8bitsim.py fibonacci.txt
+> python cpu_sim.py fibonacci.txt
 ~~~~
 The program looks like this:
 ~~~~

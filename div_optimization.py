@@ -16,10 +16,13 @@ def divide_new(a, b):
 
         loopcounts += 1
     
+    bloops = loopcounts
+    ifs = 0
     while pow2 > 0:
         if a >= b: # if a >= b, b fits into a (2^x) times
             quotient += pow2
             a -= b    # and this is the remainder
+            ifs += 1
 
         b = b//2  # divide b by 2
         pow2 = pow2//2 # and we check (2^(x - 1)) next
@@ -28,7 +31,13 @@ def divide_new(a, b):
 
     remainder = a
 
+    print(quotient, remainder, ifs, bloops)
+
     return quotient, remainder
+
+divide_new(103, 7)
+divide_new(78, 3)
+divide_new(32, 9)
 
 def test_dividers():
     vals = rng.integers(1, 100000, size = (1000,2))
