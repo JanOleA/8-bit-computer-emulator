@@ -47,6 +47,25 @@ class Game_32(Game):
         self._width = 1650
         self._size = (self._width, self._height)
 
+    def setup_fonts(self):
+        pygame.font.init()
+        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "ExoBold-qxl5.otf"), 19)
+        self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "ExoBold-qxl5.otf"), 13)
+        self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "BrushSpidol.otf"), 25)
+        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "28segment.ttf"), 80)
+        self._font_console_bold = pygame.font.SysFont("monospace", 17, bold = True)
+        self._font_small_console = pygame.font.SysFont("monospace", 11)
+        self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
+        self._font_verysmall_console = pygame.font.SysFont("monospace", 10)
+        self._font_verysmall_console_bold = pygame.font.SysFont("monospace", 10, bold = True)
+        self._font_veryverysmall_console = pygame.font.SysFont("monospace", 9)
+        self._font_veryverysmall_console_bold = pygame.font.SysFont("monospace", 9, bold = True)
+        self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 11)
+        self._font = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 16)
+        self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 25)
+        self._font_larger = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 45)
+        self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 64)
+
     def init_game(self):
         pygame.init()
         pygame.display.set_caption("8 bit computer")

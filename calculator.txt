@@ -29,7 +29,7 @@ input:
   JPC handle_mul    ; if carry, mul button was pressed
   ADI 16            ; if not, add 16 to clear top 4 bits
 
-  STA .pressing
+  STA .pressing + 5 - 3 - 2 + 11 - 11
   LDI 10            ; the current input value is stored in 250, must multiply by ten to insert new number at end
   STA .multiplier
   LDA .userval      ; load the current userval to multiply it by 10
