@@ -168,8 +168,9 @@ class Computer:
                 """ Instruction line """
                 instruction = line.strip().split(" ")
                 if len(instruction) > 2:
-                    print(f"Invalid instruction on line {i + 1}")
-                    sys.exit(1)
+                    operand = "".join(instruction[1:])
+                    instruction[1] = operand
+                    instruction = instruction[:2]
 
                 program.append([instruction, address - progline])
                 print(len(s)*" ", end = "\r")
@@ -209,12 +210,12 @@ class Computer:
             jump = False
             items = line[0]
             for item in items:
-                if item == items[0]:
+                if item == items[0]: # item is instruction code
                     mem_ins = self.instruction_map[str(item)]
                     if 6 <= mem_ins <= 8 or 16 <= mem_ins <= 17:
                         # Jump instruction
                         jump = True
-                else:
+                else:                # item is operand
                     if jump:
                         if item[0] == "#":
                             address = item[1:]
@@ -224,12 +225,23 @@ class Computer:
                             program[i][0][1] = str(addresses_line[addresses[item]])
                         mem_ins = int(address)
                     else:
-                        if item[0] == ".":
-                            """ Variable """
-                            val = variables[item[1:]]
-                            program[i][0][1] = str(val)
-                        else:
-                            val = item
+                        terms_pos = item.split("+")
+                        val = 0
+                        for t1 in terms_pos:
+                            terms_neg = t1.split("-")
+                            pos_val = terms_neg[0]
+                            if pos_val[0] == ".":
+                                """ Pointer variable """
+                                val += variables[pos_val[1:]]
+                            else:
+                                val += int(pos_val)
+                            for t2 in terms_neg[1:]:
+                                if t2[0] == ".":
+                                    """ Pointer variable """
+                                    val -= variables[t2[1:]]
+                                else:
+                                    val -= int(t2)
+                        program[i][0][1] = str(val)
                         mem_ins = int(val)
                 self.memory[memaddress] = mem_ins
                 memaddress += 1
@@ -639,10 +651,10 @@ class Game:
 
     def setup_fonts(self):
         pygame.font.init()
-        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "ExoBold-qxl5.otf"), 19)
-        self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "ExoBold-qxl5.otf"), 13)
-        self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "BrushSpidol.otf"), 25)
-        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "28segment.ttf"), 80)
+        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 19)
+        self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 13)
+        self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
+        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
         self._font_console_bold = pygame.font.SysFont("monospace", 17, bold = True)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
         self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
@@ -650,11 +662,11 @@ class Game:
         self._font_verysmall_console_bold = pygame.font.SysFont("monospace", 10, bold = True)
         self._font_veryverysmall_console = pygame.font.SysFont("monospace", 9)
         self._font_veryverysmall_console_bold = pygame.font.SysFont("monospace", 9, bold = True)
-        self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 11)
-        self._font = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 16)
-        self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 25)
-        self._font_larger = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 45)
-        self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "..", "font", "Amble-Bold.ttf"), 64)
+        self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 11)
+        self._font = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 16)
+        self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
+        self._font_larger = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 45)
+        self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 64)
 
     def make_static_graphics(self):
         # Draw line connections
