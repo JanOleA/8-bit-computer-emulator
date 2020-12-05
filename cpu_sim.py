@@ -181,19 +181,38 @@ class Computer:
                 progline += 1
             elif not line.startswith(" "):
                 if "=" in line:
-                    """ Variables """
-                    line_ = line.strip().split("=")
-                    varname = line_[0].strip()
-                    if line_[1].strip()[0] == ".":
-                        varvalue = variables[line_[1].strip()[1:]]
-                    else:
-                        varvalue = int(line_[1].strip())
-                    variables[varname] = varvalue
-                    print(len(s)*" ", end = "\r")
-                    s = f"variable {varname:>20s} = {varvalue:>5d}"
-                    print(s)
+                    var = False
+                    try:
+                        if line[0] == ".":
+                            var = True
+                        elif int(line[0]) in range(0, 10):
+                            var = True
+                    except ValueError:
+                        pass
 
-                if ":" in line:
+                    if var:
+                        """ Variable """
+                        line_ = line.strip().split("=")
+                        memaddress = line_[0].strip()
+                        value = line_[1].strip()
+                        if memaddress[0] == ".":
+                            memaddress = variables[memaddress[1:]]
+                        else:
+                            memaddress = int(memaddress)
+                        self.memory[memaddress] = int(value)
+                    else:
+                        """ Pointer variable """
+                        line_ = line.strip().split("=")
+                        varname = line_[0].strip()
+                        if line_[1].strip()[0] == ".":
+                            varvalue = variables[line_[1].strip()[1:]]
+                        else:
+                            varvalue = int(line_[1].strip())
+                        variables[varname] = varvalue
+                        print(len(s)*" ", end = "\r")
+                        s = f"Pointer variable {varname:>20s} = {varvalue:>5d}"
+                        print(s)
+                elif ":" in line:
                     """ Labels """
                     address_name = line.strip().split(":")[0]
                     addresses[address_name] = address
@@ -1348,8 +1367,8 @@ class LCD_display:
         self.font = font
         self.time = time.time()
         self.cursor_dir = 1
-        self.shift_dir = 1
         self.shift = 0
+        self.shifting = 0
 
         self.lettercolor = (0, 0, 0)
         self.bgcolor = (210, 235, 100)
@@ -1377,8 +1396,12 @@ class LCD_display:
                 self.memory[self.cursor_pos] = self.data
                 if self.cursor_dir == 1:
                     self.cursor_pos += 1
+                    if self.shifting:
+                        self.shift += 1
                 else:
                     self.cursor_pos -= 1
+                    if self.shifting:
+                        self.shift -= 1
         else:
             if   0b10000000 & self.data:
                 pass
@@ -1388,11 +1411,16 @@ class LCD_display:
                 pass
             elif 0b00010000 & self.data:
                 """ Cursor and shift control """
-                direction = int(bin(self.data)[-4])
-                if direction == 1:
-                    self.cursor_pos += 1
+                if int(bin(self.data)[-4]):
+                    if int(bin(self.data)[-3]):
+                        self.shift += 1
+                    else:
+                        self.shift -= 1
                 else:
-                    self.cursor_pos -= 1
+                    if self.cursor_dir == 1:
+                        self.cursor_pos += 1
+                    else:
+                        self.cursor_pos -= 1
             elif 0b00001000 & self.data:
                 """ Display on/off control
                     Always on
@@ -1402,14 +1430,17 @@ class LCD_display:
             elif 0b00000100 & self.data:
                 """ Entry mode set """
                 self.cursor_dir = int(bin(self.data)[-2])
+                self.shifting = int(bin(self.data)[-1])
             elif 0b00000010 & self.data:
                 """ Return home """
                 self.cursor_pos = 0
+                self.shift = 0
             elif 0b00000001 & self.data:
                 """ Clear display """
 
                 self.memory[:] = 0
                 self.cursor_pos = 0
+                self.shift = 0
 
     def set_data_lines(self, value):
         self.data = value
@@ -1442,8 +1473,8 @@ class LCD_display:
         row1 = self.memory[0:40]
         row2 = self.memory[64:104]
 
-        row1 = np.roll(row1, self.shift*self.shift_dir)
-        row2 = np.roll(row2, self.shift*self.shift_dir)
+        row1 = np.roll(row1, self.shift)
+        row2 = np.roll(row2, self.shift)
 
         for i, val1 in enumerate(row1[:16]):
             val2 = row2[i]
@@ -1460,7 +1491,7 @@ class LCD_display:
                     pass # null characters aren't drawn
 
                 if self.cursordraw and self.cursoron:
-                    if (self.cursor_pos + self.shift*self.shift_dir) == i + 64*j:
+                    if (self.cursor_pos + self.shift) == i + 64*j:
                         screen.blit(cursor, (x, y))
 
 

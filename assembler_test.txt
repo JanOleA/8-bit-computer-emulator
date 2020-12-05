@@ -1,0 +1,12 @@
+someval = 255   ; some location in memory
+
+.someval = 42   ; set the value of the memory location
+254 = 69
+
+begin:
+  LDA .someval
+  OUT
+  LDI 1
+  LDA 254
+  OUT
+  JMP begin
