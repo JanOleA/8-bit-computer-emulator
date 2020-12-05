@@ -74,18 +74,18 @@ class Computer:
         # instruction definitions
         """ All operations begin with CO|MI -> RO|IAI|CE """
         self.assembly[0b00000000] = [ORE] # NOP, 0
-        self.assembly[0b00000001] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|AI|ORE]                              # LDA   1       load into A from mem
-        self.assembly[0b00000010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|ORE]       # ADD   2       add to A
-        self.assembly[0b00000011] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              EO|AI|FI|SU|ORE]    # SUB   3       subtract from A
-        self.assembly[0b00000100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         AO|RI|ORE]                              # STA   4       store A to mem
-        self.assembly[0b00000101] = [CO|MI,         RO|IBI|CE,      IBO|AI|ORE]                                             # LDI   5       load immediate (into A)
-        self.assembly[0b00000110] = [CO|MI,         RO|IBI|CE,      IBO|JMP|ORE]                                            # JMP   6       jump
-        self.assembly[0b00000111] = [CO|MI,         RO|IBI|CE,      IBO|JC|ORE]                                             # JPC   7       jump on carry
-        self.assembly[0b00001000] = [CO|MI,         RO|IBI|CE,      IBO|JZ|ORE]                                             # JPZ   8       jump on zero
+        self.assembly[0b00000001] = [CO|MI,         RO|MI|CE,       RO|AI|ORE]                                              # LDA   1       load into A from mem
+        self.assembly[0b00000010] = [CO|MI,         RO|MI|CE,       RO|BI,              EO|AI|FI|ORE]                       # ADD   2       add to A
+        self.assembly[0b00000011] = [CO|MI,         RO|MI|CE,       RO|BI,              EO|AI|FI|SU|ORE]                    # SUB   3       subtract from A
+        self.assembly[0b00000100] = [CO|MI,         RO|MI|CE,       AO|RI|ORE]                                              # STA   4       store A to mem
+        self.assembly[0b00000101] = [CO|MI,         RO|AI|CE|ORE]                                                           # LDI   5       load immediate (into A)
+        self.assembly[0b00000110] = [CO|MI,         RO|JMP|CE|ORE]                                                          # JMP   6       jump
+        self.assembly[0b00000111] = [CO|MI,         RO|JC|CE|ORE]                                                           # JPC   7       jump on carry
+        self.assembly[0b00001000] = [CO|MI,         RO|JZ|CE|ORE]                                                           # JPZ   8       jump on zero
         self.assembly[0b00001001] = [KEO|AI|ORE]                                                                            # KEI   9       loads keyboard input into A
-        self.assembly[0b00001010] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|ORE]                           # ADI   10      add immediate to A
-        self.assembly[0b00001011] = [CO|MI,         RO|IBI|CE,      IBO|BI,         EO|AI|FI|SU|ORE]                        # SUI   11      sub immediate from A
-        self.assembly[0b00001100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI,              FI|SU|ORE]          # CMP   12      compare value from memory with A register. Set zf if equal, cf if A is GEQ
+        self.assembly[0b00001010] = [CO|MI,         RO|BI|CE,       EO|AI|FI|ORE]                                           # ADI   10      add immediate to A
+        self.assembly[0b00001011] = [CO|MI,         RO|BI|CE,       EO|AI|FI|SU|ORE]                                        # SUI   11      sub immediate from A
+        self.assembly[0b00001100] = [CO|MI,         RO|MI|CE,       RO|BI,              FI|SU|ORE]                          # CMP   12      compare value from memory with A register. Set zf if equal, cf if A is GEQ
         self.assembly[0b00001101] = [STO|MI,        AO|RI|INS|ORE]                                                          # PHA   13      push value from A onto the stack                                                NOTE: increments the stack pointer
         self.assembly[0b00001110] = [DES,           STO|MI,         AI|RO|ORE]                                              # PLA   14      pull value from stack onto A                                                    NOTE: decrements the stack pointer
         self.assembly[0b00001111] = [STO|AI|ORE]                                                                            # LDS   15      load the value of the stack pointer into A
@@ -93,10 +93,10 @@ class Computer:
         self.assembly[0b00010001] = [DES,           STO|MI,         RO|JMP|ORE]                                             # RET   17      return from subroutine                                                          NOTE: decrements the stack pointer
         self.assembly[0b00010010] = [DES,           STO|MI,         RO|MI,          AO|RI|ORE]                              # SAS   18      retrieve a memory address from stack and store the value of A into mem          NOTE: decrements the stack pointer
         self.assembly[0b00010011] = [DES,           STO|MI,         RO|MI,          AI|RO|ORE]                              # LAS   19      retrieve a memory address from stack and load the value from mem into A         NOTE: decrements the stack pointer
-        self.assembly[0b00010100] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|BI|ORE]                              # LDB   20      load into B from mem
-        self.assembly[0b00010101] = [CO|MI,         RO|IBI|CE,      IBO|BI,         FI|SU|ORE]                              # CPI   21      compare immediate value with A register. Set zf if equal, cf if A is GEQ
+        self.assembly[0b00010100] = [CO|MI,         RO|MI|CE,       RO|BI|ORE]                                              # LDB   20      load into B from mem
+        self.assembly[0b00010101] = [CO|MI,         RO|BI|CE,       FI|SU|ORE]                                              # CPI   21      compare immediate value with A register. Set zf if equal, cf if A is GEQ
         self.assembly[0b00010110] = [RSA|ORE]                                                                               # RSA   22      Shift A one position to the right (A = A//2)
-        self.assembly[0b00010111] = [AO|BI, EO|AI|FI|ORE]                                                                   # LSA   23      Shift A one position to the left (A = A*2)
+        self.assembly[0b00010111] = [AO|BI,         EO|AI|FI|ORE]                                                           # LSA   23      Shift A one position to the left (A = A*2)
         self.assembly[0b00011000] = [CO|MI,         RO|IBI|CE,      IBO|DDI|ORE]                                            # DIS   24      load immediate (into display data)
         self.assembly[0b00011001] = [CO|MI,         RO|IBI|CE,      IBO|DCI|ORE]                                            # DIC   25      load immediate (into display control)
         self.assembly[0b00011010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|DDI|ORE]                             # LDD   26      load from mem (into display data)
