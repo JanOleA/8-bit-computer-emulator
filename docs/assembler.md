@@ -1,7 +1,7 @@
 # Assembler functions and coding for the computer
 The assembly language and the assembler for the computer is very basic, but it does have some basic features to help make programming less painful.
 
-It supports assigning pointer variables:
+## It supports assigning pointer variables:
 ~~~~
 result = 255
 ~~~~
@@ -14,7 +14,38 @@ There are also comments, beginning with `;`
   LDA .result ; loads a value from the memory address of .pressing into the A register
 ~~~~
 
-Labels may be used to refer to positions in the program:
+## Initializing values in memory
+The assembler can set designated values in memory to the programmers choice on assembly. This can be done either with a pointer variable, or with a memory address directly:
+~~~~
+.result = 0   ; make sure the memory location .result points to is zero on startup
+254 = 42      ; set memory address 254 to contain 42 on startup
+~~~~
+
+This can be useful for example when defining variables which use more than one byte:
+~~~~
+text = 240
+
+.text      = 72
+.text + 1  = 101
+.text + 2  = 108
+.text + 3  = 108
+.text + 4  = 111
+.text + 5  = 32
+.text + 6  = 119
+.text + 7  = 111
+.text + 8  = 114
+.text + 9  = 108
+.text + 10 = 100
+~~~~
+
+The assembler can also automatically convert strings to its ascii values and place the characters consecutively in memory:
+~~~~
+text = 240
+
+.text = "Hello world" ; does same as the code above
+~~~~
+
+## Labels may be used to refer to positions in the program:
 ~~~~
 start:
   LDA 255   ; loads a value from memory address 255 into the A register
@@ -26,12 +57,16 @@ start:
 
 Any line containing an instruction must begin with two spaces, and then the instruction. If the instruction requires an operand, it is separated from the instruction by a single space. Instructions may only take a single operand.
 
-## In the future
-For now that is pretty much the extent of how much the assembler supports. I do intend to extend it. In particular I want to make it possible to add values together, so one can for example do:
+## Combining memory addresses
+It is possible to use simple operations to add values to a memory address pointer. For example I can define:
 ~~~~
-result = 200
-  LDA .result + 1 ; refer to the address of result, plus one, i.e. 201
+value = 200   ; assigns value as a pointer which points to memory location 200
+
+start:
+  LDI 42          ; load 42 into the A register
+  STA .value + 1  ; stores the value of the A register (42) into memory address .value + 1 -> 200 + 1 = 201
 ~~~~
+Currently only addition and subtraction is supported, and bracketing to group operations is not supported (yet).
 
 # Instruction set
 This is a list of all the instructions currently supported by the assembler and the computer.

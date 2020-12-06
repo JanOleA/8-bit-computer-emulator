@@ -194,12 +194,36 @@ class Computer:
                         """ Variable """
                         line_ = line.strip().split("=")
                         memaddress = line_[0].strip()
+                        memaddress = memaddress.replace(" ", "")
                         value = line_[1].strip()
-                        if memaddress[0] == ".":
-                            memaddress = variables[memaddress[1:]]
+                        terms_pos = memaddress.split("+")
+                        val = 0
+                        for t1 in terms_pos:
+                            terms_neg = t1.split("-")
+                            pos_val = terms_neg[0]
+                            if pos_val[0] == ".":
+                                """ Pointer variable """
+                                val += variables[pos_val[1:]]
+                            else:
+                                val += int(pos_val)
+                            for t2 in terms_neg[1:]:
+                                if t2[0] == ".":
+                                    """ Pointer variable """
+                                    val -= variables[t2[1:]]
+                                else:
+                                    val -= int(t2)
+                        memaddress = val
+
+                        if '"' in value:
+                            val_string = value.split('"')[1]
+                            for i, item in enumerate(val_string):
+                                self.memory[memaddress + i] = ord(item)
+                        elif "'" in value:
+                            val_string = value.split("'")[1]
+                            for i, item in enumerate(val_string):
+                                self.memory[memaddress + i] = ord(item)
                         else:
-                            memaddress = int(memaddress)
-                        self.memory[memaddress] = int(value)
+                            self.memory[memaddress] = int(value)
                     else:
                         """ Pointer variable """
                         line_ = line.strip().split("=")

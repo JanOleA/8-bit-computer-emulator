@@ -1,7 +1,12 @@
 char = 255
 loopval = 254
+printloc = 253
+text = 240
 
-  LDI 52
+.printloc  = 240
+.text      = "Hello there"
+
+  LDI 53
   STA .loopval
 start:
   DIS 1                 ; clear display
@@ -10,54 +15,16 @@ start:
   JSR instruction
 
 helloworld:
-  LDI 72                ; H
-  STA .char
-  JSR write_char
 
-  LDI 101               ; e
-  STA .char
+printloop:
+  JSR get_next_char
+  CPI 0
+  JPZ end_printloop
   JSR write_char
-
-  LDI 108               ; l
-  STA .char
-  JSR write_char
-
-  LDI 108               ; l
-  STA .char
-  JSR write_char
-
-  LDI 111               ; l
-  STA .char
-  JSR write_char
-
-  LDI 32                ; space
-  STA .char
-  JSR write_char
-
-  LDI 87                ; W
-  STA .char
-  JSR write_char
-
-  LDI 111               ; o
-  STA .char
-  JSR write_char
-
-  LDI 114               ; r
-  STA .char
-  JSR write_char
-
-  LDI 108               ; l
-  STA .char
-  JSR write_char
-
-  LDI 100               ; d
-  STA .char
-  JSR write_char
-
-  LDI 33                ; !
-  STA .char
-  JSR write_char
-
+  JMP printloop
+end_printloop:
+  LDI 240
+  STA .printloc
   LDA .loopval
   CPI 0
   JPZ end_loop
@@ -73,16 +40,25 @@ loop:
 end_loop:
   HLT
 
+get_next_char:  ; gets the next character from .printloc and increases .printloc by 1
+  LDA .printloc
+  PHA
+  ADI 1
+  STA .printloc
+  LAS         ; get the value from .printloc into A
+  STA .char
+  RET
+
 write_char:
   LDD .char
   DIC 0
-  DIC 64
-  DIC 192
+  DIC 64      ; set read
+  DIC 192     ; set read + enable
   DIC 0
   RET
 
 instruction:
   DIC 0
-  DIC 128
+  DIC 128     ; set enable
   DIC 0
   RET
