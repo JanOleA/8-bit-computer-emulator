@@ -1,9 +1,9 @@
 char = 255
 loopval = 254
-printloc = 253
+textloc = 253
 text = 240
 
-.printloc  = 240
+.textloc  = 240
 .text      = "Hello there"
 
 start:
@@ -24,7 +24,7 @@ printloop:
   JMP printloop
 end_printloop:
   LDI 240
-  STA .printloc
+  STA .textloc
   LDA .loopval
   CPI 0
   JPZ end_loop
@@ -40,12 +40,12 @@ loop:
 end_loop:
   HLT
 
-get_next_char:  ; gets the next character from .printloc and increases .printloc by 1
-  LDA .printloc
+get_next_char:  ; gets the next character from .textloc and increases .textloc by 1
+  LDA .textloc
   PHA
   ADI 1
-  STA .printloc
-  LAS         ; get the value from .printloc into A
+  STA .textloc
+  LAS         ; get the value from .textloc into A
   STA .char
   RET
 
