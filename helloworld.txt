@@ -6,9 +6,9 @@ text = 240
 .printloc  = 240
 .text      = "Hello there"
 
+start:
   LDI 53
   STA .loopval
-start:
   DIS 1                 ; clear display
   JSR instruction
   DIS 15                ; set on, display cursor, cursor blink
