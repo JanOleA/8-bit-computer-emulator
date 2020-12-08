@@ -30,8 +30,9 @@ inc_b:              ; increase the .divisor by dividing by 2 as many times as po
   LDA .divisor      ; load divisor into A
   LSA               ; left shift (i.e. mult. by 2)
   JPC div_loop      ; if the left shift causes a carry, done increasing .divisor
-  CMP .dividend     ; compare with dividend
+  JPZ pass          ; pass if they are equal
   JPC div_loop      ; done increasing .divisor
+pass:
   STA .divisor      ; store divisor*2 as new divisor
   LDA .pow2
   LSA               ; multiply pow2 by 2 as well

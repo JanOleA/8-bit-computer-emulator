@@ -1421,11 +1421,11 @@ class LCD_display:
                 if self.cursor_dir == 1:
                     self.cursor_pos += 1
                     if self.shifting:
-                        self.shift += 1
+                        self.shift -= 1
                 else:
                     self.cursor_pos -= 1
                     if self.shifting:
-                        self.shift -= 1
+                        self.shift += 1
         else:
             if   0b10000000 & self.data:
                 pass

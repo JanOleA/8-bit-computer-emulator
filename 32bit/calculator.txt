@@ -10,6 +10,12 @@ quotient = 247            ;
 dividend = 246            ; dividend for divide routine
 divisor = 245             ; divisor for divide routine
 
+oflow1 = 244
+oflow2 = 243
+
+.oflow1 = 4294967168
+.oflow2 = 4294967232
+
 start:
   LDI 0             ; load 0 to clear required variables
   STA .pressing
@@ -17,11 +23,11 @@ start:
   STA .userval
 check_input:
   KEI               ; load value from input register
-  ADI 128           ; add 128 to the value
-  JPC input         ; if result > 255, jump to input handling
+  ADD .oflow1       ; add 4294967296 to the value
+  JPC input         ; if overflow, jump to input handling
   JMP check_input   ; otherwise, continue check_input loop
 input:
-  ADI 192           ; add 192 to the value
+  ADD .oflow2       ; add 4294967232 to the value
   JPC handle_add_div; if carry, add or div button was pressed
   ADI 32            ; if not, add 32 to the value
   JPC handle_sub    ; if carry, sub button was pressed
@@ -29,7 +35,7 @@ input:
   JPC handle_mul    ; if carry, mul button was pressed
   ADI 16            ; if not, add 16 to clear top 4 bits
 
-  STA .pressing + 5 - 3 - 2 + 11 - 11
+  STA .pressing
   LDI 10            ; the current input value is stored in 250, must multiply by ten to insert new number at end
   STA .multiplier
   LDA .userval      ; load the current userval to multiply it by 10

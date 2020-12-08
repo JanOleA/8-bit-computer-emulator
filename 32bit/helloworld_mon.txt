@@ -1,0 +1,83 @@
+char = 2000
+textloc = 2001
+dividend = 2002             ; dividend for the divide routine
+divisor = 2003              ; divisor for the divide routine
+quotient = 2004             ; quotient of the division
+remainder = 2005            ; remainder in the division
+check_value = 2006          ; value to check if it is prime
+loop_index = 2007           ; index of the loop
+half_check = 2008           ; half of the value we are checking
+pow2 = 2009
+finds = 2010                ; storing the finds at this address and higher
+
+text = 2020
+text2 = 2040
+
+.text     = "  EmuOS alpha  "
+.text2    = "    Welcome!   "
+
+start:
+  JSR initialize_display
+  LDI 2020
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 2040
+  STA .textloc
+  JSR print
+  JSR newline
+  JSR newline
+  HLT
+
+initialize_display:
+  DIS 1                 ; 0000 0001 - clear display
+  JSR instruction
+  DIS 6                 ; 0000 0110 - Set entry mode, cursor direction to increment
+  JSR instruction       
+  DIS 15                ; set on, display cursor, cursor blink
+  JSR instruction
+  RET
+
+
+print:          ; gets the first memory address for a string from .textloc and prints it to console (null terminated)
+  JSR get_next_char
+  CPI 0
+  JPZ end_print
+  JSR write_char
+  JMP print
+end_print:
+  RET
+
+
+get_next_char:  ; gets the next character from .textloc and increases .textloc by 1
+  LDA .textloc
+  PHA
+  ADI 1
+  STA .textloc
+  LAS         ; get the value from .textloc into A
+  STA .char
+  RET
+
+
+write_char:
+  LDD .char
+  DIC 0
+  DIC 64      ; set read
+  DIC 192     ; set read + enable
+  DIC 0
+  RET
+
+
+newline:
+  DIS 32      ; data for newline
+  DIC 0
+  DIC 128     ; set enable
+  DIC 0
+  RET
+
+
+instruction:
+  DIC 0
+  DIC 128     ; set enable
+  DIC 0
+  RET

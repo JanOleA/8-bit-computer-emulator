@@ -38,20 +38,17 @@ def divide_new(a, b):
 divide_new(103, 7)
 divide_new(78, 3)
 divide_new(32, 9)
+divide_new(20, 10)
 
 def test_dividers():
-    vals = rng.integers(1, 100000, size = (1000,2))
+    for a in range(2000):
+        for b in range(1, min(100, a)):
+            expected_quotient = a//b
+            expected_remainder = a%b
 
-    for val in vals:
-        a = val[0]
-        b = val[1]//100
+            new_quot, new_rem = divide_new(a, b)
 
-        expected_quotient = a//b
-        expected_remainder = a%b
-
-        new_quot, new_rem = divide_new(a, b)
-
-        assert new_quot == expected_quotient
-        assert new_rem == expected_remainder
+            assert new_quot == expected_quotient
+            assert new_rem == expected_remainder
 
 

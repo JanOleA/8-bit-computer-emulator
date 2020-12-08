@@ -1,0 +1,289 @@
+char = 2000                 ; variable for printing
+textloc = 2001              ; location of next textline to print
+arg1 = 2002                 ; argument 1 for subroutines
+arg2 = 2003                 ; argument 2 for subroutines
+res1 = 2004                 ; result 1 for subroutines
+res2 = 2005                 ; result 2 for subroutines
+pow2 = 2006                 ; special variable for divide routine
+num_digits = 2007           ; number of digits to print in the display_number routine
+check_value = 2008          ; value to check if it is prime
+loop_index = 2009           ; index of the loop
+half_check = 2010           ; half of the value we are checking
+finds = 2011
+line_vals = 2012
+
+text = 2020     ; 16 bytes
+text2 = 2036    ; 16 bytes
+text_su = 2052  ; 12 bytes
+space = 2064    ; 2 bytes
+
+.finds    = 2100
+.line_vals = 5
+.text     = "  EmuOS alpha  "
+.text2    = "    Welcome!   "
+.text_su  = "Starting..."
+.space    = " " 
+
+start:
+  JSR initialize_display
+  LDI 2052
+  STA .textloc
+  JSR print
+  JSR ret_home
+  LDI 0           ; set variables to zero
+  STA .char
+  STA .arg1
+  STA .arg2
+  STA .res1
+  STA .res2
+  STA .pow2
+  STA .num_digits
+  LDI 2020
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 2036
+  STA .textloc
+  JSR print
+  JSR newline
+  JSR newline
+  LDI 2003
+  STA .arg1
+  JSR display_number
+  HLT
+  LDI 2
+  STA .arg1
+  JSR display_number
+  LDI 2064
+  STA .textloc
+  JSR print
+  LDI 3             ; load 0 to clear required variables
+  STA .check_value
+main_loop:
+  JSR check_prime
+  LDA .check_value
+  ADI 2
+  JPC start
+  STA .check_value
+  JMP main_loop
+
+
+check_prime:
+  LDA .check_value
+  RSA               ; right shift A to divide by 2
+  STA .half_check   ; store half of .check_value in .half_check
+  LDI 3
+  STA .loop_index   ; set loop index to 3
+prime_loop:
+  LDA .loop_index
+  CMP .half_check   ; compare the loop_index to the value we are checking
+  JPC prime         ; if A >= check_value//2, the value is prime
+  STA .arg2         ; store loop_index as divisor
+  LDA .check_value
+  STA .arg1         ; store the check value as the dividend
+  JSR divide        ; divide the values
+  LDA .res2        ; load the remainder into ADD
+  CPI 0             ; if the remainder is zero, the number is divisible
+  JPZ not_prime     ; zero flag will be set if remainder is zero
+  LDA .loop_index   ; if not, add 1 to the loop index
+  ADI 2
+  STA .loop_index
+  JMP prime_loop    ; and loop again
+not_prime:
+  RET
+prime:
+  LDA .finds
+  PHA
+  ADI 1
+  STA .finds
+  LDA .check_value
+  SAS
+  STA .arg1
+  JSR display_number
+  LDI 2064
+  STA .textloc
+  JSR print
+  LDA .line_vals
+  SUI 1
+  JPZ do_newline
+  STA .line_vals
+  JMP end_prime
+do_newline:
+  JSR newline
+  LDI 6
+  STA .line_vals
+end_prime:
+  RET
+
+
+initialize_display: ; initializes the display
+  DIS 1             ; 0000 0001 - clear display
+  JSR instruction
+  DIS 6             ; 0000 0110 - Set entry mode, cursor direction to increment
+  JSR instruction 
+  DIS 15            ; set on, display cursor, cursor blink
+  JSR instruction
+  RET
+
+
+print:              ; gets the first memory address for a string from .textloc and prints it to console (null terminated)
+  JSR get_next_char
+  CPI 0
+  JPZ end_print
+  JSR write_char
+  JMP print
+end_print:
+  RET
+
+
+get_next_char:      ; gets the next character from .textloc and increases .textloc by 1
+  LDA .textloc
+  PHA
+  ADI 1
+  STA .textloc
+  LAS               ; get the value from .textloc into A
+  STA .char
+  RET
+
+
+write_char:         ; write the character in .char to screen
+  LDD .char
+  DIC 0
+  DIC 64            ; set read
+  DIC 192           ; set read + enable
+  DIC 0
+  RET
+
+
+newline:            ; print newline on the screen
+  DIS 32            ; data for newline
+  DIC 0
+  DIC 128           ; set enable
+  DIC 0
+  RET
+
+
+ret_home:           ; return to home (first column) on current line on screen
+  JSR newline
+  DIS 24            ; data for cursor up
+  DIC 0
+  DIC 128           ; set enable
+  DIC 0
+  RET
+
+
+instruction:        ; screen instruction
+  DIC 0
+  DIC 128           ; set enable
+  DIC 0
+  RET
+
+
+multiply:           ; multiplies .arg1 with .arg2, stores it in .res1
+  LDA .arg1
+  CMP .arg2         ; compare arg2 with arg1
+  JPC mult_begin    ; if arg1 >= arg2, continue multiply
+  PHA               ; else, push A to stack
+  LDA .arg2
+  STA .arg1         ; store arg2 in arg1
+  PLA               ; pull the first value back from stack
+  STA .arg2         ; store it as arg2
+  LDA .arg1         ; load arg1 again
+mult_begin:
+  STA .res1         ; store the multiplicand in .product, essentially doing the first addition
+mult_loop:
+  LDA .arg2
+  SUI 1             ; subtract 1 from multiplier
+  JPZ mult_end      ; if result is zero, end multiply
+  STA .arg2
+  LDA .res1
+  ADD .arg1
+  STA .res1
+  JMP mult_loop     ; continue multiply loop
+mult_end:
+  LDA .res1
+  RET               ; return
+
+
+divide:             ; divides .arg1 with .arg2, stores the quotient in .res1 (remainder in .res2)
+  LDI 0
+  STA .res1         ; initialize quotient as 0
+  LDI 1
+  STA .pow2         ; initialize pow2 as 1
+  LDA .arg2
+  CPI 0
+  JPZ div_end       ; jump to div_end if divisor is zero
+inc_b:              ; increase the divisor by multiplying by 2 as many times as possible
+                    ; while keeping it below the dividend
+  LDA .arg2         ; load divisor into A
+  LSA               ; left shift (i.e. mult. by 2)
+  JPC div_loop      ; if the left shift causes a carry, done increasing the divisor
+  CMP .arg1         ; compare with dividend
+  JPZ pass          ; pass if they are equal
+  JPC div_loop      ; done increasing .divisor
+pass:
+  STA .arg2         ; store divisor*2 as new divisor
+  LDA .pow2
+  LSA               ; multiply pow2 by 2 as well
+  STA .pow2         ; store it as new pow2
+  JMP inc_b         ; go back to inc_b
+div_loop:
+  LDA .pow2
+  CPI 0             ; compare pow2 to zero
+  JPZ div_end       ; if zero, done divide
+  LDA .arg1
+  CMP .arg2         ; compare dividend to divisor
+  JPC a_geq_b       ; if dividend >= divisor
+  JMP continue      ; else
+a_geq_b:
+  LDA .res1
+  ADD .pow2         
+  STA .res1         ; add pow2 to the quotient and store it
+  LDA .arg1
+  SUB .arg2
+  STA .arg1         ; subtract divisor from the dividend and store it
+continue:
+  LDA .arg2
+  RSA
+  STA .arg2         ; divide divisor by 2 and store
+  LDA .pow2
+  RSA
+  STA .pow2         ; divide pow2 by 2 and store
+  JMP div_loop
+div_end:
+  LDA .arg1
+  STA .res2
+  LDA .res1
+  RET
+
+
+display_number:     ; print arg1 to screen as decimal value
+  LDA .arg1
+  CMP 0
+calc_next_val:
+  LDI 10
+  STA .arg2
+  JSR divide        ; remainder will be the number to display at nth position
+  OUT
+  STA .arg1         ; the result of the division will be the next number to divide
+  LDA .res2         ; remainder
+  ADI 48            ; add 48 to get ascii
+  PHA               ; push to stack
+  LDA .num_digits
+  ADI 1             ; add one to number of values to print
+  STA .num_digits
+  LDA .arg1
+  CPI 0             ; if result is zero, we are done
+  JPZ print_stack   ; print from stack
+  JMP calc_next_val
+print_stack:
+  PLA               ; pull value from stack
+  STA .char
+  JSR write_char
+  LDA .num_digits
+  SUI 1
+  STA .num_digits
+  JPZ end_dispnum
+  JMP print_stack
+end_dispnum:
+  RET
