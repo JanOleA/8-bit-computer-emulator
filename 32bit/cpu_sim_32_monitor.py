@@ -243,6 +243,29 @@ class Game_32(Game):
 
         self.make_static_graphics()
         self.LCD_display = Monitor(self._font_small_console_bold2, position = (1210, 25))
+        self.keyboard_numbers = [0, 0, 0, 0, 0]
+        self.keyboard = np.zeros((5, 11))
+
+        self.keyboard_rows_list = []
+        for i in range(5):
+            kbr = BitDisplay(cpos = (1410, 520 + i*41), length = 11, radius = 18,
+                             offcolor = (40, 40, 40), oncolor = (80, 120, 80))
+            self.keyboard_rows_list.append(kbr)
+
+        
+        keyboard_symbols = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "/",
+                            "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "*",
+                            "A", "S", "D", "F", "G", "H", "J", "K", "L", "Ent", "Ent",
+                            "Z", "X", "C", "V", "B", "N", "M", ",", ".", "^", "<-",
+                            "Ctr", "Alt", "Sh", "_", "_", "_", "+", "-", "<", "v", ">",]
+
+        self.kbrow = 0
+        self.kbcol = 0        
+        self.keyboard_texts_rendered = []
+        for text in keyboard_symbols:
+            self.keyboard_texts_rendered.append(self._font_small.render(text,
+                                                                        True,
+                                                                        self.WHITE))
 
         memcolumn = ""
         self.memrows = []
@@ -272,6 +295,141 @@ class Game_32(Game):
             self._screen.blit(out_text, (x, y))
             self._screen.blit(self.memrows[i], (x - 22, y))
             y += 15
+
+    def loop(self):
+        kb_input = (self.kbrow-1)*11 + self.kbcol
+        if kb_input != -11:
+            self.computer.input_regi = kb_input + 128
+        else:
+            self.computer.input_regi = 0
+        super().loop()
+
+    def render(self):
+        self._screen.blit(self._bg, (0,0))
+
+        """ Draw LED displays """
+        #self.clk_display.draw_number(self.computer.timer_indicator, self._screen)
+        self.bus_display.draw_number(self.computer.bus, self._screen)
+        self.cnt_display.draw_number(self.computer.prog_count, self._screen)
+        self.areg_display.draw_number(self.computer.areg, self._screen)
+        self.breg_display.draw_number(self.computer.breg, self._screen)
+        self.sreg_display.draw_number(self.computer.sumreg, self._screen)
+        self.flag_display.draw_number(self.computer.flags, self._screen)
+        self.flgr_display.draw_number(self.computer.flagreg, self._screen)
+        self.madd_display.draw_number(self.computer.memaddress, self._screen)
+        self.mcon_display.draw_number(self.computer.memcontent, self._screen)
+        self.insa_display.draw_number(self.computer.inst_reg_a, self._screen)
+        self.insb_display.draw_number(self.computer.inst_reg_b, self._screen)
+        self.outp_display.draw_number(self.computer.out_regist, self._screen)
+        self.inpt_display.draw_number(self.computer.input_regi, self._screen)
+        self.stap_display.draw_number(self.computer.stackpointer, self._screen)
+
+        """ LCD display registers """
+        if self.use_LCD_display:
+            self.disd_display.draw_number(self.computer.screen_data, self._screen)
+            self.disc_display.draw_number(self.computer.screen_control, self._screen)
+
+        """ Draw and check the keyboard buttons for input """
+        i = 0
+        for kp, num in zip(self.keyboard_rows_list, self.keyboard_numbers):
+            kp.draw_number(num, self._screen)
+            self.keyboard_numbers[i] = 0
+            i += 1
+        
+        self.keyboard[:,:] = 0
+        self.kbrow = 0
+        self.kbcol = 0
+        for i, kp_text in enumerate(self.keyboard_texts_rendered):
+            column = i%11
+            row = i//11
+            kp = self.keyboard_rows_list[row]
+            x = kp.xvalues[column]
+            y = kp.y
+            mouse_dist = (self.mouse_pos[0] - x)**2 + (self.mouse_pos[1] - y)**2
+            if mouse_dist < kp.radius**2:
+                if pygame.mouse.get_pressed()[0]:
+                    self.keyboard_numbers[row] = 2**(10 - column)
+                    self.keyboard[row, column] = 1
+                    self.kbrow = row + 1
+                    self.kbcol = column
+
+            text_x = x - kp_text.get_width() / 2
+            text_y = y - kp_text.get_height() / 2
+            self._screen.blit(kp_text, (text_x, text_y))
+
+        
+
+        """ Draw the output display """
+        out_string = f"{self.computer.out_regist:>03d}"
+        out_text = self._font_segmentdisplay.render(out_string, True, self.BRIGHTRED)
+        screen_bg = pygame.Rect(980, 480, out_text.get_width() + 35, out_text.get_height() + 25)
+        pygame.draw.rect(self._screen, self.BLACK, screen_bg, border_radius = 10)
+        self._screen.blit(out_text, (1000, 500))
+
+        """ Draw the control word LED display, and the labels """
+        self.ctrl_display.draw_number(self.computer.controlword, self._screen)
+        for text, x_center in zip(self.ctrl_word_text_rendered, self.ctrl_display.xvalues):
+            text_x = int(x_center - text.get_width()/2)
+            text_y = int(self.ctrl_display.y + text.get_height()) + 5
+            self._screen.blit(text, (text_x, text_y))
+
+        """ Draw the operation timestep LED display """
+        operation = int("1" + "0"*self.computer.op_timestep)
+        self.oprt_display.draw_bits(operation, self._screen)
+
+        """ If the timestep is zero, update which instruction from the program
+        is the active one (to draw with green)
+        """
+        if self.computer.op_timestep == 0:
+            self.display_op = self.computer.prog_count
+
+        """ Draw the memory """
+        if self.draw_mem:
+            self.draw_memory()
+
+        """ Draw the operations included in the current instruction """
+        if self.draw_ops:
+            self._screen.blit(self.microins_title, (1180, 620))
+            if self.computer.op_timestep >= 2:
+                self.op_address_draw = self.computer.inst_reg_a
+            operations = self.computer.assembly[self.op_address_draw].copy()
+            operations.insert(0, self.computer.RO|self.computer.IAI|self.computer.CE)
+            operations.insert(0, self.computer.CO|self.computer.MI)
+            for i, operation in enumerate(operations):
+                if (i >= 2 and self.computer.op_timestep < 2):
+                    continue
+                s = ""
+                for instruction, label in zip(self.computer.microcodes, self.computer.microcode_labels):
+                    if instruction & operation:
+                        s += f"{label:>8s} | "
+                self.arrow = self._font_small_console_bold.render("> " + "_"*(len(s) - 4), "True", self.DARKKGREEN)
+                if i == self.computer.op_timestep:
+                    self._screen.blit(self.arrow, (1170, 650 + i*15))
+                out_text = self._font_small_console.render(s[:-2], True, self.TEXTGREY)
+                self._screen.blit(out_text, (1180, 650 + i*15))
+
+        self._text_cycles_ran = self._font.render(f"Clock cycles ran: {self.computer.clockcycles_ran:>10d}", True, self.TEXTGREY)
+
+        uptime = time.time() - self._start_time
+        hours = uptime/3600
+        minutes = (hours - np.floor(hours))*60
+        seconds = (minutes - np.floor(minutes))*60
+
+        hours = int(np.floor(hours))
+        minutes = int(np.floor(minutes))
+        seconds = int(np.floor(seconds))
+
+        self._text_uptime = self._font.render(f"Uptime: {hours:>02d}:{minutes:>02d}:{seconds:>02d}", True, self.TEXTGREY)
+
+        self._screen.blit(self.clockrate, (5,5))
+        self._screen.blit(self.fpstext, (100,5))
+        self._screen.blit(self._text_cycles_ran, (280,5))
+        self._screen.blit(self._loaded_program_text, (280,25))
+        self._screen.blit(self._text_uptime, (280,45))
+
+        if self.use_LCD_display: self.LCD_display.render(self._screen)
+
+        pygame.display.flip()
 
 
 class Monitor:

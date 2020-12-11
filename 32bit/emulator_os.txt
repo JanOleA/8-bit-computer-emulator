@@ -6,23 +6,21 @@ res1 = 2004                 ; result 1 for subroutines
 res2 = 2005                 ; result 2 for subroutines
 pow2 = 2006                 ; special variable for divide routine
 num_digits = 2007           ; number of digits to print in the display_number routine
-check_value = 2008          ; value to check if it is prime
-loop_index = 2009           ; index of the loop
-half_check = 2010           ; half of the value we are checking
-finds = 2011
-line_vals = 2012
+ascii_start = 2008          ; location where ascii map starts
+no_input = 2009             ; whether or not input has been reset
 
 text = 2020     ; 16 bytes
 text2 = 2036    ; 16 bytes
 text_su = 2052  ; 12 bytes
 space = 2064    ; 2 bytes
+ascii_map = 2066 ; 56 bytes
 
-.finds    = 2100
-.line_vals = 5
 .text     = "  EmuOS alpha  "
 .text2    = "    Welcome!   "
 .text_su  = "Starting..."
-.space    = " " 
+.space    = " "
+.ascii_map = "0123456789 QWERTYUIOP ASDFGHJKL  ZXCVBNM,.             "
+.ascii_start = 2066
 
 start:
   JSR initialize_display
@@ -47,72 +45,52 @@ start:
   JSR print
   JSR newline
   JSR newline
-  LDI 2003
-  STA .arg1
-  JSR display_number
-  HLT
-  LDI 2
-  STA .arg1
-  JSR display_number
-  LDI 2064
-  STA .textloc
-  JSR print
-  LDI 3             ; load 0 to clear required variables
-  STA .check_value
 main_loop:
-  JSR check_prime
-  LDA .check_value
-  ADI 2
-  JPC start
-  STA .check_value
+  JSR check_input
+  LDA .res2
+  CPI 0
+  JPZ no_input
+  LDA .no_input
+  CPI 1
+  JPZ main_loop
+  LDA .ascii_start
+  ADD .res1
+  PHA
+  LAS
+  STA .char
+  JSR write_char
+  LDI 1
+  STA .no_input
   JMP main_loop
 
+no_input:
+  LDI 0
+  STA .no_input
+  JMP main_loop
 
-check_prime:
-  LDA .check_value
-  RSA               ; right shift A to divide by 2
-  STA .half_check   ; store half of .check_value in .half_check
-  LDI 3
-  STA .loop_index   ; set loop index to 3
-prime_loop:
-  LDA .loop_index
-  CMP .half_check   ; compare the loop_index to the value we are checking
-  JPC prime         ; if A >= check_value//2, the value is prime
-  STA .arg2         ; store loop_index as divisor
-  LDA .check_value
-  STA .arg1         ; store the check value as the dividend
-  JSR divide        ; divide the values
-  LDA .res2        ; load the remainder into ADD
-  CPI 0             ; if the remainder is zero, the number is divisible
-  JPZ not_prime     ; zero flag will be set if remainder is zero
-  LDA .loop_index   ; if not, add 1 to the loop index
-  ADI 2
-  STA .loop_index
-  JMP prime_loop    ; and loop again
-not_prime:
+check_input:        ; check for input
+  KEI
+  PHA               ; push input to stack
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 1             ; compare top bit to 1
+  JPZ input_entered
+  PLA
+  LDI 0
+  STA .res2
   RET
-prime:
-  LDA .finds
-  PHA
-  ADI 1
-  STA .finds
-  LDA .check_value
-  SAS
-  STA .arg1
-  JSR display_number
-  LDI 2064
-  STA .textloc
-  JSR print
-  LDA .line_vals
-  SUI 1
-  JPZ do_newline
-  STA .line_vals
-  JMP end_prime
-do_newline:
-  JSR newline
-  LDI 6
-  STA .line_vals
-end_prime:
+input_entered:
+  PLA
+  SUI 128
+  OUT
+  STA .res1
+  LDI 1
+  STA .res2
   RET
 
 
@@ -264,7 +242,6 @@ calc_next_val:
   LDI 10
   STA .arg2
   JSR divide        ; remainder will be the number to display at nth position
-  OUT
   STA .arg1         ; the result of the division will be the next number to divide
   LDA .res2         ; remainder
   ADI 48            ; add 48 to get ascii

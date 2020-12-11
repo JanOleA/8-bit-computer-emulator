@@ -567,9 +567,8 @@ class BitDisplay:
         """
         self.length = length
         self.text = text
-        self.x = cpos[0]
-        self.y = cpos[1]
-        self.cpos = cpos
+        self._x = cpos[0]
+        self._y = cpos[1]
         self.oncolor = oncolor
         self.offcolor = offcolor
 
@@ -581,14 +580,37 @@ class BitDisplay:
             self._separation = 1
         self._width = length*self.radius*2 + (length - 1)*self._separation
 
-        self.reg_bg = pygame.Rect(int(self.x - self._width/2 - 5),
-                                  int(self.y - self.radius - 5),
+        self.cpos = cpos
+        self.reg_bg = pygame.Rect(int(self._x - self._width/2 - 5),
+                                  int(self._y - self.radius - 5),
                                   int(self._width + 10), int(self.radius*2 + 10))
         
         if not font is None:
             self.text_rendered = font.render(self.text, True, textcolor)
         else:
             self.text_rendered = None
+
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def cpos(self):
+        return self._cpos
+
+    @cpos.setter
+    def cpos(self, cpos):
+        self._x = cpos[0]
+        self._y = cpos[1]
+        self._cpos = cpos
+
+        self.reg_bg = pygame.Rect(int(self._x - self._width/2 - 5),
+                                  int(self._y - self.radius - 5),
+                                  int(self._width + 10), int(self.radius*2 + 10))
 
     def draw_bits(self, int_in, screen):
         """ Draws the LED's with the bits on corresponding to the 1's in an
@@ -607,8 +629,8 @@ class BitDisplay:
             bitstring = "0" + bitstring
         bitstring = bitstring[-self.length:]
         
-        y = int(self.y)
-        x = int(self.x - self._width/2 + self.radius)
+        y = int(self._y)
+        x = int(self._x - self._width/2 + self.radius)
 
         for bit_value in bitstring:
             if bit_value == "1":
@@ -622,8 +644,8 @@ class BitDisplay:
         if self.text_rendered is not None:
             textwidth = self.text_rendered.get_width()
             textheight = self.text_rendered.get_height()
-            text_x = int(self.x - textwidth/2)
-            text_y = int((self.y - textheight/2 - self.radius - 20))
+            text_x = int(self._x - textwidth/2)
+            text_y = int((self._y - textheight/2 - self.radius - 20))
             screen.blit(self.text_rendered, (text_x, text_y))
 
     def draw_number(self, num_in, screen):
@@ -1148,24 +1170,25 @@ class Game:
         self.mouse_pos = np.array(pygame.mouse.get_pos())
         keypressed = np.where(self.keypad == 1)
 
-        input_val = 0
-        if np.sum(self.keypad) != 0:
-            rowpressed = keypressed[0][0]
-            colpressed = keypressed[1][0]
-            if rowpressed < 3:
-                input_val = 3*(2 - rowpressed) + colpressed + 1
-            else:
-                input_val = 2**(6 - colpressed)
+        if not hasattr(self, "kbcol"):
+            input_val = 0
+            if np.sum(self.keypad) != 0:
+                rowpressed = keypressed[0][0]
+                colpressed = keypressed[1][0]
+                if rowpressed < 3:
+                    input_val = 3*(2 - rowpressed) + colpressed + 1
+                else:
+                    input_val = 2**(6 - colpressed)
 
-            input_val += 128
+                input_val += 128
 
-        if self.keypad_zero_pressed:
-            input_val = 128
+            if self.keypad_zero_pressed:
+                input_val = 128
 
-        if self.keypad_div_pressed:
-            input_val = 224
+            if self.keypad_div_pressed:
+                input_val = 224
 
-        self.computer.input_regi = input_val
+            self.computer.input_regi = input_val
 
         HZ_multiplier = self.HZ_multiplier
         if self.target_HZ >= self.target_FPS:
