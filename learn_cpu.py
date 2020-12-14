@@ -34,6 +34,9 @@ class BinaryGate:
         self._input1 = input1
         self._input2 = input2
 
+    def update(self):
+        self._value = False
+
     def get_inputs(self):
         return self._input1, self._input2
 
@@ -108,7 +111,6 @@ class BinaryGate:
 
         return 0 # if neither, return 0
 
-
     def render(self, screen):
         pygame.draw.rect(screen, self._color, self._rect, border_radius = 7)
         draw_circle(screen, self._input_loc1[0], self._input_loc1[1], self._size//6, (150, 150, 150))
@@ -121,7 +123,7 @@ class BinaryGate:
             screen.blit(self.text, (text_x, text_y))
 
     def __call__(self):
-        return None
+        return self.value
 
 
 class AndGate(BinaryGate):
@@ -132,10 +134,9 @@ class AndGate(BinaryGate):
         if not self.font is None:
             self.text = self.font.render("AND", True, (0, 0, 0))
 
-    def __call__(self):
+    def update(self):
         if self._input1 is not None and self._input2 is not None:
             self._value = (self._input1() and self._input2())
-            return self._value
 
 
 class OrGate(BinaryGate):
@@ -146,10 +147,9 @@ class OrGate(BinaryGate):
         if not self.font is None:
             self.text = self.font.render("OR", True, (0, 0, 0))
 
-    def __call__(self):
+    def update(self):
         if self._input1 is not None and self._input2 is not None:
             self._value = (self._input1() or self._input2())
-            return self._value
 
 
 class XOrGate(BinaryGate):
@@ -160,10 +160,9 @@ class XOrGate(BinaryGate):
         if not self.font is None:
             self.text = self.font.render("XOR", True, (0, 0, 0))
 
-    def __call__(self):
+    def update(self):
         if self._input1 is not None and self._input2 is not None:
             self._value = (self._input1() != self._input2())
-            return self._value
 
 
 class NAndGate(BinaryGate):
@@ -174,10 +173,9 @@ class NAndGate(BinaryGate):
         if not self.font is None:
             self.text = self.font.render("NAND", True, (0, 0, 0))
 
-    def __call__(self):
+    def update(self):
         if self._input1 is not None and self._input2 is not None:
             self._value = not (self._input1() and self._input2())
-            return self._value
 
 
 class NOrGate(BinaryGate):
@@ -188,11 +186,9 @@ class NOrGate(BinaryGate):
         if not self.font is None:
             self.text = self.font.render("NOR", True, (0, 0, 0))
 
-    def __call__(self):
+    def update(self):
         if self._input1 is not None and self._input2 is not None:
-            print("callNOR", self)
             self._value = not (self._input1() or self._input2())
-            return self._value
 
 
 class SingleInputGate(BinaryGate):
@@ -210,10 +206,9 @@ class NotGate(SingleInputGate):
         if not self.font is None:
             self.text = self.font.render("NOT", True, (0, 0, 0))
 
-    def __call__(self):
+    def update(self):
         if self._input1 is not None:
             self._value = not (self._input1())
-            return self._value
 
 
 class BufferGate(SingleInputGate):
@@ -227,10 +222,9 @@ class BufferGate(SingleInputGate):
         if not self.font is None:
             self.text = self.font.render("BUF", True, (0, 0, 0))
 
-    def __call__(self):
+    def update(self):
         if self._input1 is not None:
             self._value = (self._input1())
-            return self._value
 
 
 class BitButton:
@@ -466,7 +460,6 @@ class Wire:
         self._in_connection = in_connection
         self._oncolor = oncolor
         self._offcolor = offcolor
-        self._called_times = 0
         self._value = 0
 
     def add_joint(self, point):
@@ -477,7 +470,6 @@ class Wire:
 
     def render(self, screen, width = 3):
         value = self._value
-        self._called_times = 0
         if value == 1:
             color = self._oncolor
         else:
@@ -493,17 +485,11 @@ class Wire:
     def positions(self):
         return self._positions
 
+    def update(self):
+        self._value = self._in_connection()
+
     def __call__(self):
-        if self._called_times < 5:
-            print(self._in_connection)
-            self._called_times += 1
-            self._value = self._in_connection()
-            return self._value
-        else:
-            print(self._in_connection)
-            if self._value != self._in_connection.value:
-                self._value = self._in_connection.value
-            return self._value
+        return self._value
 
 
 class Scene:
@@ -1071,14 +1057,21 @@ class Game:
             for button in self.interactive_buttons:
                 button.update(self.mouse_pos, mb1)
 
+            for pulser in self.interactive_pulsers:
+                pulser.update()
+
+            for gate in self.interactive_gates:
+                gate.update()
+
+            for wire in self.interactive_wires:
+                wire.update()
+
             for display in self.interactive_displays:
                 display.update()
 
             for button in self.interactive_menu:
                 button.update(self.mouse_pos, mb1)
 
-            for pulser in self.interactive_pulsers:
-                pulser.update()
 
         self._clock.tick_busy_loop(60)
 
