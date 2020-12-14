@@ -4,7 +4,13 @@ import sys
 
 import pygame
 from pygame.locals import *
+from pygame import gfxdraw
 import numpy as np
+
+
+def draw_circle(surface, x, y, radius, color):
+    gfxdraw.aacircle(surface, x, y, radius, color)
+    gfxdraw.filled_circle(surface, x, y, radius, color)
 
 
 class Computer:
@@ -625,6 +631,16 @@ class BitDisplay:
         """
         self.xvalues = []
         bitstring = f"{int_in:d}"
+        self.draw_bitstring(bitstring, screen)
+
+    def draw_bitstring(self, bitstring, screen):
+        """ Draws the LED screen with the bits on corresponding to the 1's in a 
+        string. E.g. if the string '1001' is passed, the first and fourth LED 
+        from the right will be on.
+        
+        Also draws the title if self.text_rendered is not None.
+
+        """
         while len(bitstring) < self.length:
             bitstring = "0" + bitstring
         bitstring = bitstring[-self.length:]
@@ -637,7 +653,7 @@ class BitDisplay:
                 color = self.oncolor
             else:
                 color = self.offcolor
-            pygame.draw.circle(screen, color, (x,y), self.radius)
+            draw_circle(screen, x, y, self.radius, color)
             self.xvalues.append(x)
             x += self.radius*2 + self._separation
 
@@ -657,6 +673,8 @@ class BitDisplay:
         num_in      -   The number determining which LED's are on.
         screen      -   The Pygame surface to draw to.        
         """
+        if num_in is None:
+            num_in = 0
         bin_out = int(bin(int(num_in)).replace("0b", ""))
         self.draw_bits(bin_out, screen)
 
@@ -1286,15 +1304,16 @@ class Game:
                                                            self.keypad_texts_div)
         
         self.keypad[:,:] = 0
+        mouse_pressed = pygame.mouse.get_pressed()[0]
         for i, kp_text in enumerate(self.keypad_texts_rendered):
             column = i%3
             row = i//3
             kp = self.keypad_rows[row]
             x = kp.xvalues[column]
             y = kp.y
-            mouse_dist = (self.mouse_pos[0] - x)**2 + (self.mouse_pos[1] - y)**2
-            if mouse_dist < kp.radius**2:
-                if pygame.mouse.get_pressed()[0]:
+            if mouse_pressed:
+                mouse_dist = (self.mouse_pos[0] - x)**2 + (self.mouse_pos[1] - y)**2
+                if mouse_dist < kp.radius**2:
                     self.keypad_numbers[row] = 2**(2 - column)
                     self.keypad[row, column] = 1
             text_x = x - kp_text.get_width() / 2
