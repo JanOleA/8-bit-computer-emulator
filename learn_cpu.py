@@ -11,7 +11,7 @@ import numpy as np
 
 from cpu_sim import BitDisplay, draw_circle
 
-gate_update_chance = 0.2 # chance that a gate will update according to its input on each tick, use to simulate gate delay
+gate_update_chance = 0.5 # chance that a gate will update according to its input on each tick, use to simulate gate delay
 update_to_1 = True # whether the gate_update_chance will be set to 1 after a certain amount of time
 
 class BinaryGate:
@@ -361,7 +361,7 @@ class BitButton(CircleItem):
 
 class Pulser(CircleItem):
     def __init__(self, oncolor = (60, 255, 60), offcolor = (60, 60, 60),
-                 cpos = (0,0), radius = 10, interval = 0.1):
+                 cpos = (0,0), radius = 10, interval = 0.05):
         """ Uses the BitDisplay class to make a single-bit pulser which can be
         either on or off.
         
@@ -970,7 +970,7 @@ class Game:
     def _load_interactive(self):
         try:
             global gate_update_chance
-            gate_update_chance = 0.2
+            gate_update_chance = 0.5
             self.start_time = time.time()
             load_array = np.load("saved.npy", allow_pickle = True)
             (self.interactive_wires, self.interactive_buttons,
@@ -1212,7 +1212,7 @@ class Game:
         self.mouse_pos = np.array(pygame.mouse.get_pos())
 
         if update_to_1:
-            if time.time() - self.start_time > 0.5:
+            if time.time() - self.start_time > 2:
                 self.set_gate_chance(1)
 
         mb1 = pygame.mouse.get_pressed()[0]
