@@ -5,11 +5,14 @@ from numpy.lib.arraysetops import isin
 
 import pygame
 from pygame import mouse
+from pygame.display import update
 from pygame.locals import *
 import numpy as np
 
 from cpu_sim import BitDisplay, draw_circle
 
+gate_update_chance = 0.2 # chance that a gate will update according to its input on each tick, use to simulate gate delay
+update_to_1 = True # whether the gate_update_chance will be set to 1 after a certain amount of time
 
 class BinaryGate:
     """ Abstract superclass for binary gate classes """
@@ -21,7 +24,11 @@ class BinaryGate:
         self._width = size*2
         self.cpos = cpos
         self.font = font
+        self.text = None
+        self.orig_text = None
         self._color = (200, 200, 200)
+        self._in1_color = (150, 150, 150)
+        self._in2_color = (150, 150, 150)
         self._value = False
 
     def set_input1(self, input1):
@@ -59,6 +66,14 @@ class BinaryGate:
     @property
     def value(self):
         return self._value
+
+    def disable_font(self):
+        self.font = None
+        self.text = None
+
+    def enable_font(self, font):
+        self.font = font
+        self.text = self.font.render(self.orig_text, True, (0, 0, 0))
 
     @cpos.setter
     def cpos(self, cpos):
@@ -112,10 +127,18 @@ class BinaryGate:
         return 0 # if neither, return 0
 
     def render(self, screen):
+        if self._input1 is None:
+            self._in1_color = (150, 150, 150)
+        else:
+            self._in1_color = (50, 50, 50)
+        if self._input2 is None:
+            self._in2_color = (150, 150, 150)
+        else:
+            self._in2_color = (50, 50, 50)
         pygame.draw.rect(screen, self._color, self._rect, border_radius = 7)
-        draw_circle(screen, self._input_loc1[0], self._input_loc1[1], self._size//6, (150, 150, 150))
+        draw_circle(screen, self._input_loc1[0], self._input_loc1[1], self._size//6, self._in1_color)
         if not self._input_loc2 is None:
-            draw_circle(screen, self._input_loc2[0], self._input_loc2[1], self._size//6, (150, 150, 150))
+            draw_circle(screen, self._input_loc2[0], self._input_loc2[1], self._size//6, self._in2_color)
         draw_circle(screen, self._output_loc[0], self._output_loc[1], self._size//6, (150, 150, 150))
         if not self.font is None:
             text_x = self.cpos[0] - self.text.get_width()//2
@@ -131,12 +154,14 @@ class AndGate(BinaryGate):
                  font = None):
         super().__init__(input1, input2, cpos, size, font)
         self._color = (100, 100, 255)
+        self.orig_text = "AND"
         if not self.font is None:
             self.text = self.font.render("AND", True, (0, 0, 0))
 
     def update(self):
         if self._input1 is not None and self._input2 is not None:
-            self._value = (self._input1() and self._input2())
+            if np.random.random() < gate_update_chance:
+                self._value = (self._input1() and self._input2())
 
 
 class OrGate(BinaryGate):
@@ -144,12 +169,14 @@ class OrGate(BinaryGate):
                  font = None):
         super().__init__(input1, input2, cpos, size, font)
         self._color = (100, 255, 100)
+        self.orig_text = "OR"
         if not self.font is None:
             self.text = self.font.render("OR", True, (0, 0, 0))
 
     def update(self):
         if self._input1 is not None and self._input2 is not None:
-            self._value = (self._input1() or self._input2())
+            if np.random.random() < gate_update_chance:
+                self._value = (self._input1() or self._input2())
 
 
 class XOrGate(BinaryGate):
@@ -157,12 +184,14 @@ class XOrGate(BinaryGate):
                  font = None):
         super().__init__(input1, input2, cpos, size, font)
         self._color = (200, 255, 100)
+        self.orig_text = "XOR"
         if not self.font is None:
             self.text = self.font.render("XOR", True, (0, 0, 0))
 
     def update(self):
         if self._input1 is not None and self._input2 is not None:
-            self._value = (self._input1() != self._input2())
+            if np.random.random() < gate_update_chance:
+                self._value = (self._input1() != self._input2())
 
 
 class NAndGate(BinaryGate):
@@ -170,12 +199,14 @@ class NAndGate(BinaryGate):
                  font = None):
         super().__init__(input1, input2, cpos, size, font)
         self._color = (200, 100, 255)
+        self.orig_text = "NAND"
         if not self.font is None:
             self.text = self.font.render("NAND", True, (0, 0, 0))
 
     def update(self):
         if self._input1 is not None and self._input2 is not None:
-            self._value = not (self._input1() and self._input2())
+            if np.random.random() < gate_update_chance:
+                self._value = not (self._input1() and self._input2())
 
 
 class NOrGate(BinaryGate):
@@ -183,12 +214,14 @@ class NOrGate(BinaryGate):
                  font = None):
         super().__init__(input1, input2, cpos, size, font)
         self._color = (100, 255, 200)
+        self.orig_text = "NOR"
         if not self.font is None:
             self.text = self.font.render("NOR", True, (0, 0, 0))
 
     def update(self):
         if self._input1 is not None and self._input2 is not None:
-            self._value = not (self._input1() or self._input2())
+            if np.random.random() < gate_update_chance:
+                self._value = not (self._input1() or self._input2())
 
 
 class SingleInputGate(BinaryGate):
@@ -203,12 +236,14 @@ class NotGate(SingleInputGate):
 
         super().__init__(input1, input2, cpos, size, font)
         self._color = (255, 100, 100)
+        self.orig_text = "NOT"
         if not self.font is None:
             self.text = self.font.render("NOT", True, (0, 0, 0))
 
     def update(self):
         if self._input1 is not None:
-            self._value = not (self._input1())
+            if np.random.random() < gate_update_chance:
+                self._value = not (self._input1())
 
 
 class BufferGate(SingleInputGate):
@@ -219,15 +254,21 @@ class BufferGate(SingleInputGate):
 
         super().__init__(input1, input2, cpos, size, font)
         self._color = (255, 255, 180)
+        self.orig_text = "BUF"
         if not self.font is None:
             self.text = self.font.render("BUF", True, (0, 0, 0))
 
     def update(self):
         if self._input1 is not None:
-            self._value = (self._input1())
+            if np.random.random() < gate_update_chance:
+                self._value = (self._input1())
 
 
-class BitButton:
+class CircleItem:
+    """ Abstract superclass for small circular items """
+
+
+class BitButton(CircleItem):
     def __init__(self, oncolor = (60, 255, 60), offcolor = (60, 60, 60),
                  cpos = (0,0), radius = 10, toggle = True):
         """ Uses the BitDisplay class to make a single-bit button which can be
@@ -318,9 +359,9 @@ class BitButton:
         self.bit_display.draw_number(self.value, screen)
 
 
-class Pulser:
+class Pulser(CircleItem):
     def __init__(self, oncolor = (60, 255, 60), offcolor = (60, 60, 60),
-                 cpos = (0,0), radius = 10, interval = 2):
+                 cpos = (0,0), radius = 10, interval = 0.1):
         """ Uses the BitDisplay class to make a single-bit pulser which can be
         either on or off.
         
@@ -391,7 +432,7 @@ class Pulser:
         self.bit_display.draw_number(self.value, screen)
 
 
-class OneBitDisplay:
+class OneBitDisplay(CircleItem):
     def __init__(self, input1 = None, oncolor = (60, 255, 60), offcolor = (60, 60, 60),
                  cpos = (0,0), radius = 10):
         """ Uses the BitDisplay class to make a single-bit button which can be
@@ -807,6 +848,7 @@ class Game:
         self._screen = pygame.display.set_mode(self._size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self._running = True
         self.mouse_pos = np.array(pygame.mouse.get_pos())
+        self.start_time = time.time()
         
         self.setup_fonts()
 
@@ -814,6 +856,7 @@ class Game:
         self._bg.fill((20, 20, 20))
         self._clock = pygame.time.Clock()
 
+        self.scenes = []
         self._clear_interactive()
 
         self.interactive_menu = []
@@ -837,6 +880,12 @@ class Game:
                                      font = self._font_console_bold, width = 110))
         self.interactive_menu.append(Button((1010, 10), self._place_pulser, text = "Pulser",
                                      font = self._font_console_bold))
+        self.interactive_menu.append(Button((1120, 10), self._save_interactive, text = "Save",
+                                     font = self._font_console_bold))
+        self.interactive_menu.append(Button((1230, 10), self._load_interactive, text = "Load",
+                                     font = self._font_console_bold))
+        self.interactive_menu.append(Button((1340, 10), self._copy_load, text = "Copy load",
+                                     font = self._font_console_bold))
         self.interactive_menu.append(Button((1490, 10), self._clear_interactive, text = "Clear",
                                      font = self._font_console_bold))
 
@@ -849,6 +898,15 @@ class Game:
         self.placing_display = False
         self.placing_wire = None
         self.placing_pulser = False
+        self.placing_copy = False
+        self.placing_copy_rect = None
+        self.copy_size = (0, 0)
+        self.copy_origin = (0, 0)
+        self.add_interactive_wires = []
+        self.add_interactive_buttons = []
+        self.add_interactive_gates = []
+        self.add_interactive_displays = []
+        self.add_interactive_pulsers = []
 
     def _place_AND(self):
         self.reset_placing()
@@ -891,12 +949,85 @@ class Game:
         self.placing_pulser = True
 
     def _clear_interactive(self):
-        self.scenes = []
         self.interactive_wires = []
         self.interactive_buttons = []
         self.interactive_gates = []
         self.interactive_displays = []
         self.interactive_pulsers = []
+
+    def _save_interactive(self):
+        for item in self.interactive_gates:
+            item.disable_font()
+        save_array = np.array([self.interactive_wires,
+                               self.interactive_buttons,
+                               self.interactive_gates,
+                               self.interactive_displays,
+                               self.interactive_pulsers], dtype = object)
+        np.save("saved.npy", save_array)
+        for item in self.interactive_gates:
+            item.enable_font(self._font_console_bold)
+
+    def _load_interactive(self):
+        try:
+            global gate_update_chance
+            gate_update_chance = 0.2
+            self.start_time = time.time()
+            load_array = np.load("saved.npy", allow_pickle = True)
+            (self.interactive_wires, self.interactive_buttons,
+             self.interactive_gates, self.interactive_displays,
+             self.interactive_pulsers) = load_array
+            for item in self.interactive_gates:
+                item.enable_font(self._font_console_bold)
+        except IOError as e:
+            print("Couldn't load file:", e)
+
+    def _copy_load(self):
+        try:
+            load_array = np.load("saved.npy", allow_pickle = True)
+            (self.add_interactive_wires, self.add_interactive_buttons,
+             self.add_interactive_gates, self.add_interactive_displays,
+             self.add_interactive_pulsers) = load_array
+            for item in self.add_interactive_gates:
+                item.enable_font(self._font_console_bold)
+            minx = 3000
+            maxx = 0
+            miny = 3000
+            maxy = 0
+
+            for item1 in load_array:
+                for item2 in item1:
+                    if isinstance(item2, Wire):
+                        continue
+                    itemx, itemy = item2.cpos
+                    if isinstance(item2, BinaryGate):
+                        itemx_min = itemx - 30
+                        itemx_max = itemx + 30
+                        itemy_min = itemy - 15
+                        itemy_max = itemy + 15
+                    elif isinstance(item2, CircleItem):
+                        itemx_min = itemx - 10
+                        itemx_max = itemx + 10
+                        itemy_min = itemy - 10
+                        itemy_max = itemy + 10
+                    else:
+                        itemx_min = itemx
+                        itemx_max = itemx
+                        itemy_min = itemy
+                        itemy_max = itemy
+
+                    if itemx_min < minx:
+                        minx = itemx_min
+                    if itemx_max > maxx:
+                        maxx = itemx_max
+                    if itemy_min < miny:
+                        miny = itemy_min
+                    if itemy_max > maxy:
+                        maxy = itemy_max
+                    self.copy_origin = (minx, miny)
+                    self.copy_size = (maxx - minx, maxy - miny)
+            self.placing_copy = True
+        except IOError as e:
+            print("Couldn't load file:", e)
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
@@ -934,6 +1065,34 @@ class Game:
                     if self.placing_pulser:
                         self.interactive_pulsers.append(Pulser(cpos = (mbx, mby)))
                         self.placing_pulser = False
+
+                    if self.placing_copy:
+                        if self._grid_snap:
+                            mbx = self.mouse_pos[0]
+                            mby = self.mouse_pos[1]
+                            mbx = round(mbx/5)*5
+                            mby = round(mby/5)*5
+                        origx, origy = self.copy_origin
+                        for item in (self.add_interactive_wires + self.add_interactive_buttons +
+                                     self.add_interactive_gates + self.add_interactive_displays +
+                                     self.add_interactive_pulsers):
+                            if isinstance(item, Wire):
+                                positions = item.positions
+                                for i, pos in enumerate(positions):
+                                    pos = (pos[0] - origx + mbx, pos[1] - origy + mby)
+                                    positions[i] = pos
+                                self.interactive_wires.append(item)
+                            else:
+                                item.cpos = (item.cpos[0] - origx + mbx, item.cpos[1] - origy + mby)
+                                if isinstance(item, BitButton):
+                                    self.interactive_buttons.append(item)
+                                elif isinstance(item, BinaryGate):
+                                    self.interactive_gates.append(item)
+                                elif isinstance(item, OneBitDisplay):
+                                    self.interactive_displays.append(item)
+                                elif isinstance(item, Pulser):
+                                    self.interactive_pulsers.append(item)
+                        self.reset_placing()
 
                     if self.placing_wire is not None:
                         connected = False
@@ -1029,6 +1188,10 @@ class Game:
                         if which == 3:
                             self.placing_wire = Wire([gate.output_loc], gate)
 
+    def set_gate_chance(self, chance):
+        global gate_update_chance
+        gate_update_chance = chance
+
     def remove_wire(self, wire):
         """ Removes a wire object from the interactive wires list,
         and removes references from other objects.
@@ -1048,12 +1211,19 @@ class Game:
     def loop(self):
         self.mouse_pos = np.array(pygame.mouse.get_pos())
 
+        if update_to_1:
+            if time.time() - self.start_time > 0.5:
+                self.set_gate_chance(1)
+
         mb1 = pygame.mouse.get_pressed()[0]
         
         for scene in self.scenes:
             scene.update(self.mouse_pos, mb1)
 
         if self.interactive:
+            for wire in self.interactive_wires:
+                wire.update()
+
             for button in self.interactive_buttons:
                 button.update(self.mouse_pos, mb1)
 
@@ -1063,22 +1233,22 @@ class Game:
             for gate in self.interactive_gates:
                 gate.update()
 
-            for wire in self.interactive_wires:
-                wire.update()
-
             for display in self.interactive_displays:
                 display.update()
 
             for button in self.interactive_menu:
                 button.update(self.mouse_pos, mb1)
 
-
-        self._clock.tick_busy_loop(60)
+        self._clock.tick_busy_loop(200)
+        self.fps = self._clock.get_fps()
 
     def render(self):
         self._screen.blit(self._bg, (0,0))
         mbx = self.mouse_pos[0]
         mby = self.mouse_pos[1]
+
+        fps_text = self._font_console_bold.render(f"{int(self.fps):>3d}", True, (255, 255, 255))
+        self._screen.blit(fps_text, (5, self._height - 25))
 
         for scene in self.scenes:
             scene.render(self._screen)
@@ -1118,6 +1288,15 @@ class Game:
 
             if self.placing_button or self.placing_display or self.placing_pulser:
                 draw_circle(self._screen, mbx, mby, 10, (200, 200, 200))
+
+            if self.placing_copy:
+                if self._grid_snap:
+                    mbx = self.mouse_pos[0]
+                    mby = self.mouse_pos[1]
+                    mbx = round(mbx/5)*5
+                    mby = round(mby/5)*5
+                self.placing_copy_rect = pygame.Rect(mbx, mby, self.copy_size[0], self.copy_size[1])
+                pygame.draw.rect(self._screen, (200, 200, 200), self.placing_copy_rect)
 
         pygame.display.flip()
 
