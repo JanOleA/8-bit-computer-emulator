@@ -9,6 +9,8 @@ import numpy as np
 
 
 def draw_circle(surface, x, y, radius, color):
+    x = int(x)
+    y = int(y)
     gfxdraw.aacircle(surface, x, y, radius, color)
     gfxdraw.filled_circle(surface, x, y, radius, color)
 
