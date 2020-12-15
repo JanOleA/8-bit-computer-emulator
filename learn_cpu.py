@@ -361,7 +361,7 @@ class BitButton(CircleItem):
 
 class Pulser(CircleItem):
     def __init__(self, oncolor = (60, 255, 60), offcolor = (60, 60, 60),
-                 cpos = (0,0), radius = 10, interval = 0.05):
+                 cpos = (0,0), radius = 10, interval = 3):
         """ Uses the BitDisplay class to make a single-bit pulser which can be
         either on or off.
         
@@ -381,6 +381,8 @@ class Pulser(CircleItem):
         self._create_time = time.time()
         self._last_switch_time = time.time()
         self._interval = interval
+        self._interval_index = 0
+        self._interval_list = [interval, 2, 1, 0.5, 0.2, 0.1, 0.05]
 
     @property
     def cpos(self):
@@ -416,6 +418,12 @@ class Pulser(CircleItem):
         mouse_dist = (mouse_pos[0] - x)**2 + (mouse_pos[1] - y)**2
         if mouse_dist < self.radius**2:
             return True
+
+    def next_interval(self):
+        self._interval_index += 1
+        if self._interval_index == len(self._interval_list):
+            self._interval_index = 0
+        self._interval = self._interval_list[self._interval_index]
 
     def update(self):
         """ Updates the state of the pulser """
@@ -1049,6 +1057,9 @@ class Game:
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 if mby > 40:
+                    for pulser in self.interactive_pulsers:
+                        if pulser.mouse_within(self.mouse_pos):
+                            pulser.next_interval()
                     if self.placing is not None:
                         self.interactive_gates.append(self.placing(cpos=(mbx, mby),
                                                                 font = self._font_console_bold))
