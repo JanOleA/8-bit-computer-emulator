@@ -503,8 +503,8 @@ class OneBitDisplay(CircleItem):
 
 
 class Wire:
-    def __init__(self, positions, in_connection, oncolor = (60, 200, 60),
-                 offcolor = (50, 50, 50)):
+    def __init__(self, positions, in_connection, oncolor = (60, 130, 60),
+                 offcolor = (70, 70, 70)):
         self._positions = positions
         self._in_connection = in_connection
         self._oncolor = oncolor
@@ -868,34 +868,55 @@ class Game:
         self._clear_interactive()
 
         self.interactive_menu = []
-        self.interactive_menu.append(Button((10, 10), self._place_AND, text = "AND gate",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((120, 10), self._place_OR, text = "OR gate",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((230, 10), self._place_XOR, text = "XOR gate",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((340, 10), self._place_NAND, text = "NAND gate",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((450, 10), self._place_NOR, text = "NOR gate",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((560, 10), self._place_NOT, text = "NOT gate",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((670, 10), self._place_BUF, text = "Buffer",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((780, 10), self._place_button, text = "Button",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((890, 10), self._place_display, text = "Output LED",
-                                     font = self._font_console_bold, width = 110))
-        self.interactive_menu.append(Button((1010, 10), self._place_pulser, text = "Pulser",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((1120, 10), self._save_interactive, text = "Save",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((1230, 10), self._load_interactive, text = "Load",
-                                     font = self._font_console_bold))
-        self.interactive_menu.append(Button((1340, 10), self._copy_load, text = "Copy load",
-                                     font = self._font_console_bold))
+        self.interactive_menu.append(Button((10, 10), self._place_AND, text = "AND",
+                                     font = self._font_console_bold, width = 60))
+        self.interactive_menu.append(Button((80, 10), self._place_OR, text = "OR",
+                                     font = self._font_console_bold, width = 60))
+        self.interactive_menu.append(Button((150, 10), self._place_XOR, text = "XOR",
+                                     font = self._font_console_bold, width = 60))
+        self.interactive_menu.append(Button((220, 10), self._place_NAND, text = "NAND",
+                                     font = self._font_console_bold, width = 60))
+        self.interactive_menu.append(Button((290, 10), self._place_NOR, text = "NOR",
+                                     font = self._font_console_bold, width = 60))
+        self.interactive_menu.append(Button((360, 10), self._place_NOT, text = "NOT",
+                                     font = self._font_console_bold, width = 60))
+        self.interactive_menu.append(Button((430, 10), self._place_BUF, text = "Buffer",
+                                     font = self._font_console_bold, width = 80))
+        self.interactive_menu.append(Button((520, 10), self._place_button, text = "Button",
+                                     font = self._font_console_bold,
+                                     color = (180, 255, 255),
+                                     color_hover = (160, 240, 240),
+                                     color_press = (100, 150, 150)))
+        self.interactive_menu.append(Button((630, 10), self._place_display, text = "Output LED",
+                                     font = self._font_console_bold,
+                                     color = (180, 255, 255),
+                                     color_hover = (160, 240, 240),
+                                     color_press = (100, 150, 150), width = 110))
+        self.interactive_menu.append(Button((750, 10), self._place_pulser, text = "Pulser",
+                                     font = self._font_console_bold,
+                                     color = (180, 255, 255),
+                                     color_hover = (160, 240, 240),
+                                     color_press = (100, 150, 150)))
+        self.interactive_menu.append(Button((860, 10), self._save_interactive, text = "Save",
+                                     font = self._font_console_bold,
+                                     color = (180, 180, 255),
+                                     color_hover = (160, 160, 240),
+                                     color_press = (100, 100, 150)))
+        self.interactive_menu.append(Button((970, 10), self._load_interactive, text = "Load",
+                                     font = self._font_console_bold,
+                                     color = (180, 180, 255),
+                                     color_hover = (160, 160, 240),
+                                     color_press = (100, 100, 150)))
+        self.interactive_menu.append(Button((1080, 10), self._copy_load, text = "Copy load",
+                                     font = self._font_console_bold,
+                                     color = (180, 180, 255),
+                                     color_hover = (160, 160, 240),
+                                     color_press = (100, 100, 150)))
         self.interactive_menu.append(Button((1490, 10), self._clear_interactive, text = "Clear",
-                                     font = self._font_console_bold))
+                                     font = self._font_console_bold,
+                                     color = (255, 180, 180),
+                                     color_hover = (240, 160, 160),
+                                     color_press = (150, 100, 100)))
 
         self._grid_snap = False
         self.reset_placing()
@@ -910,6 +931,7 @@ class Game:
         self.placing_copy_rect = None
         self.copy_size = (0, 0)
         self.copy_origin = (0, 0)
+        self._top_is_gate = False
         self.add_interactive_wires = []
         self.add_interactive_buttons = []
         self.add_interactive_gates = []
@@ -1028,6 +1050,10 @@ class Game:
                     if itemx_max > maxx:
                         maxx = itemx_max
                     if itemy_min < miny:
+                        if isinstance(item2, BinaryGate):
+                            self._top_is_gate = True
+                        else:
+                            self._top_is_gate = False
                         miny = itemy_min
                     if itemy_max > maxy:
                         maxy = itemy_max
@@ -1060,6 +1086,7 @@ class Game:
                     for pulser in self.interactive_pulsers:
                         if pulser.mouse_within(self.mouse_pos):
                             pulser.next_interval()
+
                     if self.placing is not None:
                         self.interactive_gates.append(self.placing(cpos=(mbx, mby),
                                                                 font = self._font_console_bold))
@@ -1078,11 +1105,9 @@ class Game:
                         self.placing_pulser = False
 
                     if self.placing_copy:
-                        if self._grid_snap:
-                            mbx = self.mouse_pos[0]
-                            mby = self.mouse_pos[1]
-                            mbx = round(mbx/5)*5
-                            mby = round(mby/5)*5
+                        if self._top_is_gate:
+                            if self._grid_snap:
+                                mby += 5
                         origx, origy = self.copy_origin
                         for item in (self.add_interactive_wires + self.add_interactive_buttons +
                                      self.add_interactive_gates + self.add_interactive_displays +
@@ -1301,11 +1326,9 @@ class Game:
                 draw_circle(self._screen, mbx, mby, 10, (200, 200, 200))
 
             if self.placing_copy:
-                if self._grid_snap:
-                    mbx = self.mouse_pos[0]
-                    mby = self.mouse_pos[1]
-                    mbx = round(mbx/5)*5
-                    mby = round(mby/5)*5
+                if self._top_is_gate:
+                    if self._grid_snap:
+                        mby += 5
                 self.placing_copy_rect = pygame.Rect(mbx, mby, self.copy_size[0], self.copy_size[1])
                 pygame.draw.rect(self._screen, (200, 200, 200), self.placing_copy_rect)
 
