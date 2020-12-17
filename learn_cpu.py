@@ -120,7 +120,7 @@ class BinaryGate:
             x, y = self._cpos
             mbx, mby = mouse_pos
             if (mbx > x - self._width//2 and mbx < x + self._width//2) and (mby > y - self._size//2 and mby < y + self._size//2):
-                return 4 # return 3 if the mouse is over the gate
+                return 4 # return 4 if the mouse is over the gate
         except TypeError:
             pass
 
@@ -269,7 +269,7 @@ class CircleItem:
 
 
 class BitButton(CircleItem):
-    def __init__(self, oncolor = (60, 255, 60), offcolor = (60, 60, 60),
+    def __init__(self, oncolor = (100, 255, 60), offcolor = (80, 60, 80),
                  cpos = (0,0), radius = 10, toggle = True):
         """ Uses the BitDisplay class to make a single-bit button which can be
         either on or off.
@@ -340,10 +340,7 @@ class BitButton(CircleItem):
                 if not self._toggle:
                     self._value = 1
                 elif not self._pressed_last:
-                    if self._value == 0:
-                        self._value = 1
-                    else:
-                        self._value = 0
+                    self._value = not self._value
                     self._pressed_last = True
             else:
                 if not self._toggle:
@@ -360,7 +357,7 @@ class BitButton(CircleItem):
 
 
 class Pulser(CircleItem):
-    def __init__(self, oncolor = (60, 255, 60), offcolor = (60, 60, 60),
+    def __init__(self, oncolor = (60, 255, 120), offcolor = (60, 90, 90),
                  cpos = (0,0), radius = 10, interval = 3):
         """ Uses the BitDisplay class to make a single-bit pulser which can be
         either on or off.
@@ -441,7 +438,7 @@ class Pulser(CircleItem):
 
 
 class OneBitDisplay(CircleItem):
-    def __init__(self, input1 = None, oncolor = (60, 255, 60), offcolor = (60, 60, 60),
+    def __init__(self, input1 = None, oncolor = (60, 255, 60), offcolor = (60, 100, 60),
                  cpos = (0,0), radius = 10):
         """ Uses the BitDisplay class to make a single-bit button which can be
         either on or off.
@@ -653,6 +650,14 @@ class PosText:
     @property
     def text(self):
         return self._text
+
+    @property
+    def width(self):
+        return self._rendered_text.get_width()
+
+    @property
+    def height(self):
+        return self._rendred_text.get_height()
     
     @text.setter
     def text(self, text):
@@ -749,6 +754,83 @@ class Button:
         screen.blit(self._text_rendered, (text_x, text_y))
 
 
+class TextEntry:
+    def __init__(self, cpos, font, width = 100, height = 30):
+        self._cpos = cpos
+        self._font = font
+        self._width = width
+        self._height = height
+        self._text = ""
+        self._blinktime = time.time()
+        self._draw_cursor = False
+        self._cursor_rendered = self._font.render("|", True, (0, 0, 0))
+
+        halfwidth = self._width//2
+        halfheight = self._height//2
+        self._bg_rect = pygame.Rect(cpos[0] - halfwidth, cpos[1] - halfheight, width, height)
+        self._entry_rect = pygame.Rect(cpos[0] - halfwidth + 2, cpos[1] - halfheight + 2, width - 4, height - 4)
+        self._text_rendered = self._font.render(self._text, True, (0, 0, 0))
+
+        self._ever_active = False
+        self._active = False
+
+    def mouse_within(self, mouse_pos):
+        x, y = self._cpos
+        mbx, mby = mouse_pos
+        if (mbx > x - self._width//2 and mbx < x + self._width//2) and (mby > y - self._height//2 and mby < y + self._height//2):
+            return True
+        return False
+
+    @property
+    def text(self):
+        return self._text
+
+    @text.setter
+    def text(self, text):
+        self._text = text
+        self._text_rendered = self._font.render(self._text, True, (0, 0, 0))
+
+    def toggle_active(self):
+        if not self._ever_active:
+            self.text = ""
+            self._ever_active = True
+        self._active = not self._active
+
+    def kb_event(self, event):
+        if not self._active:
+            return
+        old_text = self._text
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                self.toggle_active()
+            elif event.key == pygame.K_BACKSPACE:
+                self._text = self._text[:-1]
+            else:
+                self._text += event.unicode
+        self._text_rendered = self._font.render(self._text, True, (0, 0, 0))
+        if self._text_rendered.get_width() > self._width*0.95:
+            self._text = old_text
+            self._text_rendered = self._font.render(self._text, True, (0, 0, 0))
+
+    def render(self, screen):
+        pygame.draw.rect(screen, (200, 200, 200), self._bg_rect, border_radius = 4)
+        pygame.draw.rect(screen, (255, 255, 255), self._entry_rect, border_radius = 3)
+
+        if time.time() - self._blinktime > 0.8:
+            self._draw_cursor = not self._draw_cursor
+            self._blinktime = time.time()
+
+        pos = self._cpos
+        x = pos[0]
+        y = pos[1]
+        text_x = x - self._text_rendered.get_width()//2
+        text_y = y - self._text_rendered.get_height()//2
+        screen.blit(self._text_rendered, (text_x, text_y))
+
+        if self._draw_cursor and self._active:
+            screen.blit(self._cursor_rendered, (text_x + self._text_rendered.get_width() - 4, text_y))  
+
+
 class Game:
     """ Main control class. Handles rendering, timing control and user input. """
     def __init__(self):
@@ -787,8 +869,8 @@ class Game:
         self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
         self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
         self._font_console_bold = pygame.font.SysFont("monospace", 17, bold = True)
-        self._font_small_console = pygame.font.SysFont("monospace", 11)
-        self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
+        self._font_small_console = pygame.font.SysFont("monospace", 14)
+        self._font_small_console_bold = pygame.font.SysFont("monospace", 14, bold = True)
         self._font_verysmall_console = pygame.font.SysFont("monospace", 10)
         self._font_verysmall_console_bold = pygame.font.SysFont("monospace", 10, bold = True)
         self._font_veryverysmall_console = pygame.font.SysFont("monospace", 9)
@@ -898,17 +980,22 @@ class Game:
                                      color_hover = (160, 240, 240),
                                      color_press = (100, 150, 150)))
         self.interactive_menu.append(Button((860, 10), self._save_interactive, text = "Save",
-                                     font = self._font_console_bold,
+                                     font = self._font_console_bold, width = 60,
                                      color = (180, 180, 255),
                                      color_hover = (160, 160, 240),
                                      color_press = (100, 100, 150)))
-        self.interactive_menu.append(Button((970, 10), self._load_interactive, text = "Load",
-                                     font = self._font_console_bold,
+        self.interactive_menu.append(Button((930, 10), self._load_interactive, text = "Load",
+                                     font = self._font_console_bold, width = 60,
                                      color = (180, 180, 255),
                                      color_hover = (160, 160, 240),
                                      color_press = (100, 100, 150)))
-        self.interactive_menu.append(Button((1080, 10), self._copy_load, text = "Copy load",
-                                     font = self._font_console_bold,
+        self.interactive_menu.append(Button((1000, 10), self._copy_load, text = "Copy load",
+                                     font = self._font_console_bold, width = 110,
+                                     color = (180, 180, 255),
+                                     color_hover = (160, 160, 240),
+                                     color_press = (100, 100, 150)))
+        self.interactive_menu.append(Button((1120, 10), self._copy_load, text = "Save custom gate",
+                                     font = self._font_small_console_bold, width = 150,
                                      color = (180, 180, 255),
                                      color_hover = (160, 160, 240),
                                      color_press = (100, 100, 150)))
@@ -917,6 +1004,9 @@ class Game:
                                      color = (255, 180, 180),
                                      color_hover = (240, 160, 160),
                                      color_press = (150, 100, 100)))
+
+        self.save_entry = TextEntry((1380, 25), self._font_console_bold, width = 200)
+        self.save_entry.text = "Name for save/load"
 
         self._grid_snap = False
         self.reset_placing()
@@ -986,6 +1076,11 @@ class Game:
         self.interactive_pulsers = []
 
     def _save_interactive(self):
+        name = self.save_entry.text
+        if name == "Name for save/load":
+            print("Enter a name for the gate")
+            return
+        name = name.strip().replace(" ", "_")
         for item in self.interactive_gates:
             item.disable_font()
         save_array = np.array([self.interactive_wires,
@@ -993,16 +1088,20 @@ class Game:
                                self.interactive_gates,
                                self.interactive_displays,
                                self.interactive_pulsers], dtype = object)
-        np.save("saved.npy", save_array)
+        np.save(os.path.join("saves", f"{name}.npy"), save_array)
         for item in self.interactive_gates:
             item.enable_font(self._font_console_bold)
 
     def _load_interactive(self):
         try:
+            name = self.save_entry.text
+            if name == "Name for save/load":
+                raise IOError("Enter a name for the gate")
+            name = name.strip().replace(" ", "_")
             global gate_update_chance
             gate_update_chance = 0.5
             self.start_time = time.time()
-            load_array = np.load("saved.npy", allow_pickle = True)
+            load_array = np.load(os.path.join("saves", f"{name}.npy"), allow_pickle = True)
             (self.interactive_wires, self.interactive_buttons,
              self.interactive_gates, self.interactive_displays,
              self.interactive_pulsers) = load_array
@@ -1013,16 +1112,20 @@ class Game:
 
     def _copy_load(self):
         try:
-            load_array = np.load("saved.npy", allow_pickle = True)
+            name = self.save_entry.text
+            if name == "Name for save/load":
+                raise IOError("Enter a name for the gate")
+            name = name.strip().replace(" ", "_")
+            load_array = np.load(os.path.join("saves", f"{name}.npy"), allow_pickle = True)
             (self.add_interactive_wires, self.add_interactive_buttons,
              self.add_interactive_gates, self.add_interactive_displays,
              self.add_interactive_pulsers) = load_array
             for item in self.add_interactive_gates:
                 item.enable_font(self._font_console_bold)
-            minx = 3000
-            maxx = 0
-            miny = 3000
-            maxy = 0
+            minx = 100000
+            maxx = -100000
+            miny = 100000
+            maxy = -100000
 
             for item1 in load_array:
                 for item2 in item1:
@@ -1070,6 +1173,7 @@ class Game:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LSHIFT:
                 self._grid_snap = True
+            self.save_entry.kb_event(event)
 
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LSHIFT:
@@ -1082,6 +1186,8 @@ class Game:
             mby = round(mby/10)*10
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
+                if self.save_entry.mouse_within(self.mouse_pos):
+                    self.save_entry.toggle_active()
                 if mby > 40:
                     for pulser in self.interactive_pulsers:
                         if pulser.mouse_within(self.mouse_pos):
@@ -1331,6 +1437,8 @@ class Game:
                         mby += 5
                 self.placing_copy_rect = pygame.Rect(mbx, mby, self.copy_size[0], self.copy_size[1])
                 pygame.draw.rect(self._screen, (200, 200, 200), self.placing_copy_rect)
+
+            self.save_entry.render(self._screen)
 
         pygame.display.flip()
 

@@ -8,11 +8,13 @@ from pygame import gfxdraw
 import numpy as np
 
 
-def draw_circle(surface, x, y, radius, color):
+def draw_circle(surface, x, y, radius, color, bordercolor = None):
     x = int(x)
     y = int(y)
-    gfxdraw.aacircle(surface, x, y, radius, color)
+    if bordercolor is None:
+        bordercolor = color
     gfxdraw.filled_circle(surface, x, y, radius, color)
+    gfxdraw.aacircle(surface, x, y, radius, bordercolor)
 
 
 class Computer:
