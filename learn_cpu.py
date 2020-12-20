@@ -1276,6 +1276,7 @@ class Game:
         self.placing_button = False
         self.placing_display = False
         self.placing_customgate = False
+        self._customname = "cg"
         self._load_array = None
         self.placing_wire = None
         self.placing_pulser = False
@@ -1378,6 +1379,7 @@ class Game:
     def _load_customgate(self):
         try:
             name = self.save_entry.text
+            self._customname = name
             if name == "Name for save/load":
                 raise IOError("Enter a name for the gate")
             name = name.strip().replace(" ", "_")
@@ -1400,7 +1402,7 @@ class Game:
             (self.add_interactive_wires, self.add_interactive_buttons,
              self.add_interactive_gates, self.add_interactive_displays,
              self.add_interactive_pulsers, self.add_interactive_customgates) = load_array
-            for item in self.add_interactive_gates:
+            for item in self.add_interactive_gates + self.add_interactive_customgates:
                 item.enable_font(self._font_console_bold)
             minx = 100000
             maxx = -100000
@@ -1412,7 +1414,12 @@ class Game:
                     if isinstance(item2, Wire):
                         continue
                     itemx, itemy = item2.cpos
-                    if isinstance(item2, BinaryGate) or isinstance(item2, CustomGate):
+                    if isinstance(item2, CustomGate):
+                        itemx_min = itemx - 30
+                        itemx_max = itemx + 30
+                        itemy_min = itemy - 60
+                        itemy_max = itemy + 60
+                    if isinstance(item2, BinaryGate):
                         itemx_min = itemx - 30
                         itemx_max = itemx + 30
                         itemy_min = itemy - 15
@@ -1491,7 +1498,7 @@ class Game:
                         self.placing_pulser = False
 
                     if self.placing_customgate:
-                        cg = CustomGate("cg", (mbx, mby), font = self._font_console_bold)
+                        cg = CustomGate(self._customname, (mbx, mby), font = self._font_console_bold)
                         (interactive_wires, interactive_buttons,
                          interactive_gates, interactive_displays,
                          interactive_pulsers, interactive_customgates) = self._load_array
@@ -1511,7 +1518,7 @@ class Game:
                         origx, origy = self.copy_origin
                         for item in (self.add_interactive_wires + self.add_interactive_buttons +
                                      self.add_interactive_gates + self.add_interactive_displays +
-                                     self.add_interactive_pulsers):
+                                     self.add_interactive_pulsers + self.add_interactive_customgates):
                             if isinstance(item, Wire):
                                 positions = item.positions
                                 for i, pos in enumerate(positions):
@@ -1528,6 +1535,8 @@ class Game:
                                     self.interactive_displays.append(item)
                                 elif isinstance(item, Pulser):
                                     self.interactive_pulsers.append(item)
+                                elif isinstance(item, CustomGate):
+                                    self.interactive_customgates.append(item)
                         self.reset_placing()
 
                     if self.placing_wire is not None:
@@ -1766,7 +1775,7 @@ class Game:
                 pygame.draw.rect(self._screen, (200, 200, 200), place_rect, border_radius = 10)
 
             if self.placing_customgate:
-                place_rect = pygame.Rect(mbx - 30, mby - 30, 60, 60)
+                place_rect = pygame.Rect(mbx - 30, mby - 60, 60, 120)
                 pygame.draw.rect(self._screen, (200, 200, 200), place_rect, border_radius = 10)
 
             if self.placing_button or self.placing_display or self.placing_pulser:
