@@ -9,6 +9,12 @@ num_digits = 2007           ; number of digits to print in the display_number ro
 ascii_start = 2008          ; location where ascii map starts
 no_input = 2009             ; whether or not input has been reset
 
+; --- Input buffering for future command parsing ---
+input_buf = 2122            ; start of input buffer (null-terminated)
+input_ptr = 2123            ; current write pointer (address stored here)
+cmd_len = 2124              ; current length of buffered input
+cmd_ready = 2125            ; 1 when Enter pressed and buffer terminated
+
 text = 2020     ; 16 bytes
 text2 = 2036    ; 16 bytes
 text_su = 2052  ; 12 bytes
@@ -36,6 +42,10 @@ start:
   STA .res2
   STA .pow2
   STA .num_digits
+  STA .cmd_len
+  STA .cmd_ready
+  LDA .input_buf  ; initialize input pointer to start of buffer
+  STA .input_ptr
   LDI 2020
   STA .textloc
   JSR print
@@ -52,13 +62,52 @@ main_loop:
   JPZ no_input
   LDA .no_input
   CPI 1
-  JPZ main_loop
+  JPZ main_loop 
+  LDA .res1 
+  CPI 31              ; Handle Enter key: trigger on key index 31 or 32
+  JPZ handle_enter
+  CPI 32
+  JPZ handle_enter
   LDA .ascii_start
   ADD .res1
   PHA
   LAS
   STA .char
   JSR write_char
+
+; Store typed char into input buffer at [.input_ptr]
+  LDA .input_ptr     ; push destination address
+  PHA
+  LDA .char          ; value to store in A
+  SAS                ; store A at address popped from stack
+  
+; Advance pointer and update length
+  LDA .input_ptr
+  ADI 1
+  STA .input_ptr
+  LDA .cmd_len
+  ADI 1
+  STA .cmd_len
+
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+handle_enter:         ; Move to first column on the next line
+; Terminate buffer with null (0), set ready flag, reset pointer/length
+  LDA .input_ptr     ; push current pointer address
+  PHA
+  LDI 0
+  SAS                ; write 0-terminator
+  LDI 1
+  STA .cmd_ready
+  LDA .input_buf
+  STA .input_ptr
+  LDI 0
+  STA .cmd_len
+
+; Move cursor visually to next line start
+  JSR enter
   LDI 1
   STA .no_input
   JMP main_loop
@@ -154,6 +203,12 @@ instruction:        ; screen instruction
   DIC 0
   DIC 128           ; set enable
   DIC 0
+  RET
+
+
+enter:              ; go to first character on the next line
+  JSR ret_home      ; ret_home puts cursor at column 0 on current line
+  JSR newline       ; newline moves to next line keeping column -> now at column 0 on next line
   RET
 
 
