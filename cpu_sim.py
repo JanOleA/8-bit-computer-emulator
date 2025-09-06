@@ -281,10 +281,10 @@ class Computer:
         """
         # get the appropriate control word based on the current instruction
         # and operation timestep
-        db_line = f"Start of: ProgCount={self.prog_count:>10d} | Mem={self.memory[self.prog_count]:>8d} | OpTimestep={self.op_timestep:>8d} | Bus={self.bus}"
-        if db_line != self._prev_debug_line:
-            print(db_line)
-        self._prev_debug_line = db_line
+        # db_line = f"Start of: ProgCount={self.prog_count:>10d} | Mem={self.memory[self.prog_count]:>8d} | OpTimestep={self.op_timestep:>8d} | Bus={self.bus}"
+        # if db_line != self._prev_debug_line:
+        #     print(db_line)
+        # self._prev_debug_line = db_line
         if self.op_timestep == 0:
             operation = self.MI|self.CO
         elif self.op_timestep == 1:

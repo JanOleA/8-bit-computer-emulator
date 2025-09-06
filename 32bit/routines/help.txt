@@ -1,0 +1,87 @@
+;! name: HELP
+;! entry: help
+;! base: 24000
+;! deps:
+;! abi: os
+;! bss: none
+;! align: 100
+
+textloc = 4001
+
+; Text blocks
+txt_list   = 6000
+txt_cls    = 6050
+txt_peek   = 6100
+txt_poke   = 6150
+txt_primes = 6200
+txt_puzzle = 6250
+txt_shell  = 6300
+
+help:
+  ; print LIST
+  LDI .txt_list
+  STA .textloc
+  JSR print
+  JSR newline
+  ; print CLS
+  LDI .txt_cls
+  STA .textloc
+  JSR print
+  JSR newline
+  ; print PEEK
+  LDI .txt_peek
+  STA .textloc
+  JSR print
+  JSR newline
+  ; print POKE
+  LDI .txt_poke
+  STA .textloc
+  JSR print
+  JSR newline
+  ; print PRIMES
+  LDI .txt_primes
+  STA .textloc
+  JSR print
+  JSR newline
+  ; print PUZZLE
+  LDI .txt_puzzle
+  STA .textloc
+  JSR print
+  JSR newline
+  ; print SHELL
+  LDI .txt_shell
+  STA .textloc
+  JSR print
+  JSR newline
+  RET
+
+; print null-terminated string at .textloc
+print:
+  JSR get_next_char
+  CPI 0
+  JPZ end_print
+  ; write_char inline
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  JMP print
+end_print:
+  RET
+
+get_next_char:
+  LDA .textloc
+  PHA
+  ADI 1
+  STA .textloc
+  LAS
+  STA .char
+  RET
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET

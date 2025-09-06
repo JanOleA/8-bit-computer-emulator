@@ -1,0 +1,16 @@
+;! name: CLS
+;! entry: main
+;! base: 20450
+;! deps:
+;! abi: none
+;! bss: none
+;! align: 100
+
+; Clear the LCD monitor: send clear-display instruction
+main:
+  DIS 1      ; clear display instruction code
+  DIC 0
+  DIC 128    ; toggle enable
+  DIC 0
+  RET
+

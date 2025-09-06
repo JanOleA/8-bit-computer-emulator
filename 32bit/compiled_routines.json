@@ -1,4 +1,22 @@
 {
+  "cls": {
+    "base": 20450,
+    "length": 9,
+    "words": [
+      24,
+      1,
+      25,
+      0,
+      25,
+      128,
+      25,
+      0,
+      17
+    ],
+    "deps": {},
+    "entry": "main",
+    "externs": []
+  },
   "dispnum": {
     "base": 20200,
     "length": 59,

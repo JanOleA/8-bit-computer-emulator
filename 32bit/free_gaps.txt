@@ -2,7 +2,8 @@
 20056,20100,44 ; between multiply and divide
 20179,20200,21 ; between divide and dispnum
 20259,20300,41 ; between dispnum and list
-20439,20500,61 ; between list and peek
+20439,20450,11 ; between list and cls
+20459,20500,41 ; between cls and peek
 20578,20600,22 ; between peek and poke
 20730,20800,70 ; between poke and primes
 20890,20900,10 ; between primes and puzzle

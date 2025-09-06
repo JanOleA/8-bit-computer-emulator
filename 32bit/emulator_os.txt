@@ -61,22 +61,42 @@ prog_table = 10000
 .prog_table + 30  = "LIST"
 .prog_table + 38 = 20300
 .prog_table + 39 = 0
-.prog_table + 40  = "PEEK"
-.prog_table + 48 = 20500
+.prog_table + 40  = "CLS"
+.prog_table + 48 = 20450
 .prog_table + 49 = 0
-.prog_table + 50  = "POKE"
-.prog_table + 58 = 20600
+.prog_table + 50  = "PEEK"
+.prog_table + 58 = 20500
 .prog_table + 59 = 0
-.prog_table + 60  = "PRIMES"
-.prog_table + 68 = 20800
+.prog_table + 60  = "POKE"
+.prog_table + 68 = 20600
 .prog_table + 69 = 0
-.prog_table + 70  = "PUZZLE"
-.prog_table + 78 = 20900
+.prog_table + 70  = "PRIMES"
+.prog_table + 78 = 20800
 .prog_table + 79 = 0
-.prog_table + 80  = "SHELL"
-.prog_table + 88 = 21200
+.prog_table + 80  = "PUZZLE"
+.prog_table + 88 = 20900
 .prog_table + 89 = 0
-.prog_table + 90 = 0    ; sentinel
+.prog_table + 90  = "SHELL"
+.prog_table + 98 = 21200
+.prog_table + 99 = 0
+.prog_table + 100 = 0    ; sentinel
+
+; Text blocks for HELP
+txt_list   = 6000
+txt_cls    = 6050
+txt_peek   = 6100
+txt_poke   = 6150
+txt_primes = 6200
+txt_puzzle = 6250
+txt_shell  = 6300
+
+.txt_list   = "LIST: show available commands"
+.txt_cls    = "CLS: clear the screen"
+.txt_peek   = "PEEK addr: print mem[addr]"
+.txt_poke   = "POKE addr val: store val at addr"
+.txt_primes = "PRIMES: print primes up to 300"
+.txt_puzzle = "PUZZLE: Matt Parker 19 puzzle"
+.txt_shell  = "SHELL: simple command prompt (history)"
 
 start:
   JSR initialize_display
