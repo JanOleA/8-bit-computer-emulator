@@ -39,12 +39,13 @@ class Game_32(Game):
     """ Main control class. Handles rendering, timing control and user input. """
     def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
                  draw_mem = False, draw_ops = False, progload = "program.txt",
-                 LCD_display = True, cpubits = 8, stackbits = 4):
+                 LCD_display = True, cpubits = 8, stackbits = 4, json_images=None):
         super().__init__(autorun, target_FPS, target_HZ, draw_mem, draw_ops,
-                         progload, LCD_display)
+                         progload, LCD_display, json_images)
         self.cpubits = cpubits
         self.stackbits = stackbits
-        self._width = 1680
+        self._width = 5000
+        self._height = 1200
         self._size = (self._width, self._height)
 
     def setup_fonts(self):
@@ -69,7 +70,7 @@ class Game_32(Game):
 
     def init_game(self):
         pygame.init()
-        pygame.display.set_caption("8 bit computer")
+        pygame.display.set_caption("32 bit computer")
 
         self._screen = pygame.display.set_mode(self._size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self._running = True
@@ -82,6 +83,26 @@ class Game_32(Game):
 
         self.computer = Computer_32(self.progload, bits = self.cpubits,
                                     bits_stackpointer = self.stackbits)
+
+        # Optionally load JSON memory images
+        if self._json_images:
+            import json as _json
+            for jf in self._json_images:
+                try:
+                    with open(jf, "r") as f:
+                        data = _json.load(f)
+                    limit = getattr(self.computer, "overflow_limit", 2**self.cpubits)
+                    mask = limit - 1
+                    for name, mod in data.items():
+                        base = int(mod.get("base", 0))
+                        words = mod.get("words", [])
+                        for i, w in enumerate(words):
+                            addr = base + i
+                            if 0 <= addr < len(self.computer.memory):
+                                self.computer.memory[addr] = int(w) & mask
+                    print(f"Loaded JSON image: {jf}")
+                except Exception as e:
+                    print(f"Failed to load JSON image {jf}: {e}")
 
         self.bus_display = BitDisplay(cpos = (640, 50),
                                       font = self._font_exobold,
@@ -269,12 +290,14 @@ class Game_32(Game):
 
         memcolumn = ""
         self.memrows = []
-        for i in range(8):
+        ncols = 56
+        nrows = 72
+        for i in range(ncols):
             text = f"{i:>08d} "
             memcolumn += text
 
-        for i in range(32):
-            rowtext = f"{i*8:>03d}"
+        for i in range(nrows):
+            rowtext = f"{i*ncols:>03d}"
             self.memrows.append(self._font_verysmall_console_bold.render(rowtext, True, self.TEXTGREY))
         
         self.memcolumn = self._font_verysmall_console_bold.render(memcolumn, True, self.TEXTGREY)
@@ -285,15 +308,15 @@ class Game_32(Game):
     def draw_memory(self):
         memwidth = self.memcolumn.get_width()
         titlewidth = self.memory_title.get_width()
-        self.computer.get_mem_strings(32, 8, False, 8)
-        x = 1210
+        self.computer.get_mem_strings(72, 56, False, 8)
+        x = 1710
         y = 57
         self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))
         self._screen.blit(self.memcolumn, (x, y - 18))
         for i, item in enumerate(self.computer.mem_strings):
             out_text = self._font_verysmall_console.render(item, True, self.TEXTGREY)
             self._screen.blit(out_text, (x, y))
-            self._screen.blit(self.memrows[i], (x - 22, y))
+            self._screen.blit(self.memrows[i], (x - 32, y))
             y += 15
 
     def loop(self):
@@ -386,6 +409,18 @@ class Game_32(Game):
         """ Draw the memory """
         if self.draw_mem:
             self.draw_memory()
+        else:
+            """ Draw the program """
+            x = 1710
+            y = 30
+            for i, item in enumerate(self.prog_texts_black):
+                if self.display_op == i + self.prog_offsets[i]:
+                    item = self.prog_texts_green[i]
+                self._screen.blit(item, (x, y))
+                y += 15
+                if y >= self._height - 20:
+                    y = 30
+                    x += 115
 
         """ Draw the operations included in the current instruction """
         if self.draw_ops:
@@ -587,34 +622,20 @@ class Monitor:
                 if col == self.cursor_pos[0] and row == self.cursor_pos[1]:
                     screen.blit(cursor, (x, y))
 
-            
-
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        progload = str(sys.argv[1])
-    else:
-        progload = "program.txt"
+    import argparse, json
+    parser = argparse.ArgumentParser(description="32-bit computer emulator (monitor UI)")
+    parser.add_argument("program", nargs="?", default="program.txt", help="Program file to assemble and load")
+    parser.add_argument("--fps", type=int, default=50, help="Target frames per second")
+    parser.add_argument("--hz", type=int, default=25, help="Target clock frequency (Hz)")
+    parser.add_argument("--lcd", action="store_true", default=True, help="Enable monitor display panel")
+    parser.add_argument("--cpubits", type=int, default=32, help="CPU word size in bits")
+    parser.add_argument("--stackbits", type=int, default=8, help="Stack pointer width in bits")
+    parser.add_argument("--json", action="append", default=[], help="Path to JSON image to write into memory (can be repeated)")
+    args = parser.parse_args()
 
-    if len(sys.argv) > 2:
-        target_fps = int(sys.argv[2])
-    else:
-        target_fps = 50
-
-    if len(sys.argv) > 3:
-        target_HZ = int(sys.argv[3])
-    else:
-        target_HZ = 25
-
-    if len(sys.argv) > 4:
-        if sys.argv[4].lower() == "false":
-            lcd = False
-        else:
-            lcd = True
-    else:
-        lcd = True
-
-    game = Game_32(True, target_fps, target_HZ, progload = progload, LCD_display = lcd,
-                   cpubits = 32, stackbits = 8)
+    game = Game_32(True, args.fps, args.hz, progload=args.program, LCD_display=args.lcd,
+                   cpubits=args.cpubits, stackbits=args.stackbits, json_images=args.json)
     game.execute()
     

@@ -1,0 +1,2273 @@
+char = 3000                 ; variable for printing
+textloc = 3001              ; location of next textline to print
+arg1 = 3002                 ; argument 1 for subroutines
+arg2 = 3003                 ; argument 2 for subroutines
+res1 = 3004                 ; result 1 for subroutines
+res2 = 3005                 ; result 2 for subroutines
+pow2 = 3006                 ; special variable for divide routine
+num_digits = 3007           ; number of digits to print in the display_number routine
+ascii_start = 3008          ; location where ascii map starts
+no_input = 3009             ; whether or not input has been reset
+
+text = 3020     ; 16 bytes
+text2 = 3036    ; 16 bytes
+text_su = 3052  ; 12 bytes
+space = 3064    ; 2 bytes
+ascii_map = 3066 ; 56 bytes
+
+.text     = "  EmuOS alpha  "
+.text2    = "    Welcome!   "
+.text_su  = "Starting..."
+.space    = " "
+.ascii_map = "0123456789 QWERTYUIOP ASDFGHJKL  ZXCVBNM,.             "
+.ascii_start = 3066
+; Map arithmetic keys to ASCII for the 32-bit keyboard:
+; Key codes: 10:'/', 21:'*', 50:'+', 51:'-'
+.ascii_map + 10 = "/"
+.ascii_map + 21 = "*"
+.ascii_map + 50 = "+"
+.ascii_map + 51 = "-"
+
+; --- Input buffering for future command parsing ---
+; Reserve a fixed input buffer BEFORE placing new variables.
+; Buffer occupies addresses 3122..3201 inclusive (80 bytes)
+input_buf = 3122            ; start of input buffer (80 bytes reserved)
+input_ptr = 3202            ; current write pointer (address stored here)
+cmd_len = 3203              ; current length of buffered input
+cmd_ready = 3204            ; 1 when Enter pressed and buffer terminated
+
+; --- Temporaries and work variables ---
+tmp = 3205                  ; temporary register
+digit = 3206                ; parsed digit 0..9
+op = 3207                   ; operator character
+addr = 3208                 ; generic address 1
+addr2 = 3209                ; generic address 2
+lenv = 3210                 ; generic length value
+valv = 3211                 ; generic value
+col = 3212                  ; column counter for hexdump (0..15)
+bytev = 3213                ; temporary byte value
+hex_count = 3214            ; counter for hex digit printing
+hist_write = 3215           ; next history slot to write (0..99)
+hist_count = 3216           ; number of stored commands (0..100)
+hist_browse = 3217          ; browsing offset (0..count-1) or 255 = off
+
+; Command history storage: 100 commands * 80 bytes = 8000 bytes
+history_base = 4000
+
+; Command table (POC): entries of 10 words each
+; [0..7] name (uppercase, 0-padded), [8] handler id, [9] help-address (unused here)
+cmd_table = 20000
+.cmd_table      = "ECHO"
+.cmd_table + 8  = 1
+.cmd_table + 9  = 0
+.cmd_table + 10 = "CLS"
+.cmd_table + 18 = 2
+.cmd_table + 19 = 0
+; sentinel (name[0] == 0)
+.cmd_table + 20 = 0
+
+; ------------------------------------------------------------
+; Hidden fun: ASCII art bitmap (32-bit per word), 18 rows x 4 cols = 72 words
+; Each 32-bit word can be interpreted as a 32-pixel row segment (1=on).
+; Starts at address 13000.
+ascii_art = 13000
+
+; Row 0: top border
+.ascii_art +   0 = 4294967295
+.ascii_art +   1 = 4294967295
+.ascii_art +   2 = 4294967295
+.ascii_art +   3 = 4294967295
+
+; Rows 1..16: box with some eyes and a smile
+; Row 1
+.ascii_art +   4 = 2147483649
+.ascii_art +   5 = 0
+.ascii_art +   6 = 0
+.ascii_art +   7 = 2147483649
+; Row 2
+.ascii_art +   8 = 2147483649
+.ascii_art +   9 = 0
+.ascii_art +  10 = 0
+.ascii_art +  11 = 2147483649
+; Row 3 (eyes line 1)
+.ascii_art +  12 = 2147483649
+.ascii_art +  13 = 7340032       ; 0x00700000 left eye block
+.ascii_art +  14 = 3584          ; 0x00000E00 right eye block
+.ascii_art +  15 = 2147483649
+; Row 4 (eyes line 2)
+.ascii_art +  16 = 2147483649
+.ascii_art +  17 = 7340032
+.ascii_art +  18 = 3584
+.ascii_art +  19 = 2147483649
+; Row 5
+.ascii_art +  20 = 2147483649
+.ascii_art +  21 = 0
+.ascii_art +  22 = 0
+.ascii_art +  23 = 2147483649
+; Row 6
+.ascii_art +  24 = 2147483649
+.ascii_art +  25 = 0
+.ascii_art +  26 = 0
+.ascii_art +  27 = 2147483649
+; Row 7 (smile start)
+.ascii_art +  28 = 2147483649
+.ascii_art +  29 = 258048        ; 0x0003F000
+.ascii_art +  30 = 258048        ; 0x0003F000
+.ascii_art +  31 = 2147483649
+; Row 8 (smile)
+.ascii_art +  32 = 2147483649
+.ascii_art +  33 = 258048
+.ascii_art +  34 = 258048
+.ascii_art +  35 = 2147483649
+; Row 9 (smile end)
+.ascii_art +  36 = 2147483649
+.ascii_art +  37 = 258048
+.ascii_art +  38 = 258048
+.ascii_art +  39 = 2147483649
+; Row 10
+.ascii_art +  40 = 2147483649
+.ascii_art +  41 = 0
+.ascii_art +  42 = 0
+.ascii_art +  43 = 2147483649
+; Row 11
+.ascii_art +  44 = 2147483649
+.ascii_art +  45 = 0
+.ascii_art +  46 = 0
+.ascii_art +  47 = 2147483649
+; Row 12
+.ascii_art +  48 = 2147483649
+.ascii_art +  49 = 0
+.ascii_art +  50 = 0
+.ascii_art +  51 = 2147483649
+; Row 13
+.ascii_art +  52 = 2147483649
+.ascii_art +  53 = 0
+.ascii_art +  54 = 0
+.ascii_art +  55 = 2147483649
+; Row 14
+.ascii_art +  56 = 2147483649
+.ascii_art +  57 = 0
+.ascii_art +  58 = 0
+.ascii_art +  59 = 2147483649
+; Row 15
+.ascii_art +  60 = 2147483649
+.ascii_art +  61 = 0
+.ascii_art +  62 = 0
+.ascii_art +  63 = 2147483649
+
+; Row 16: bottom border inside frame
+.ascii_art +  64 = 2147483649
+.ascii_art +  65 = 0
+.ascii_art +  66 = 0
+.ascii_art +  67 = 2147483649
+
+; Row 17: bottom border
+.ascii_art +  68 = 4294967295
+.ascii_art +  69 = 4294967295
+.ascii_art +  70 = 4294967295
+.ascii_art +  71 = 4294967295
+
+; --- Static strings ---
+help1 = 3300
+.help1 = "Available commands:"
+3319 = 0
+help2 = 3320
+.help2 = "- help: show this help"
+3342 = 0
+help3 = 3350
+.help3 = "- echo <text>: print text"
+3375 = 0
+unknown_cmd = 3380
+.unknown_cmd = "Unknown command"
+3395 = 0
+
+hex_map = 3400
+.hex_map = "0123456789ABCDEF"
+3416 = 0
+version_str = 3418
+.version_str = "EmuOS alpha v0.1"
+3436 = 0
+
+; Additional help lines
+help4 = 3440
+.help4 = "- cls: clear screen"
+3459 = 0
+help5 = 3464
+.help5 = "- banner: print banner"
+3486 = 0
+help6 = 3492
+.help6 = "- version: print version"
+3516 = 0
+help7 = 3518
+.help7 = "- peek <addr>: show byte"
+3542 = 0
+help8 = 3546
+.help8 = "- poke <addr> <val>: write byte"
+3577 = 0
+help9 = 3580
+.help9 = "- dump <addr> <len>: print bytes"
+3612 = 0
+help10 = 3614
+.help10 = "- hexdump <addr> <len>: print hex bytes"
+3653 = 0
+help11 = 3656
+.help11 = "- cat <addr>: print string"
+3682 = 0
+help12 = 3684
+.help12 = "- fill <addr> <len> <val>: fill region"
+3722 = 0
+help13 = 3724
+.help13 = "- copy <src> <dst> <len>: copy bytes"
+3760 = 0
+help14 = 3762
+.help14 = "- calc <a> <op> <b>: +,-,*,/"
+3790 = 0
+help15 = 3792
+.help15 = "- art: show hidden bitmap"
+3816 = 0
+help16 = 3820
+.help16 = "- run <addr>: execute program"
+3848 = 0
+help17 = 3850
+.help17 = "- shutdown: clear screen and halt"
+3886 = 0
+
+start:
+  JSR initialize_display
+  LDI 3052
+  STA .textloc
+  JSR print
+  JSR ret_home
+  LDI 0           ; set variables to zero
+  STA .char
+  STA .arg1
+  STA .arg2
+  STA .res1
+  STA .res2
+  STA .pow2
+  STA .num_digits
+  STA .cmd_len
+  STA .cmd_ready
+  STA .hist_write
+  STA .hist_count
+  LDI 255
+  STA .hist_browse
+  LDI .input_buf           ; initialize input pointer to start of buffer (numeric address)
+  STA .input_ptr
+  LDI 3020
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3036
+  STA .textloc
+  JSR print
+  JSR newline
+  JSR newline
+  JSR print_prompt    ; show prompt at start of input line
+main_loop:
+  JSR check_input
+  LDA .res2
+  CPI 0
+  JPZ no_input
+  LDA .no_input
+  CPI 1
+  JPZ main_loop 
+  LDA .res1 
+  CPI 31              ; Handle Enter key: trigger on key index 31 or 32
+  JPZ handle_enter
+  CPI 32
+  JPZ handle_enter
+  CPI 43              ; Backspace key
+  JPZ handle_backspace
+  CPI 42              ; Up arrow -> history
+  JPZ handle_history_up
+  LDA .ascii_start
+  ADD .res1
+  PHA
+  LAS
+  STA .char
+  JSR write_char
+  ; Exit history browse when user types
+  LDI 255
+  STA .hist_browse
+  ; Store typed char into input buffer at [.input_ptr]
+  LDA .input_ptr           ; push destination address
+  PHA
+  LDA .char                ; value to store in A
+  SAS                      ; store A at address popped from stack
+
+  ; Advance pointer and update length (clamped)
+  LDA .input_ptr
+  ADI 1
+  STA .input_ptr
+  ; Clamp pointer to end of buffer (end = 3202); if equal, move back one
+  CPI 3202
+  JPZ clamp_ptr
+  JMP after_ptr
+clamp_ptr:
+  LDA .input_ptr
+  SUI 1
+  STA .input_ptr
+after_ptr:
+  LDA .cmd_len
+  ADI 1
+  STA .cmd_len
+  ; Clamp length to max buffer size (80); if equal, move back one
+  CPI 80
+  JPZ clamp_len
+  JMP after_len
+clamp_len:
+  LDA .cmd_len
+  SUI 1
+  STA .cmd_len
+after_len:
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+handle_enter:         ; Finalize buffer, echo command, prepare for next input
+  ; Terminate buffer with null (0), set ready flag
+  LDA .input_ptr      ; push current pointer address
+  PHA
+  LDI 0
+  SAS                 ; write 0-terminator
+  LDI 1
+  STA .cmd_ready
+
+  ; Move cursor visually to next line start
+  JSR enter
+
+  ; Parse and execute the command in input buffer
+  JSR run_command
+  ; Save command to history
+  JSR save_history
+
+  ; Reset input pointer/length for next command
+  LDI .input_buf           ; numeric address of buffer start
+  STA .input_ptr
+  LDI 0
+  STA .cmd_len
+  LDI 0
+  STA .cmd_ready
+
+  ; Print prompt for next command line
+  JSR print_prompt
+  ; Reset browsing
+  LDI 255
+  STA .hist_browse
+
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+handle_backspace:
+  ; If at buffer start, do nothing
+  LDA .input_ptr
+  CPI .input_buf
+  JPZ hb_done
+  ; Decrement input pointer
+  LDA .input_ptr
+  SUI 1
+  STA .input_ptr
+  ; Clear the character in buffer (write 0)
+  LDA .input_ptr
+  PHA
+  LDI 0
+  SAS
+  ; Decrement length if > 0
+  LDA .cmd_len
+  CPI 0
+  JPZ hb_after_len
+  SUI 1
+  STA .cmd_len
+hb_after_len:
+  ; Visually erase: move cursor left, write space, move cursor left
+  JSR cursor_left
+  LDI 32
+  STA .char
+  JSR write_char
+  JSR cursor_left
+hb_done:
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+handle_history_up:
+  ; If no history, ignore
+  LDA .hist_count
+  CPI 0
+  JPZ hb_up_done
+  ; Initialize or increment browse offset
+  LDA .hist_browse
+  CPI 255
+  JPZ hb_set0
+  ; increment browse offset
+  LDA .hist_browse
+  ADI 1
+  STA .hist_browse
+  ; if browse >= count, clamp to count-1
+  LDA .hist_browse
+  CMP .hist_count
+  JPC hb_clamp
+  JMP hb_after_browse
+hb_set0:
+  LDI 0
+  STA .hist_browse
+  JMP hb_after_browse
+hb_clamp:
+  LDA .hist_count
+  SUI 1
+  STA .hist_browse
+hb_after_browse:
+  ; Compute index = (hist_write - 1 - hist_browse) mod 100
+  ; tmp = hist_write - 1 (with wrap)
+  LDA .hist_write
+  CPI 0
+  JPZ hb_tmp_wrap
+  SUI 1
+  STA .tmp
+  JMP hb_loop_dec
+hb_tmp_wrap:
+  LDI 99
+  STA .tmp
+hb_loop_dec:
+  ; lenv = hist_browse
+  LDA .hist_browse
+  STA .lenv
+hb_dec_check:
+  LDA .lenv
+  CPI 0
+  JPZ hb_idx_ready
+  ; tmp = tmp - 1 with wrap
+  LDA .tmp
+  CPI 0
+  JPZ hb_dec_wrap
+  SUI 1
+  STA .tmp
+  JMP hb_dec_continue
+hb_dec_wrap:
+  LDI 99
+  STA .tmp
+hb_dec_continue:
+  LDA .lenv
+  SUI 1
+  STA .lenv
+  JMP hb_dec_check
+hb_idx_ready:
+  ; Compute source = history_base + idx*80
+  LDA .tmp
+  STA .arg1           ; arg1 = idx
+  LDI 80
+  STA .arg2
+  JSR multiply        ; A = idx*80
+  ADI .history_base
+  STA .addr2          ; addr2 = source slot
+  ; Clear current input from screen and buffer
+  JSR clear_current_input
+  ; Copy from history slot to input buffer and display until 0 or 80 chars
+  LDI .input_buf
+  STA .addr           ; addr = dest pointer (we'll also update input_ptr)
+  LDI 0
+  STA .lenv           ; lenv = count
+hb_copy_loop:
+  ; stop if count == 80
+  LDA .lenv
+  CPI 80
+  JPZ hb_copy_end
+  ; read src byte
+  LDA .addr2
+  PHA
+  LAS
+  STA .bytev
+  ; if zero -> end
+  CPI 0
+  JPZ hb_copy_end
+  ; write to input buffer and screen
+  LDA .addr
+  PHA
+  LDA .bytev
+  SAS
+  STA .char
+  JSR write_char
+  ; advance dest ptr and input state
+  LDA .addr
+  ADI 1
+  STA .addr
+  LDA .input_ptr
+  ADI 1
+  STA .input_ptr
+  LDA .cmd_len
+  ADI 1
+  STA .cmd_len
+  ; advance source ptr and count
+  LDA .addr2
+  ADI 1
+  STA .addr2
+  LDA .lenv
+  ADI 1
+  STA .lenv
+  JMP hb_copy_loop
+hb_copy_end:
+  LDI 1
+  STA .no_input
+hb_up_done:
+  JMP main_loop
+
+no_input:
+  LDI 0
+  STA .no_input
+  JMP main_loop
+
+check_input:        ; check for input
+  KEI
+  PHA               ; push input to stack
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 1             ; compare top bit to 1
+  JPZ input_entered
+  PLA
+  LDI 0
+  STA .res2
+  RET
+input_entered:
+  PLA
+  SUI 128
+  OUT
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+
+
+initialize_display: ; initializes the display
+  DIS 1             ; 0000 0001 - clear display
+  JSR instruction
+  DIS 6             ; 0000 0110 - Set entry mode, cursor direction to increment
+  JSR instruction 
+  DIS 15            ; set on, display cursor, cursor blink
+  JSR instruction
+  RET
+
+
+print:              ; gets the first memory address for a string from .textloc and prints it to console (null terminated)
+  JSR get_next_char
+  CPI 0
+  JPZ end_print
+  JSR write_char
+  JMP print
+end_print:
+  RET
+
+
+get_next_char:      ; gets the next character from .textloc and increases .textloc by 1
+  LDA .textloc
+  PHA
+  ADI 1
+  STA .textloc
+  LAS               ; get the value from .textloc into A
+  STA .char
+  RET
+
+
+write_char:         ; write the character in .char to screen
+  LDD .char
+  DIC 0
+  DIC 64            ; set read
+  DIC 192           ; set read + enable
+  DIC 0
+  RET
+
+
+newline:            ; print newline on the screen
+  DIS 32            ; data for newline
+  DIC 0
+  DIC 128           ; set enable
+  DIC 0
+  RET
+
+
+ret_home:           ; return to home (first column) on current line on screen
+  JSR newline
+  DIS 24            ; data for cursor up
+  DIC 0
+  DIC 128           ; set enable
+  DIC 0
+  RET
+
+
+instruction:        ; screen instruction
+  DIC 0
+  DIC 128           ; set enable
+  DIC 0
+  RET
+
+cursor_left:        ; move cursor one position left
+  DIS 18            ; data for cursor left (0b00010010)
+  DIC 0
+  DIC 128           ; set enable
+  DIC 0
+  RET
+
+
+enter:              ; go to first character on the next line
+  JSR ret_home      ; ret_home puts cursor at column 0 on current line
+  JSR newline       ; newline moves to next line keeping column -> now at column 0 on next line
+  RET
+
+
+multiply:           ; multiplies .arg1 with .arg2, stores it in .res1
+  ; Early outs: if either operand is 0 => product = 0
+  LDA .arg1
+  CPI 0
+  JPZ mult_zero
+  LDA .arg2
+  CPI 0
+  JPZ mult_zero
+  LDA .arg1         ; proceed
+  CMP .arg2         ; compare arg2 with arg1
+  JPC mult_begin    ; if arg1 >= arg2, continue multiply
+  PHA               ; else, push A to stack
+  LDA .arg2
+  STA .arg1         ; store arg2 in arg1
+  PLA               ; pull the first value back from stack
+  STA .arg2         ; store it as arg2
+  LDA .arg1         ; load arg1 again
+mult_begin:
+  STA .res1         ; store the multiplicand in .product, essentially doing the first addition
+mult_loop:
+  LDA .arg2
+  SUI 1             ; subtract 1 from multiplier
+  JPZ mult_end      ; if result is zero, end multiply
+  STA .arg2
+  LDA .res1
+  ADD .arg1
+  STA .res1
+  JMP mult_loop     ; continue multiply loop
+mult_end:
+  LDA .res1
+  RET               ; return
+mult_zero:
+  LDI 0
+  STA .res1
+  LDA .res1
+  RET
+
+
+divide:             ; divides .arg1 with .arg2, stores the quotient in .res1 (remainder in .res2)
+  LDI 0
+  STA .res1         ; initialize quotient as 0
+  LDI 1
+  STA .pow2         ; initialize pow2 as 1
+  LDA .arg2
+  CPI 0
+  JPZ div_end       ; jump to div_end if divisor is zero
+inc_b:              ; increase the divisor by multiplying by 2 as many times as possible
+                    ; while keeping it below the dividend
+  LDA .arg2         ; load divisor into A
+  LSA               ; left shift (i.e. mult. by 2)
+  JPC div_loop      ; if the left shift causes a carry, done increasing the divisor
+  CMP .arg1         ; compare with dividend
+  JPZ pass          ; pass if they are equal
+  JPC div_loop      ; done increasing .divisor
+pass:
+  STA .arg2         ; store divisor*2 as new divisor
+  LDA .pow2
+  LSA               ; multiply pow2 by 2 as well
+  STA .pow2         ; store it as new pow2
+  JMP inc_b         ; go back to inc_b
+div_loop:
+  LDA .pow2
+  CPI 0             ; compare pow2 to zero
+  JPZ div_end       ; if zero, done divide
+  LDA .arg1
+  CMP .arg2         ; compare dividend to divisor
+  JPC a_geq_b       ; if dividend >= divisor
+  JMP continue      ; else
+a_geq_b:
+  LDA .res1
+  ADD .pow2         
+  STA .res1         ; add pow2 to the quotient and store it
+  LDA .arg1
+  SUB .arg2
+  STA .arg1         ; subtract divisor from the dividend and store it
+continue:
+  LDA .arg2
+  RSA
+  STA .arg2         ; divide divisor by 2 and store
+  LDA .pow2
+  RSA
+  STA .pow2         ; divide pow2 by 2 and store
+  JMP div_loop
+div_end:
+  LDA .arg1
+  STA .res2
+  LDA .res1
+  RET
+
+
+display_number:     ; print arg1 to screen as decimal value
+  LDA .arg1
+  CMP 0
+calc_next_val:
+  LDI 10
+  STA .arg2
+  JSR divide        ; remainder will be the number to display at nth position
+  STA .arg1         ; the result of the division will be the next number to divide
+  LDA .res2         ; remainder
+  ADI 48            ; add 48 to get ascii
+  PHA               ; push to stack
+  LDA .num_digits
+  ADI 1             ; add one to number of values to print
+  STA .num_digits
+  LDA .arg1
+  CPI 0             ; if result is zero, we are done
+  JPZ print_stack   ; print from stack
+  JMP calc_next_val
+print_stack:
+  PLA               ; pull value from stack
+  STA .char
+  JSR write_char
+  LDA .num_digits
+  SUI 1
+  STA .num_digits
+  JPZ end_dispnum
+  JMP print_stack
+end_dispnum:
+  RET
+
+
+; Prints the command prompt '> ' at the current cursor position
+print_prompt:
+  LDI 62            ; '>'
+  STA .char
+  JSR write_char
+  LDI 32            ; ' '
+  STA .char
+  JSR write_char
+  RET
+
+
+; --------------------
+; Command parsing
+; --------------------
+
+run_command:
+  ; arg1 will be our working pointer into the input buffer (numeric address)
+  LDI .input_buf
+  STA .arg1
+
+  ; First try table-driven dispatch (POC: ECHO, CLS)
+  JSR dispatch_table
+  LDA .res1
+  CPI 1
+  JPZ rc_done
+
+skip_leading_spaces:
+  LDA .arg1
+  PHA
+  LAS                 ; A = mem[arg1]
+  CPI 32              ; space?
+  JPZ inc_ptr_lead
+  JMP check_HELP
+inc_ptr_lead:
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP skip_leading_spaces
+
+check_HELP:
+  ; Check token == "HELP" (uppercase)
+  ; 'H' 72, 'E' 69, 'L' 76, 'P' 80, next is 0 or space
+  LDA .arg1
+  PHA
+  LAS
+  CPI 72
+  JPZ help_ch1
+  JMP check_ECHO
+help_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 69
+  JPZ help_ch2
+  JMP check_ECHO
+help_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 76
+  JPZ help_ch3
+  JMP check_ECHO
+help_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 80
+  JPZ help_delim
+  JMP check_ECHO
+help_delim:
+  LDA .arg1
+  ADI 4
+  PHA
+  LAS
+  CPI 0
+  JPZ do_help
+  CPI 32
+  JPZ do_help
+  JMP check_ECHO
+
+do_help:
+  LDI 3300
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3320
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3350
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3440
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3464
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3492
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3518
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3546
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3580
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3614
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3656
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3684
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3724
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3762
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3792
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3820
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3850
+  STA .textloc
+  JSR print
+  JSR newline
+  RET
+
+rc_done:
+  RET
+
+check_ECHO:
+  ; Check token == "ECHO" (uppercase)
+  ; 'E' 69, 'C' 67, 'H' 72, 'O' 79, next is 0 or space
+  LDA .arg1
+  PHA
+  LAS
+  CPI 69
+  JPZ echo_ch1
+  JMP check_CLS
+echo_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 67
+  JPZ echo_ch2
+  JMP check_CLS
+echo_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 72
+  JPZ echo_ch3
+  JMP check_CLS
+echo_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 79
+  JPZ echo_delim
+  JMP check_CLS
+echo_delim:
+  ; Move pointer past token and any spaces
+  LDA .arg1
+  ADI 4
+  STA .arg1
+skip_spaces_after_echo:
+  LDA .arg1
+  PHA
+  LAS
+  CPI 32
+  JPZ inc_ptr_echo
+  JMP do_echo
+inc_ptr_echo:
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP skip_spaces_after_echo
+
+do_echo:
+  LDA .arg1
+  STA .textloc
+  JSR print
+  JSR newline
+  RET
+
+check_CLS:
+  ; CLS
+  ; 'C' 67, 'L' 76, 'S' 83
+  LDA .arg1
+  PHA
+  LAS
+  CPI 67
+  JPZ cls_ch1
+  JMP check_BANNER
+cls_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 76
+  JPZ cls_ch2
+  JMP check_BANNER
+cls_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 83
+  JPZ cls_delim
+  JMP check_BANNER
+cls_delim:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 0
+  JPZ do_cls
+  CPI 32
+  JPZ do_cls
+  JMP check_BANNER
+
+do_cls:
+  DIS 1
+  JSR instruction
+  RET
+
+check_BANNER:
+  ; BANNER
+  LDA .arg1
+  PHA
+  LAS
+  CPI 66
+  JPZ banner_ch1
+  JMP check_VERSION
+banner_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 65
+  JPZ banner_ch2
+  JMP check_VERSION
+banner_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 78
+  JPZ banner_ch3
+  JMP check_VERSION
+banner_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 78
+  JPZ banner_ch4
+  JMP check_VERSION
+banner_ch4:
+  LDA .arg1
+  ADI 4
+  PHA
+  LAS
+  CPI 69
+  JPZ banner_ch5
+  JMP check_VERSION
+banner_ch5:
+  LDA .arg1
+  ADI 5
+  PHA
+  LAS
+  CPI 82
+  JPZ banner_delim
+  JMP check_VERSION
+banner_delim:
+  LDA .arg1
+  ADI 6
+  PHA
+  LAS
+  CPI 0
+  JPZ do_banner
+  CPI 32
+  JPZ do_banner
+  JMP check_VERSION
+
+do_banner:
+  LDI 3020
+  STA .textloc
+  JSR print
+  JSR newline
+  LDI 3036
+  STA .textloc
+  JSR print
+  JSR newline
+  RET
+
+check_VERSION:
+  ; VERSION
+  LDA .arg1
+  PHA
+  LAS
+  CPI 86
+  JPZ version_ch1
+  JMP check_PEEK
+version_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 69
+  JPZ version_ch2
+  JMP check_PEEK
+version_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 82
+  JPZ version_ch3
+  JMP check_PEEK
+version_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 83
+  JPZ version_ch4
+  JMP check_PEEK
+version_ch4:
+  LDA .arg1
+  ADI 4
+  PHA
+  LAS
+  CPI 73
+  JPZ version_ch5
+  JMP check_PEEK
+version_ch5:
+  LDA .arg1
+  ADI 5
+  PHA
+  LAS
+  CPI 79
+  JPZ version_ch6
+  JMP check_PEEK
+version_ch6:
+  LDA .arg1
+  ADI 6
+  PHA
+  LAS
+  CPI 78
+  JPZ version_delim
+  JMP check_PEEK
+version_delim:
+  LDA .arg1
+  ADI 7
+  PHA
+  LAS
+  CPI 0
+  JPZ do_version
+  CPI 32
+  JPZ do_version
+  JMP check_PEEK
+
+do_version:
+  LDI 3418
+  STA .textloc
+  JSR print
+  JSR newline
+  RET
+
+check_PEEK:
+  ; PEEK <addr>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 80
+  JPZ peek_ch1
+  JMP check_POKE
+peek_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 69
+  JPZ peek_ch2
+  JMP check_POKE
+peek_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 69
+  JPZ peek_ch3
+  JMP check_POKE
+peek_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 75
+  JPZ peek_delim
+  JMP check_POKE
+peek_delim:
+  LDA .arg1
+  ADI 4
+  STA .arg1
+  JSR parse_number
+  LDA .res1
+  STA .addr
+  LDA .addr
+  PHA
+  LAS
+  STA .arg1
+  JSR display_number
+  JSR newline
+  RET
+
+check_POKE:
+  ; POKE <addr> <val>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 80
+  JPZ poke_ch1
+  JMP check_DUMP
+poke_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 79
+  JPZ poke_ch2
+  JMP check_DUMP
+poke_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 75
+  JPZ poke_ch3
+  JMP check_DUMP
+poke_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 69
+  JPZ poke_delim
+  JMP check_DUMP
+poke_delim:
+  LDA .arg1
+  ADI 4
+  STA .arg1
+  JSR parse_number
+  LDA .res1
+  STA .addr
+  JSR parse_number
+  LDA .res1
+  STA .valv
+  LDA .addr
+  PHA
+  LDA .valv
+  SAS
+  JSR newline
+  RET
+
+check_DUMP:
+  ; DUMP <addr> <len>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 68
+  JPZ dump_ch1
+  JMP check_CAT
+dump_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 85
+  JPZ dump_ch2
+  JMP check_CAT
+dump_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 77
+  JPZ dump_ch3
+  JMP check_CAT
+dump_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 80
+  JPZ dump_delim
+  JMP check_CAT
+dump_delim:
+  LDA .arg1
+  ADI 4
+  STA .arg1
+  JSR parse_number
+  LDA .res1
+  STA .addr
+  JSR parse_number
+  LDA .res1
+  STA .lenv
+dump_loop:
+  LDA .lenv
+  CPI 0
+  JPZ dump_end
+  LDA .addr
+  PHA
+  LAS
+  STA .arg1
+  JSR display_number
+  JSR print_space
+  LDA .addr
+  ADI 1
+  STA .addr
+  LDA .lenv
+  SUI 1
+  STA .lenv
+  JMP dump_loop
+dump_end:
+  JSR newline
+  RET
+
+check_CAT:
+  ; CAT <addr>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 67
+  JPZ cat_ch1
+  JMP check_FILL
+cat_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 65
+  JPZ cat_ch2
+  JMP check_FILL
+cat_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 84
+  JPZ cat_delim
+  JMP check_FILL
+cat_delim:
+  LDA .arg1
+  ADI 3
+  STA .arg1
+  JSR parse_number
+  LDA .res1
+  STA .textloc
+  JSR print
+  JSR newline
+  RET
+
+check_FILL:
+  ; FILL <addr> <len> <val>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 70
+  JPZ fill_ch1
+  JMP check_COPY
+fill_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 73
+  JPZ fill_ch2
+  JMP check_COPY
+fill_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 76
+  JPZ fill_ch3
+  JMP check_COPY
+fill_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 76
+  JPZ fill_delim
+  JMP check_COPY
+fill_delim:
+  LDA .arg1
+  ADI 4
+  STA .arg1
+  JSR parse_number
+  LDA .res1
+  STA .addr
+  JSR parse_number
+  LDA .res1
+  STA .lenv
+  JSR parse_number
+  LDA .res1
+  STA .valv
+fill_loop:
+  LDA .lenv
+  CPI 0
+  JPZ fill_end
+  LDA .addr
+  PHA
+  LDA .valv
+  SAS
+  LDA .addr
+  ADI 1
+  STA .addr
+  LDA .lenv
+  SUI 1
+  STA .lenv
+  JMP fill_loop
+fill_end:
+  JSR newline
+  RET
+
+check_COPY:
+  ; COPY <src> <dst> <len>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 67
+  JPZ copy_ch1
+  JMP check_CALC
+copy_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 79
+  JPZ copy_ch2
+  JMP check_CALC
+copy_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 80
+  JPZ copy_ch3
+  JMP check_CALC
+copy_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 89
+  JPZ copy_delim
+  JMP check_CALC
+copy_delim:
+  LDA .arg1
+  ADI 4
+  STA .arg1
+  JSR parse_number
+  LDA .res1
+  STA .addr
+  JSR parse_number
+  LDA .res1
+  STA .addr2
+  JSR parse_number
+  LDA .res1
+  STA .lenv
+copy_loop:
+  LDA .lenv
+  CPI 0
+  JPZ copy_end
+  ; read src
+  LDA .addr
+  PHA
+  LAS
+  STA .bytev
+  ; write to dst
+  LDA .addr2
+  PHA
+  LDA .bytev
+  SAS
+  ; advance
+  LDA .addr
+  ADI 1
+  STA .addr
+  LDA .addr2
+  ADI 1
+  STA .addr2
+  LDA .lenv
+  SUI 1
+  STA .lenv
+  JMP copy_loop
+copy_end:
+  JSR newline
+  RET
+
+check_CALC:
+  ; CALC <a> <op> <b>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 67
+  JPZ calc_ch1
+  JMP check_HEXDUMP
+calc_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 65
+  JPZ calc_ch2
+  JMP check_HEXDUMP
+calc_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 76
+  JPZ calc_ch3
+  JMP check_HEXDUMP
+calc_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 67
+  JPZ calc_delim
+  JMP check_HEXDUMP
+calc_delim:
+  LDA .arg1
+  ADI 4
+  STA .arg1
+  ; parse a
+  JSR parse_number
+  LDA .res1
+  STA .valv            ; store first operand, keep .arg1 as parse pointer
+  ; operator
+  JSR parse_operator
+  ; parse b
+  JSR parse_number
+  LDA .res1
+  STA .arg2
+  ; switch on op
+  LDA .op
+  CPI 43            ; '+'
+  JPZ do_add
+  CPI 45            ; '-'
+  JPZ do_sub
+  CPI 42            ; '*'
+  JPZ do_mul
+  CPI 47            ; '/'
+  JPZ do_div
+  JMP unknown_command
+do_add:
+  LDA .valv
+  ADD .arg2
+  STA .arg1
+  JSR display_number
+  JSR newline
+  RET
+do_sub:
+  LDA .valv
+  SUB .arg2
+  STA .arg1
+  JSR display_number
+  JSR newline
+  RET
+do_mul:
+  ; multiply uses .arg1 and .arg2 as inputs
+  LDA .valv
+  STA .arg1
+  JSR multiply
+  STA .arg1
+  JSR display_number
+  JSR newline
+  RET
+do_div:
+  ; divide uses .arg1 and .arg2 as inputs; returns quotient in A, remainder in .res2
+  LDA .valv
+  STA .arg1
+  JSR divide
+  ; print quotient
+  STA .arg1
+  JSR display_number
+  JSR print_space
+  ; print remainder
+  LDA .res2
+  STA .arg1
+  JSR display_number
+  JSR newline
+  RET
+
+check_HEXDUMP:
+  ; HEXDUMP <addr> <len>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 72
+  JPZ hd_ch1
+  JMP check_ART
+hd_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 69
+  JPZ hd_ch2
+  JMP check_ART
+hd_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 88
+  JPZ hd_ch3
+  JMP check_ART
+hd_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 68
+  JPZ hd_ch4
+  JMP check_ART
+hd_ch4:
+  LDA .arg1
+  ADI 4
+  PHA
+  LAS
+  CPI 85
+  JPZ hd_ch5
+  JMP check_ART
+hd_ch5:
+  LDA .arg1
+  ADI 5
+  PHA
+  LAS
+  CPI 77
+  JPZ hd_ch6
+  JMP check_ART
+hd_ch6:
+  LDA .arg1
+  ADI 6
+  PHA
+  LAS
+  CPI 80
+  JPZ hd_delim
+  JMP unknown_command
+hd_delim:
+  LDA .arg1
+  ADI 7
+  STA .arg1
+  JSR parse_number
+  LDA .res1
+  STA .addr
+  JSR parse_number
+  LDA .res1
+  STA .lenv
+  LDI 0
+  STA .col
+hd_loop:
+  LDA .lenv
+  CPI 0
+  JPZ hd_end
+  ; read value and print 8 hex digits
+  LDA .addr
+  PHA
+  LAS
+  STA .arg1
+  JSR print_hex8
+  JSR print_space
+  ; advance
+  LDA .addr
+  ADI 1
+  STA .addr
+  LDA .lenv
+  SUI 1
+  STA .lenv
+  ; column tracking (4 words per row since words are 32-bit)
+  LDA .col
+  ADI 1
+  STA .col
+  CPI 4
+  JPZ hd_newline
+  JMP hd_loop
+hd_newline:
+  JSR newline
+  LDI 0
+  STA .col
+  JMP hd_loop
+hd_end:
+  JSR newline
+  RET
+
+check_ART:
+  ; ART (render 13000 bitmap compactly)
+  LDA .arg1
+  PHA
+  LAS
+  CPI 65
+  JPZ art_ch1
+  JMP check_RUN
+art_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 82
+  JPZ art_ch2
+  JMP unknown_command
+art_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 84
+  JPZ art_delim
+  JMP check_RUN
+art_delim:
+  LDA .arg1
+  ADI 3
+  STA .arg1
+  JSR do_art
+  RET
+
+check_RUN:
+  ; RUN <addr>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 82            ; 'R'
+  JPZ run_ch1
+  JMP check_SHUTDOWN
+run_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 85            ; 'U'
+  JPZ run_ch2
+  JMP check_SHUTDOWN
+run_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 78            ; 'N'
+  JPZ run_delim
+  JMP check_SHUTDOWN
+run_delim:
+  LDA .arg1
+  ADI 3
+  STA .arg1
+  ; parse the address
+  JSR parse_number
+  ; push address and RET to jump there
+  LDA .res1
+  PHA               ; push target address onto stack
+  RET               ; pop to PC and execute
+
+check_SHUTDOWN:
+  ; SHUTDOWN: clear screen and halt
+  LDA .arg1
+  PHA
+  LAS
+  CPI 83            ; 'S'
+  JPZ shut_ch1
+  JMP unknown_command
+shut_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 72            ; 'H'
+  JPZ shut_ch2
+  JMP unknown_command
+shut_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 85            ; 'U'
+  JPZ shut_ch3
+  JMP unknown_command
+shut_ch3:
+  LDA .arg1
+  ADI 3
+  PHA
+  LAS
+  CPI 84            ; 'T'
+  JPZ shut_ch4
+  JMP unknown_command
+shut_ch4:
+  LDA .arg1
+  ADI 4
+  PHA
+  LAS
+  CPI 68            ; 'D'
+  JPZ shut_ch5
+  JMP unknown_command
+shut_ch5:
+  LDA .arg1
+  ADI 5
+  PHA
+  LAS
+  CPI 79            ; 'O'
+  JPZ shut_ch6
+  JMP unknown_command
+shut_ch6:
+  LDA .arg1
+  ADI 6
+  PHA
+  LAS
+  CPI 87            ; 'W'
+  JPZ shut_ch7
+  JMP unknown_command
+shut_ch7:
+  LDA .arg1
+  ADI 7
+  PHA
+  LAS
+  CPI 78            ; 'N'
+  JPZ shut_delim
+  JMP unknown_command
+shut_delim:
+  LDA .arg1
+  ADI 8
+  PHA
+  LAS
+  CPI 0
+  JPZ do_shutdown
+  CPI 32
+  JPZ do_shutdown
+  JMP unknown_command
+do_shutdown:
+  DIS 1             ; clear display
+  JSR instruction
+  HLT               ; halt CPU
+
+unknown_command:
+  LDI 3380
+  STA .textloc
+  JSR print
+  JSR newline
+  RET
+
+; --------------------
+; Parsing helpers
+; --------------------
+
+; Skips spaces at .arg1
+skip_spaces:
+  LDA .arg1
+  PHA
+  LAS
+  CPI 32
+  JPZ sksp_inc
+  RET
+sksp_inc:
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP skip_spaces
+
+; Parses a decimal number at .arg1 into .res1 and advances .arg1
+parse_number:
+  LDI 0
+  STA .res1
+  JSR skip_spaces
+pn_loop:
+  LDA .arg1
+  PHA
+  LAS                 ; A = current char
+  CPI 48              ; if A < '0' -> done (carry clear)
+  JPC pn_check_hi
+  JMP pn_done
+pn_check_hi:
+  CPI 58              ; if A >= ':' -> done
+  JPC pn_done
+  ; convert to digit
+  SUI 48
+  STA .digit
+  ; res1 = res1*10
+  LDA .res1
+  LSA
+  STA .tmp            ; tmp = res*2
+  LSA
+  LSA                 ; A = res*8
+  ADD .tmp            ; A = res*10
+  STA .res1
+  ; res1 += digit
+  LDA .res1
+  ADD .digit
+  STA .res1
+  ; advance pointer
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP pn_loop
+pn_done:
+  RET
+
+; Parse a single non-space character into .op and advance .arg1
+parse_operator:
+  JSR skip_spaces
+  LDA .arg1
+  PHA
+  LAS
+  STA .op
+  ; advance by one if not null
+  CPI 0
+  JPZ pop_done
+  LDA .arg1
+  ADI 1
+  STA .arg1
+pop_done:
+  RET
+
+; Prints a single space character
+print_space:
+  LDI 32
+  STA .char
+  JSR write_char
+  RET
+
+; --------------------
+; Table-driven dispatcher (POC for ECHO and CLS)
+; Looks up token at .arg1 in cmd_table and invokes handler
+; On success, sets .res1 = 1 and returns; otherwise .res1 = 0
+dispatch_table:
+  LDI 0
+  STA .res1
+  ; skip leading spaces
+  JSR skip_spaces
+  ; save token start
+  LDA .arg1
+  STA .addr             ; token pointer
+  ; table pointer
+  LDI .cmd_table
+  STA .addr2
+
+dt_entry_loop:
+  ; check sentinel (first name byte == 0)
+  LDA .addr2
+  PHA
+  LAS
+  CPI 0
+  JPZ dt_no_match
+  ; preserve entry base in tmp
+  LDA .addr2
+  STA .tmp
+  ; compare up to 8 chars
+  LDA .addr
+  STA .valv            ; valv = input ptr (moving)
+  LDA .addr2
+  STA .bytev           ; bytev = name ptr (moving)
+  LDI 8
+  STA .hex_count       ; reuse as loop counter
+dt_cmp_loop:
+  ; load input char
+  LDA .valv
+  PHA
+  LAS
+  STA .op              ; op = input char
+  ; load table char
+  LDA .bytev
+  PHA
+  LAS
+  STA .digit           ; digit = table char
+  ; if table char == 0 and (input is 0 or space) => match
+  LDA .digit
+  CPI 0
+  JPZ dt_ct_zero
+  ; if input is 0 or space and table not zero => mismatch
+  LDA .op
+  CPI 0
+  JPZ dt_cmp_mismatch
+  CPI 32
+  JPZ dt_cmp_mismatch
+  ; if chars differ => mismatch
+  LDA .op
+  SUB .digit
+  JPZ dt_chars_equal
+  JMP dt_cmp_mismatch
+dt_ct_zero:
+  LDA .op
+  CPI 0
+  JPZ dt_match
+  CPI 32
+  JPZ dt_match
+  JMP dt_cmp_mismatch
+dt_chars_equal:
+  ; advance both pointers
+  LDA .valv
+  ADI 1
+  STA .valv
+  LDA .bytev
+  ADI 1
+  STA .bytev
+  ; decrement counter and continue
+  LDA .hex_count
+  SUI 1
+  STA .hex_count
+  JPZ dt_post_cmp
+  JMP dt_cmp_loop
+dt_post_cmp:
+  ; after 8 chars, require table char == 0 and input is 0/space
+  LDA .bytev
+  PHA
+  LAS
+  CPI 0
+  JPZ dt_ct_zero_end
+  JMP dt_cmp_mismatch
+dt_ct_zero_end:
+  LDA .valv
+  PHA
+  LAS
+  CPI 0
+  JPZ dt_match
+  CPI 32
+  JPZ dt_match
+  JMP dt_cmp_mismatch
+
+dt_cmp_mismatch:
+  ; advance to next entry (size 10)
+  LDA .addr2
+  ADI 10
+  STA .addr2
+  JMP dt_entry_loop
+
+dt_match:
+  ; valv points at end of token; skip spaces to get args pointer
+  LDA .valv
+  STA .arg1
+  JSR skip_spaces
+  ; load handler id at entry_base + 8
+  LDA .tmp
+  ADI 8
+  PHA
+  LAS
+  STA .res2            ; res2 = handler id
+  ; dispatch by id (POC: 1=ECHO, 2=CLS)
+  LDA .res2
+  CPI 1
+  JPZ dt_call_echo
+  CPI 2
+  JPZ dt_call_cls
+  ; unknown id -> treat as no match for now
+  JMP dt_cmp_mismatch
+
+dt_call_echo:
+  JSR do_echo
+  LDI 1
+  STA .res1
+  RET
+
+dt_call_cls:
+  JSR do_cls
+  LDI 1
+  STA .res1
+  RET
+
+dt_no_match:
+  LDI 0
+  STA .res1
+  RET
+
+; Prints .arg1 as 8 hex digits (zero-padded)
+print_hex8:
+  ; push 8 hex digits (ASCII) onto the stack by repeated divide by 16
+  LDI 0
+  STA .hex_count
+ph_loop:
+  LDI 16
+  STA .arg2
+  JSR divide          ; A = quotient, .res2 = remainder (0..15)
+  STA .arg1           ; update value = quotient
+  ; map remainder to ASCII and push to stack
+  LDA .res2
+  ADI .hex_map
+  PHA
+  LAS
+  PHA                 ; push ASCII char to stack
+  LDA .hex_count
+  ADI 1
+  STA .hex_count
+  CPI 8
+  JPZ ph_print
+  JMP ph_loop
+ph_print:
+  ; pop and print 8 ASCII hex digits
+  PLA
+  STA .char
+  JSR write_char
+  LDA .hex_count
+  SUI 1
+  STA .hex_count
+  JPZ ph_done
+  JMP ph_print
+ph_done:
+  RET
+
+; Prints 8 compact mask characters for .arg1, one per nibble (MSN first)
+; '#' for non-zero nibble, ' ' for zero
+print_nibblemask8:
+  LDI 0
+  STA .hex_count
+pnm_loop:
+  LDI 16
+  STA .arg2
+  JSR divide          ; A = quotient, .res2 = remainder
+  STA .arg1
+  ; choose char and push
+  LDA .res2
+  CPI 0
+  JPZ pnm_space
+  LDI 35              ; '#'
+  PHA
+  JMP pnm_pushed
+pnm_space:
+  LDI 32              ; ' '
+  PHA
+pnm_pushed:
+  LDA .hex_count
+  ADI 1
+  STA .hex_count
+  CPI 8
+  JPZ pnm_print
+  JMP pnm_loop
+pnm_print:
+  PLA
+  STA .char
+  JSR write_char
+  LDA .hex_count
+  SUI 1
+  STA .hex_count
+  JPZ pnm_done
+  JMP pnm_print
+pnm_done:
+  RET
+
+; Draws the hidden ASCII art at .ascii_art (18 rows x 4 words)
+do_art:
+  LDI .ascii_art
+  STA .addr2          ; source pointer
+  LDI 18
+  STA .lenv           ; rows remaining
+art_row_loop:
+  LDA .lenv
+  CPI 0
+  JPZ art_done
+  ; 4 words per row
+  LDI 4
+  STA .tmp
+art_col_loop:
+  LDA .tmp
+  CPI 0
+  JPZ art_row_end
+  ; load word and print masks
+  LDA .addr2
+  PHA
+  LAS
+  STA .arg1
+  JSR print_nibblemask8
+  JSR print_space
+  ; advance
+  LDA .addr2
+  ADI 1
+  STA .addr2
+  LDA .tmp
+  SUI 1
+  STA .tmp
+  JMP art_col_loop
+art_row_end:
+  JSR newline
+  LDA .lenv
+  SUI 1
+  STA .lenv
+  JMP art_row_loop
+art_done:
+  RET
+
+; Clears current input line content (from buffer start to current pointer)
+clear_current_input:
+  ; Loop until input_ptr == input_buf
+  LDA .input_ptr
+  CPI .input_buf
+  JPZ cci_done
+cci_loop:
+  LDA .input_ptr
+  CPI .input_buf
+  JPZ cci_done
+  ; move pointer back
+  SUI 1
+  STA .input_ptr
+  ; clear byte in buffer
+  LDA .input_ptr
+  PHA
+  LDI 0
+  SAS
+  ; decrement length if > 0
+  LDA .cmd_len
+  CPI 0
+  JPZ cci_skip_len
+  SUI 1
+  STA .cmd_len
+cci_skip_len:
+  ; visually erase last char
+  JSR cursor_left
+  LDI 32
+  STA .char
+  JSR write_char
+  JSR cursor_left
+  ; continue loop
+  LDA .input_ptr
+  CPI .input_buf
+  JPZ cci_done
+  JMP cci_loop
+cci_done:
+  RET
+
+; Saves current command line (input buffer) into history slot
+save_history:
+  ; Compute destination slot address: history_base + hist_write*80
+  LDA .hist_write
+  STA .arg1
+  LDI 80
+  STA .arg2
+  JSR multiply          ; A = index*80
+  ADI .history_base
+  STA .addr2            ; addr2 = destination
+  ; Source pointer = input buffer start
+  LDI .input_buf
+  STA .addr
+  LDI 0
+  STA .lenv             ; count = 0
+sh_copy:
+  ; stop at 80 bytes
+  LDA .lenv
+  CPI 80
+  JPZ sh_terminate
+  ; read source byte
+  LDA .addr
+  PHA
+  LAS
+  STA .bytev
+  ; write byte to destination
+  LDA .addr2
+  PHA
+  LDA .bytev
+  SAS
+  ; if byte == 0, we're done
+  CPI 0
+  JPZ sh_done
+  ; advance pointers and count
+  LDA .addr
+  ADI 1
+  STA .addr
+  LDA .addr2
+  ADI 1
+  STA .addr2
+  LDA .lenv
+  ADI 1
+  STA .lenv
+  JMP sh_copy
+sh_terminate:
+  ; ensure destination is null-terminated
+  LDA .addr2
+  PHA
+  LDI 0
+  SAS
+sh_done:
+  ; Update write index = (write+1) mod 100
+  LDA .hist_write
+  ADI 1
+  CPI 100
+  JPZ sh_wrap
+  STA .hist_write
+  JMP sh_after_idx
+sh_wrap:
+  LDI 0
+  STA .hist_write
+sh_after_idx:
+  ; Update count up to max 100
+  LDA .hist_count
+  CPI 100
+  JPZ sh_after_cnt
+  ADI 1
+  STA .hist_count
+sh_after_cnt:
+  ; Reset browsing
+  LDI 255
+  STA .hist_browse
+  RET

@@ -36,6 +36,7 @@ class Computer:
         """ Sets up control signals, microcode definitions and instruction
         definitions
         """
+        self._prev_debug_line = None
         # control signal definitions
         HLT = self.HLT = 0b10000000000000000000000000000000 # Halt
         MI  = self.MI  = 0b01000000000000000000000000000000 # Memory address in
@@ -73,7 +74,7 @@ class Computer:
                            RSA, LSA, DDI, DCI]
         self.microcode_labels = ["Halt", "M.Ad. in", "RAM in", "RAM out", "InstA O", "InstA I", "InstB O",
                                  "InstB I", "A in", "A out", "Sum out", "Sub", "B in",
-                                 "Disp. I", "Counter", "Cntr. O", "Jump", "Flg. in", "Jmp Cry",
+                                 "Outp. I", "Counter", "Cntr. O", "Jump", "Flg. in", "Jmp Cry",
                                  "Jmp 0", "Inpt. O", "OpT rst", "Inc stk", "Dec stk", "Stk O",
                                  "Shft A-", "Shft A+", "DispD I", "DispC I"]
         
@@ -142,27 +143,9 @@ class Computer:
                                 "LDD": 26,
                                 "OUT": 254,
                                 "HLT": 255,}
-
-    def assembler(self, progload):
-        """ Assembles a program file into values in memory for the computer to
-        run. See assembler docs for more info.
-
-        Arguments:
-        progload    -   filename to read program from, string
-        """
-        if not os.path.isfile(progload):
-            print("Enter a valid file to read the program from.")
-            raise IOError(f"Couldn't locate file: {progload}")
-
-        try:
-            with open(progload, "r") as infile:
-                lines = infile.readlines()
-        except Exception as e:
-            print("Assembler couldn't read file:")
-            raise e
-
-        print(f"Assembling: {progload}")
-
+    
+    @staticmethod
+    def assemble_lines(lines, memory, instruction_map):
         addresses = {}
         addresses_line = {}
         variables = {}
@@ -174,6 +157,9 @@ class Computer:
         print("First pass...")
         for i, line in enumerate(lines):
             line = line.split(";")[0]
+            if line.replace(" ", "") == "":
+                continue
+
             if line.startswith("  ") and line[2] != " " and line[2:] != "\n":
                 """ Instruction line """
                 instruction = line.strip().split(" ")
@@ -227,13 +213,13 @@ class Computer:
                         if '"' in value:
                             val_string = value.split('"')[1]
                             for i, item in enumerate(val_string):
-                                self.memory[memaddress + i] = ord(item)
+                                memory[memaddress + i] = ord(item)
                         elif "'" in value:
                             val_string = value.split("'")[1]
                             for i, item in enumerate(val_string):
-                                self.memory[memaddress + i] = ord(item)
+                                memory[memaddress + i] = ord(item)
                         else:
-                            self.memory[memaddress] = int(value)
+                            memory[memaddress] = int(value)
                     else:
                         """ Pointer variable """
                         line_ = line.strip().split("=")
@@ -264,7 +250,7 @@ class Computer:
             items = line[0]
             for item in items:
                 if item == items[0]: # item is instruction code
-                    mem_ins = self.instruction_map[str(item)]
+                    mem_ins = instruction_map[str(item)]
                     if 6 <= mem_ins <= 8 or 16 <= mem_ins <= 17:
                         # Jump instruction
                         jump = True
@@ -296,13 +282,37 @@ class Computer:
                                     val -= int(t2)
                         program[i][0][1] = str(val)
                         mem_ins = int(val)
-                self.memory[memaddress] = mem_ins
+                memory[memaddress] = mem_ins
                 memaddress += 1
             half_pct = min(int((i + 1)/len(program)*50), 50)
             print("[" + "#"*half_pct + " "*(50 - half_pct) + "]", end = "\r")
-        print("\nProgram assembled.")
 
-        print(f"{memaddress} bytes of memory used for program.")
+        print("\nProgram assembled.")
+        print(f"{memaddress} words of memory used for program.")
+
+        return program
+
+    def assembler(self, progload):
+        """ Assembles a program file into values in memory for the computer to
+        run. See assembler docs for more info.
+
+        Arguments:
+        progload    -   filename to read program from, string
+        """
+        if not os.path.isfile(progload):
+            print("Enter a valid file to read the program from.")
+            raise IOError(f"Couldn't locate file: {progload}")
+
+        try:
+            with open(progload, "r") as infile:
+                lines = infile.readlines()
+        except Exception as e:
+            print("Assembler couldn't read file:")
+            raise e
+
+        print(f"Assembling: {progload}")
+
+        program = self.assemble_lines(lines, self.memory, self.instruction_map)
         self.program = program
     
     def get_mem_strings(self, rows = 16, rowlength = 16, space = True, textlength = 2):
@@ -317,15 +327,18 @@ class Computer:
         """
         mem_strings = []
         for i in range(rows):
-            line = self.memory[i*rowlength:i*rowlength + rowlength]
             s = ""
-            for j, item in enumerate(line):
-                item = hex(item).replace("0x", "")
-                while len(item) < textlength:
-                    item = "0" + item
-                s += f"{item} "
-                if j == 7 and space:
-                    s += " "
+            try:
+                line = self.memory[i*rowlength:i*rowlength + rowlength]
+                for j, item in enumerate(line):
+                    item = hex(item).replace("0x", "")
+                    while len(item) < textlength:
+                        item = "0" + item
+                    s += f"{item} "
+                    if j == 7 and space:
+                        s += " "
+            except IndexError:
+                pass
 
             mem_strings.append(s)
         self.mem_strings = mem_strings
@@ -369,29 +382,28 @@ class Computer:
         a = int(self.areg)
         b = int(self.breg)
 
-        maximum = self.overflow_limit
+        maximum = self.overflow_limit  # typically 256 for 8-bit
+        mask = maximum - 1             # 0xFF for 8-bit
 
-        if self.controlword&self.SU:
-            self.sumreg = a + (maximum - b) # two's complement subtraction
-                                            # in order to set carry flag
-                                            # for subtractions where a >= b
+        if self.controlword & self.SU:
+            # Subtraction: A - B, carry = 1 when A >= B (no borrow)
+            diff = a - b
+            self.sumreg = diff & mask
+            self.carry = 1 if a >= b else 0
         else:
-            self.sumreg = a + b
+            # Addition: A + B, carry = 1 on overflow
+            s = a + b
+            self.sumreg = s & mask
+            self.carry = 1 if s >= maximum else 0
 
-        while self.sumreg >= maximum:
-            self.sumreg -= maximum
-            self.carry = 1
-        while self.sumreg < 0:
-            self.sumreg += maximum
-            self.carry = 1
-        if self.sumreg == 0:
-            self.zero = 1
+        self.zero = 1 if self.sumreg == 0 else 0
 
-        self.flags = 0b0
+        # Pack flags: bit1 = carry, bit0 = zero
+        self.flags = 0
         if self.carry:
-            self.flags = self.flags|0b10
+            self.flags |= 0b10
         if self.zero:
-            self.flags = self.flags|0b01
+            self.flags |= 0b01
 
     def update(self):
         """ Updates the value on the appropriate registers and bus.
@@ -399,16 +411,22 @@ class Computer:
         Any states that would update regardless of what the clock is doing
         should be updated here.
         """
-
         # get the appropriate control word based on the current instruction
         # and operation timestep
+        db_line = f"Start of: ProgCount={self.prog_count:>10d} | Mem={self.memory[self.prog_count]:>8d} | OpTimestep={self.op_timestep:>8d} | Bus={self.bus}"
+        if db_line != self._prev_debug_line:
+            print(db_line)
+        self._prev_debug_line = db_line
         if self.op_timestep == 0:
             operation = self.MI|self.CO
         elif self.op_timestep == 1:
             operation = self.RO|self.IAI|self.CE
         else:
             operation_ID = self.inst_reg_a
-            operations = self.assembly[operation_ID]
+            try:
+                operations = self.assembly[operation_ID]
+            except KeyError:
+                operations = [self.HLT]
             if self.op_timestep - 2 >= len(operations):
                 operation = 0
             else:
@@ -691,7 +709,7 @@ class Game:
     """ Main control class. Handles rendering, timing control and user input. """
     def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
                  draw_mem = False, draw_ops = False, progload = "program.txt",
-                 LCD_display = False):
+                 LCD_display = False, json_images = None):
         self._running = True
         self._screen = None
         self._width = 1600
@@ -704,6 +722,7 @@ class Game:
         self.use_LCD_display = LCD_display
         self.cpubits = 8
         self.stackbits = 4
+        self._json_images = json_images or []
 
         self.autorun = autorun
         self.target_FPS = target_FPS
@@ -738,10 +757,12 @@ class Game:
 
     def setup_fonts(self):
         pygame.font.init()
-        self._font_exobold = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 19)
-        self._font_exobold_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "ExoBold-qxl5.otf"), 13)
-        self._font_brush = pygame.font.Font(os.path.join(os.getcwd(), "font", "BrushSpidol.otf"), 25)
-        self._font_segmentdisplay = pygame.font.Font(os.path.join(os.getcwd(), "font", "28segment.ttf"), 80)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        fonts_dir = os.path.join(base_dir, "font")
+        self._font_exobold = pygame.font.Font(os.path.join(fonts_dir, "ExoBold-qxl5.otf"), 19)
+        self._font_exobold_small = pygame.font.Font(os.path.join(fonts_dir, "ExoBold-qxl5.otf"), 13)
+        self._font_brush = pygame.font.Font(os.path.join(fonts_dir, "BrushSpidol.otf"), 25)
+        self._font_segmentdisplay = pygame.font.Font(os.path.join(fonts_dir, "28segment.ttf"), 80)
         self._font_console_bold = pygame.font.SysFont("monospace", 17, bold = True)
         self._font_small_console = pygame.font.SysFont("monospace", 11)
         self._font_small_console_bold = pygame.font.SysFont("monospace", 11, bold = True, italic = True)
@@ -749,11 +770,11 @@ class Game:
         self._font_verysmall_console_bold = pygame.font.SysFont("monospace", 10, bold = True)
         self._font_veryverysmall_console = pygame.font.SysFont("monospace", 9)
         self._font_veryverysmall_console_bold = pygame.font.SysFont("monospace", 9, bold = True)
-        self._font_small = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 11)
-        self._font = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 16)
-        self._font_large = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 25)
-        self._font_larger = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 45)
-        self._font_verylarge = pygame.font.Font(os.path.join(os.getcwd(), "font", "Amble-Bold.ttf"), 64)
+        self._font_small = pygame.font.Font(os.path.join(fonts_dir, "Amble-Bold.ttf"), 11)
+        self._font = pygame.font.Font(os.path.join(fonts_dir, "Amble-Bold.ttf"), 16)
+        self._font_large = pygame.font.Font(os.path.join(fonts_dir, "Amble-Bold.ttf"), 25)
+        self._font_larger = pygame.font.Font(os.path.join(fonts_dir, "Amble-Bold.ttf"), 45)
+        self._font_verylarge = pygame.font.Font(os.path.join(fonts_dir, "Amble-Bold.ttf"), 64)
 
     def make_static_graphics(self):
         # Draw line connections
@@ -919,6 +940,26 @@ class Game:
         self._clock = pygame.time.Clock()
 
         self.computer = Computer(self.progload)
+
+        # Optionally load JSON memory images
+        if self._json_images:
+            import json as _json
+            for jf in self._json_images:
+                try:
+                    with open(jf, "r") as f:
+                        data = _json.load(f)
+                    limit = getattr(self.computer, "overflow_limit", 2**16)
+                    mask = limit - 1
+                    for name, mod in data.items():
+                        base = int(mod.get("base", 0))
+                        words = mod.get("words", [])
+                        for i, w in enumerate(words):
+                            addr = base + i
+                            if 0 <= addr < len(self.computer.memory):
+                                self.computer.memory[addr] = int(w) & mask
+                    print(f"Loaded JSON image: {jf}")
+                except Exception as e:
+                    print(f"Failed to load JSON image {jf}: {e}")
 
         self.bus_display = BitDisplay(cpos = (640, 50),
                                       font = self._font_exobold,
@@ -1150,25 +1191,25 @@ class Game:
             if event.key == pygame.K_KP_MINUS:
                 self.target_HZ = max(int(self.target_HZ/2), 1)
             if event.key == pygame.K_KP1:
-                self.target_HZ = int(target_fps/5)
+                self.target_HZ = int(self.target_FPS/5)
             elif event.key == pygame.K_KP2:
-                self.target_HZ = int(target_fps/4)
+                self.target_HZ = int(self.target_FPS/4)
             elif event.key == pygame.K_KP3:
-                self.target_HZ = int(target_fps/3)
+                self.target_HZ = int(self.target_FPS/3)
             elif event.key == pygame.K_KP4:
-                self.target_HZ = int(target_fps/2)
+                self.target_HZ = int(self.target_FPS/2)
             elif event.key == pygame.K_KP5:
-                self.target_HZ = int(target_fps)
+                self.target_HZ = int(self.target_FPS)
             elif event.key == pygame.K_KP6:
-                self.target_HZ = int(target_fps*2)
+                self.target_HZ = int(self.target_FPS*2)
             elif event.key == pygame.K_KP7:
-                self.target_HZ = int(target_fps*4)
+                self.target_HZ = int(self.target_FPS*4)
             elif event.key == pygame.K_KP8:
-                self.target_HZ = int(target_fps*10)
+                self.target_HZ = int(self.target_FPS*10)
             elif event.key == pygame.K_KP9:
-                self.target_HZ = int(target_fps*100)
+                self.target_HZ = int(self.target_FPS*100)
             elif event.key == pygame.K_KP0:
-                self.target_HZ = int(target_fps*100000)
+                self.target_HZ = int(self.target_FPS*100000)
 
             if not self.autorun:
                 if event.key == pygame.K_RETURN:
@@ -1379,7 +1420,7 @@ class Game:
                 for instruction, label in zip(self.computer.microcodes, self.computer.microcode_labels):
                     if instruction & operation:
                         s += f"{label:>8s} | "
-                self.arrow = self._font_small_console_bold.render("> " + "_"*(len(s) - 4), "True", self.DARKKGREEN)
+                self.arrow = self._font_small_console_bold.render("> " + "_"*(len(s) - 4), True, self.DARKKGREEN)
                 if i == self.computer.op_timestep:
                     self._screen.blit(self.arrow, (1170, 650 + i*15))
                 out_text = self._font_small_console.render(s[:-2], True, self.TEXTGREY)
@@ -1566,29 +1607,18 @@ class LCD_display:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        progload = str(sys.argv[1])
-    else:
-        progload = "program.txt"
+    import argparse, json
 
-    if len(sys.argv) > 2:
-        target_fps = int(sys.argv[2])
-    else:
-        target_fps = 50
+    parser = argparse.ArgumentParser(description="8-bit computer emulator")
+    parser.add_argument("program", nargs="?", default="program.txt", help="Program file to assemble and load")
+    parser.add_argument("--fps", type=int, default=50, help="Target frames per second")
+    parser.add_argument("--hz", type=int, default=25, help="Target clock frequency (Hz)")
+    parser.add_argument("--lcd", action="store_true", default=False, help="Enable LCD display panel")
+    parser.add_argument("--json", action="append", default=[], help="Path to JSON image to write into memory (can be repeated)")
+    args = parser.parse_args()
 
-    if len(sys.argv) > 3:
-        target_HZ = int(sys.argv[3])
-    else:
-        target_HZ = 25
+    game = Game(True, args.fps, args.hz, progload=args.program, LCD_display=args.lcd, json_images=args.json)
 
-    if len(sys.argv) > 4:
-        if sys.argv[4].lower() == "true":
-            lcd = True
-        else:
-            lcd = False
-    else:
-        lcd = False
-
-    game = Game(True, target_fps, target_HZ, progload = progload, LCD_display = lcd)
+    # Inject JSON images into memory if provided
     game.execute()
     
