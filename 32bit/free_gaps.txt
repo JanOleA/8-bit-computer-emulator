@@ -1,9 +1,9 @@
 ; Free gaps between modules (start,end,words)
-50056,50100,44 ; between multiply and divide
-50179,50200,21 ; between divide and dispnum
-50259,50300,41 ; between dispnum and list
-50439,50500,61 ; between list and peek
-50578,50600,22 ; between peek and poke
-50730,50800,70 ; between poke and primes
-50890,50900,10 ; between primes and puzzle
-51054,51100,46 ; between puzzle and shell
+20056,20100,44 ; between multiply and divide
+20179,20200,21 ; between divide and dispnum
+20259,20300,41 ; between dispnum and list
+20439,20500,61 ; between list and peek
+20578,20600,22 ; between peek and poke
+20730,20800,70 ; between poke and primes
+20890,20900,10 ; between primes and puzzle
+21054,21200,146 ; between puzzle and shell

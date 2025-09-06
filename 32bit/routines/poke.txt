@@ -1,6 +1,6 @@
 ;! name: POKE
 ;! entry: poke
-;! base: 50600
+;! base: 20600
 ;! deps:
 ;! abi: os
 ;! bss: none
@@ -94,4 +94,3 @@ pk_pval_done:
   DIC 128
   DIC 0
   RET
-

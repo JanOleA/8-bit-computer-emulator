@@ -1,6 +1,6 @@
 ;! name: MULTIPLY
 ;! entry: multiply
-;! base: 50000
+;! base: 20000
 ;! deps:
 ;! abi: os
 ;! bss: none
@@ -41,4 +41,3 @@ mult_zero:
   STA .res1
   LDA .res1
   RET
-

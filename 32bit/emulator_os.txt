@@ -32,10 +32,10 @@ input_buf = 4122            ; start of input buffer (80 bytes reserved)
 
 ; ----- Call stub for returning external commands -----
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
-CALL_STUB = 49800
-49800 = 16
-49801 = 51100
-49802 = 17
+CALL_STUB = 19800
+19800 = 16
+19801 = 21200
+19802 = 17
 
 ; ----- argv/argv buffer reservation -----
 argv_base = 4400            ; argv block base (argc + argv pointers)
@@ -47,34 +47,34 @@ work3 = 4012
 work4 = 4013         ; preserved entry base for handler lookup
 
 ; Program dispatch table (name[0..7], addr[8], reserved[9]) repeated; sentinel when name[0]==0
-prog_table = 4300
+prog_table = 10000
 ; Command/program table entries: name[0..7], addr[8], reserved[9]
 .prog_table + 0  = "MULTIPLY"
-.prog_table + 8 = 50000
+.prog_table + 8 = 20000
 .prog_table + 9 = 0
 .prog_table + 10  = "DIVIDE"
-.prog_table + 18 = 50100
+.prog_table + 18 = 20100
 .prog_table + 19 = 0
 .prog_table + 20  = "DISPNUM"
-.prog_table + 28 = 50200
+.prog_table + 28 = 20200
 .prog_table + 29 = 0
 .prog_table + 30  = "LIST"
-.prog_table + 38 = 50300
+.prog_table + 38 = 20300
 .prog_table + 39 = 0
 .prog_table + 40  = "PEEK"
-.prog_table + 48 = 50500
+.prog_table + 48 = 20500
 .prog_table + 49 = 0
 .prog_table + 50  = "POKE"
-.prog_table + 58 = 50600
+.prog_table + 58 = 20600
 .prog_table + 59 = 0
 .prog_table + 60  = "PRIMES"
-.prog_table + 68 = 50800
+.prog_table + 68 = 20800
 .prog_table + 69 = 0
 .prog_table + 70  = "PUZZLE"
-.prog_table + 78 = 50900
+.prog_table + 78 = 20900
 .prog_table + 79 = 0
 .prog_table + 80  = "SHELL"
-.prog_table + 88 = 51100
+.prog_table + 88 = 21200
 .prog_table + 89 = 0
 .prog_table + 90 = 0    ; sentinel
 
@@ -101,7 +101,7 @@ start:
   JSR print
   JSR newline
   JSR newline
-  JSR #49800
+  JSR #19800
 
 initialize_display: ; initializes the display
   DIS 1             ; 0000 0001 - clear display
@@ -386,12 +386,12 @@ dp_match:
   LAS                   ; A = handler address
   STA .res2
   ; Patch call stub operand to handler address
-  LDI 49801
+  LDI 19801
   PHA
   LDA .res2
   SAS
   ; Call the stub to JSR handler and then RET back to OS
-  JSR #49800
+  JSR #19800
   LDI 1
   STA .res1
   RET

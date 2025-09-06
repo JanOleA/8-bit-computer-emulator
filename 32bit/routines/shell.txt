@@ -1,6 +1,6 @@
 ;! name: SHELL
 ;! entry: start
-;! base: 51100
+;! base: 21200
 ;! deps:
 ;! abi: os
 ;! bss: none
@@ -9,7 +9,7 @@
 ; Pointers to OS memory/layout
 textloc = 4001
 ascii_start = 4008
-prog_table = 4300
+prog_table = 10000
 argv_base = 4400
 argv_buf  = 4500
 work1 = 4010
@@ -451,11 +451,11 @@ dp_match:
   PHA
   LAS
   STA .res2
-  LDI 49801
+  LDI 19801
   PHA
   LDA .res2
   SAS
-  JSR #49800
+  JSR #19800
   LDI 1
   STA .res1
   RET

@@ -1,6 +1,6 @@
 ;! name: DISPNUM
 ;! entry: display_number
-;! base: 50200
+;! base: 20200
 ;! deps: divide
 ;! abi: os
 ;! bss: none
@@ -42,4 +42,3 @@ print_stack:
   JMP print_stack
 dn_done:
   RET
-

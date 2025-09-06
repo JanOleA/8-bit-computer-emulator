@@ -1,6 +1,6 @@
 ;! name: PEEK
 ;! entry: peek
-;! base: 50500
+;! base: 20500
 ;! deps: display_number
 ;! abi: os
 ;! bss: none
@@ -63,4 +63,3 @@ pk_pn_done:
   DIC 0
 pk_end:
   RET
-

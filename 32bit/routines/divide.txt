@@ -1,6 +1,6 @@
 ;! name: DIVIDE
 ;! entry: divide
-;! base: 50100
+;! base: 20100
 ;! deps:
 ;! abi: os
 ;! bss: none
@@ -55,4 +55,3 @@ div_end:
   STA .res2
   LDA .res1
   RET
-

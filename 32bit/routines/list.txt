@@ -1,12 +1,12 @@
 ;! name: LIST
 ;! entry: list_commands
-;! base: 50300
+;! base: 20300
 ;! deps:
 ;! abi: os
 ;! bss: none
 ;! align: 100
 
-prog_table = 4300
+prog_table = 10000
 
 list_commands:
   LDI .prog_table
@@ -93,4 +93,3 @@ lc_end:
   DIC 0
 lc_done:
   RET
-

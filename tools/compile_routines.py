@@ -210,19 +210,70 @@ def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> boo
     # Replace block
     new_block = table_lines
     new_text = text[:start_idx] + new_block + text[end_idx + 1:]
-    # Patch CALL_STUB operand 49801 to SHELL base, if present
+    # Discover CALL_STUB base
+    call_stub_base = None
+    for ln in new_text:
+        s = ln.strip().replace(" ", "")
+        if s.startswith('CALL_STUB='):
+            try:
+                call_stub_base = int(s.split('=', 1)[1])
+            except Exception:
+                pass
+            break
+    # Patch CALL_STUB operand (CALL_STUB+1) to SHELL base, if present
     shell_base = None
     for k, v in data.items():
         if k.lower() == 'shell' or str(v.get('entry','')).lower() == 'start':
             shell_base = int(v.get('base', 0))
             break
-    if shell_base is not None:
+    if shell_base is not None and call_stub_base is not None:
         for i, ln in enumerate(new_text):
             s = ln.replace(" ", "")
-            if s.startswith("49801="):
-                new_text[i] = f"49801 = {shell_base}"
-            if ln.strip() == 'JMP start_shell':
-                new_text[i] = '  JSR #49800'
+            if s.startswith(f"{call_stub_base+1}="):
+                new_text[i] = f"{call_stub_base+1} = {shell_base}"
+            if ln.strip().startswith('JMP start_shell') or ln.strip().startswith('JSR #'):
+                new_text[i] = f'  JSR #{call_stub_base}'
+
+    # Fill OS API vector with label addresses (simple first pass label indexer)
+    # Build label->address mapping based on assembled instruction layout
+    addr = 0
+    labels: Dict[str, int] = {}
+    for ln in new_text:
+        line = ln.split(';')[0]
+        if line.replace(' ', '') == '':
+            continue
+        if line.startswith('  ') and (len(line) < 3 or line[2] != ' '):
+            parts = line.strip().split(' ')
+            if len(parts) > 2:
+                # normalize to at most 2 tokens
+                parts = [parts[0], ''.join(parts[1:])]
+            addr += len(parts)
+        elif not line.startswith(' '):
+            if ':' in line:
+                name = line.strip().split(':')[0]
+                labels[name] = addr
+
+    # Target API names in order
+    api_names = [
+        ('dispatch_program', 0),
+        ('build_argv', 1),
+        ('parse_number', 2),
+        ('skip_spaces', 3),
+        ('write_char', 4),
+        ('newline', 5),
+        ('ret_home', 6),
+        ('cursor_left', 7),
+        ('enter', 8),
+        ('print_prompt', 9),
+    ]
+    # Patch .os_api + idx lines
+    for i, ln in enumerate(new_text):
+        s = ln.strip().replace(' ', '')
+        for name, idx in api_names:
+            if s.startswith(f'.os_api+{idx}='):
+                val = labels.get(name)
+                if val is not None:
+                    new_text[i] = f'.os_api + {idx} = {val}'
     os_path.write_text("\n".join(new_text) + "\n")
     print(f"Applied program table to {os_path}")
     return True
@@ -232,7 +283,7 @@ def main(apply_table: bool = False):
     data: Dict[str, Dict] = {}
     known_symbols: Dict[str, int] = {}
     used_ranges: List[Tuple[int, int]] = []
-    base_cursor = 50000
+    base_cursor = 20000
 
     # Optionally scan 32bit/routines for extra modules
     routines_dir = Path(__file__).parent.parent / "32bit" / "routines"
@@ -324,8 +375,20 @@ def main(apply_table: bool = False):
     print(f"Wrote {out_path}")
 
     # Emit a handy program table overview to help update the OS dispatch table
+    # Read current prog_table base from OS file (fallback 4300)
+    pt_base = 4300
+    try:
+        os_text = (Path(__file__).parent.parent / "32bit" / "emulator_os.txt").read_text().splitlines()
+        for ln in os_text:
+            s = ln.strip().replace(" ", "")
+            if s.startswith("prog_table="):
+                pt_base = int(s.split("=", 1)[1])
+                break
+    except Exception:
+        pass
+
     table_lines = []
-    table_lines.append("prog_table = 4300")
+    table_lines.append(f"prog_table = {pt_base}")
     table_lines.append("; Command/program table entries: name[0..7], addr[8], reserved[9]")
     entries = [kv for kv in sorted(data.items(), key=lambda kv: int(kv[1].get("base", 0)))]
     for i, (name, mod) in enumerate(entries):

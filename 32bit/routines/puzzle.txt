@@ -1,6 +1,6 @@
 ;! name: PUZZLE
 ;! entry: main
-;! base: 50900
+;! base: 20900
 ;! deps: multiply, divide, display_number
 ;! abi: os
 ;! bss: none
