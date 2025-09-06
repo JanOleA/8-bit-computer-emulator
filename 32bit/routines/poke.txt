@@ -1,0 +1,97 @@
+;! name: POKE
+;! entry: poke
+;! base: 50600
+;! deps:
+;! abi: os
+;! bss: none
+;! align: 100
+
+argv_base = 4400
+
+poke:
+  ; argc >= 2?
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 2
+  JPC pk_ok
+  RET
+pk_ok:
+  ; parse address from argv[0] -> res1
+  LDI .argv_base
+  ADI 1
+  PHA
+  LAS
+  STA .res2
+  LDI 0
+  STA .res1
+pk_paddr:
+  LDA .res2
+  PHA
+  LAS
+  CPI 0
+  JPZ pk_paddr_done
+  CPI 32
+  JPZ pk_paddr_done
+  SUI 48
+  STA .char
+  LDA .res1
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .res1
+  LDA .res1
+  ADD .char
+  STA .res1
+  LDA .res2
+  ADI 1
+  STA .res2
+  JMP pk_paddr
+pk_paddr_done:
+  ; parse value from argv[1] -> arg1
+  LDI .argv_base
+  ADI 2
+  PHA
+  LAS
+  STA .res2
+  LDI 0
+  STA .arg1
+pk_pval:
+  LDA .res2
+  PHA
+  LAS
+  CPI 0
+  JPZ pk_pval_done
+  CPI 32
+  JPZ pk_pval_done
+  SUI 48
+  STA .char
+  LDA .arg1
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .arg1
+  LDA .arg1
+  ADD .char
+  STA .arg1
+  LDA .res2
+  ADI 1
+  STA .res2
+  JMP pk_pval
+pk_pval_done:
+  ; store: *addr = val
+  LDA .res1
+  PHA
+  LDA .arg1
+  SAS
+  ; newline on monitor
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+

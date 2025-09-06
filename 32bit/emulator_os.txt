@@ -15,6 +15,8 @@ text_su = 4052  ; 12 bytes
 space = 4064    ; 2 bytes
 ascii_map = 4066 ; 56 bytes
 
+input_buf = 4122            ; start of input buffer (80 bytes reserved)
+
 .text     = "  EmuOS alpha  "
 .text2    = "    Welcome!   "
 .text_su  = "Starting..."
@@ -32,7 +34,7 @@ ascii_map = 4066 ; 56 bytes
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
 CALL_STUB = 49800
 49800 = 16
-49801 = 0
+49801 = 51100
 49802 = 17
 
 ; ----- argv/argv buffer reservation -----
@@ -47,40 +49,34 @@ work4 = 4013         ; preserved entry base for handler lookup
 ; Program dispatch table (name[0..7], addr[8], reserved[9]) repeated; sentinel when name[0]==0
 prog_table = 4300
 ; Command/program table entries: name[0..7], addr[8], reserved[9]
-; Entry 0: MULTIPLY -> 50000
-.prog_table       = "MULTIPLY"
-.prog_table + 8   = 50000
-.prog_table + 9   = 0
-; Entry 1: DIVIDE   -> 50100
+.prog_table + 0  = "MULTIPLY"
+.prog_table + 8 = 50000
+.prog_table + 9 = 0
 .prog_table + 10  = "DIVIDE"
-.prog_table + 18  = 50100
-.prog_table + 19  = 0
-; Entry 2: DISPNUM  -> 50200 (display_number)
+.prog_table + 18 = 50100
+.prog_table + 19 = 0
 .prog_table + 20  = "DISPNUM"
-.prog_table + 28  = 50200
-.prog_table + 29  = 0
-; Entry 3: LIST     -> 50300
+.prog_table + 28 = 50200
+.prog_table + 29 = 0
 .prog_table + 30  = "LIST"
-.prog_table + 38  = 50300
-.prog_table + 39  = 0
-; Entry 4: PEEK     -> 50450
+.prog_table + 38 = 50300
+.prog_table + 39 = 0
 .prog_table + 40  = "PEEK"
-.prog_table + 48  = 50450
-.prog_table + 49  = 0
-; Entry 5: POKE     -> 50600
+.prog_table + 48 = 50500
+.prog_table + 49 = 0
 .prog_table + 50  = "POKE"
-.prog_table + 58  = 50600
-.prog_table + 59  = 0
-; Entry 6: PRIMES   -> 50800
+.prog_table + 58 = 50600
+.prog_table + 59 = 0
 .prog_table + 60  = "PRIMES"
-.prog_table + 68  = 50800
-.prog_table + 69  = 0
-; Entry 7: PUZZLE   -> 51000
+.prog_table + 68 = 50800
+.prog_table + 69 = 0
 .prog_table + 70  = "PUZZLE"
-.prog_table + 78  = 51000
-.prog_table + 79  = 0
-; Sentinel (name[0] == 0)
-.prog_table + 80  = 0
+.prog_table + 78 = 50900
+.prog_table + 79 = 0
+.prog_table + 80  = "SHELL"
+.prog_table + 88 = 51100
+.prog_table + 89 = 0
+.prog_table + 90 = 0    ; sentinel
 
 start:
   JSR initialize_display
@@ -88,6 +84,7 @@ start:
   STA .textloc
   JSR print
   JSR ret_home
+  LDI 0           ; set variables to zero
   STA .char
   STA .arg1
   STA .arg2
@@ -95,8 +92,6 @@ start:
   STA .res2
   STA .pow2
   STA .num_digits
-  LDI .input_buf           ; initialize input pointer to start of buffer (numeric address)
-  STA .input_ptr
   LDI 4020
   STA .textloc
   JSR print
@@ -106,32 +101,7 @@ start:
   JSR print
   JSR newline
   JSR newline
-  JMP start_shell
-
-check_input:        ; check for input
-  KEI
-  PHA               ; push input to stack
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  CPI 1             ; compare top bit to 1
-  JPZ input_entered
-  PLA
-  LDI 0
-  STA .res2
-  RET
-input_entered:
-  PLA
-  SUI 128
-  OUT
-  STA .res1
-  LDI 1
-  STA .res2
-  RET
+  JSR #49800
 
 initialize_display: ; initializes the display
   DIS 1             ; 0000 0001 - clear display
@@ -528,449 +498,4 @@ ba_term:
   ; continue with next token
   JMP ba_next_token
 ba_done:
-  RET
-
-
-
-
-; -----------------
-; Shell
-; -----------------
-
-; --- History state ---
-hist_head = 4014           ; next write index [0..hist_max)
-hist_count = 4015          ; number of stored entries (<= hist_max)
-hist_pos = 4016            ; browse offset: 0=blank, 1=last, ... hist_count=oldest
-hist_tmp1 = 4017           ; temp for history math
-hist_tmp2 = 4018           ; temp for history math
-; --- Input buffering for command parsing ---
-; Reserve a fixed input buffer BEFORE placing new variables.
-; Buffer occupies addresses 4122..4201 inclusive (80 bytes)
-input_buf = 4122            ; start of input buffer (80 bytes reserved)
-input_ptr = 4202            ; current write pointer (address stored here)
-cmd_len = 4203              ; current length of buffered input
-cmd_ready = 4204            ; 1 when Enter pressed and buffer terminated
-
-; --- History buffer config ---
-hist_base = 100000          ; start of history entries area
-hist_entry_len = 80         ; bytes per entry
-hist_max = 100              ; number of entries retained
-
-start_shell:
-  LDI 0           ; set variables to zero
-  STA .cmd_len
-  STA .cmd_ready
-  STA .hist_head
-  STA .hist_count
-  STA .hist_pos
-  JSR print_prompt
-  JMP main_loop
-
-main_loop:
-  JSR check_input
-  LDA .res2
-  CPI 0
-  JPZ no_input
-  LDA .no_input
-  CPI 1
-  JPZ main_loop 
-  LDA .res1 
-  CPI 31              ; Handle Enter key: trigger on key index 31 or 32
-  JPZ handle_enter
-  CPI 32
-  JPZ handle_enter
-  CPI 42              ; Up arrow key
-  JPZ handle_hist_up
-  CPI 53              ; Down arrow key
-  JPZ handle_hist_down
-  CPI 43              ; Backspace key
-  JPZ handle_backspace
-  LDA .ascii_start
-  ADD .res1
-  PHA
-  LAS
-  STA .char
-  JSR write_char
-  ; Store typed char into input buffer at [.input_ptr]
-  LDA .input_ptr           ; push destination address
-  PHA
-  LDA .char                ; value to store in A
-  SAS                      ; store A at address popped from stack
-
-  ; Advance pointer and update length (clamped)
-  LDA .input_ptr
-  ADI 1
-  STA .input_ptr
-  ; Clamp pointer to end of buffer (end = 4202); if equal, move back one
-  CPI 4202
-  JPZ clamp_ptr
-  JMP after_ptr
-clamp_ptr:
-  LDA .input_ptr
-  SUI 1
-  STA .input_ptr
-after_ptr:
-  LDA .cmd_len
-  ADI 1
-  STA .cmd_len
-  ; Clamp length to max buffer size (80); if equal, move back one
-  CPI 80
-  JPZ clamp_len
-  JMP after_len
-clamp_len:
-  LDA .cmd_len
-  SUI 1
-  STA .cmd_len
-after_len:
-  LDI 1
-  STA .no_input
-  JMP main_loop
-
-handle_hist_up:
-  JSR history_up
-  LDI 1
-  STA .no_input
-  JMP main_loop
-
-handle_hist_down:
-  JSR history_down
-  LDI 1
-  STA .no_input
-  JMP main_loop
-
-handle_backspace:
-  ; If at buffer start, do nothing
-  LDA .input_ptr
-  CPI .input_buf
-  JPZ hb_done
-  ; Move input pointer back by one
-  LDA .input_ptr
-  SUI 1
-  STA .input_ptr
-  ; Clear character in buffer (write 0 at new pointer)
-  LDA .input_ptr
-  PHA
-  LDI 0
-  SAS
-  ; Decrement length if > 0
-  LDA .cmd_len
-  CPI 0
-  JPZ hb_after_len
-  SUI 1
-  STA .cmd_len
-hb_after_len:
-  ; Visually erase last character on the display
-  JSR cursor_left
-  LDI 32            ; write space
-  STA .char
-  JSR write_char
-  JSR cursor_left
-hb_done:
-  LDI 1
-  STA .no_input
-  JMP main_loop
-
-handle_enter:         ; Finalize buffer, echo command, prepare for next input
-  ; Terminate buffer with null (0), set ready flag
-  LDA .input_ptr      ; push current pointer address
-  PHA
-  LDI 0
-  SAS                 ; write 0-terminator
-  LDI 1
-  STA .cmd_ready
-
-  ; Move cursor visually to next line start
-  JSR enter
-
-  ; Dispatch the typed command
-  JSR run_command
-
-  ; Save command to history
-  JSR save_history
-
-  ; Reset input pointer/length for next command
-  LDI .input_buf
-  STA .input_ptr
-  LDI 0
-  STA .cmd_len
-  ; Print prompt for next command line
-  JSR print_prompt
-  LDI 1
-  STA .no_input
-  JMP main_loop
-
-no_input:
-  LDI 0
-  STA .no_input
-  JMP main_loop
-
-
-clear_line:         ; clear current line and place prompt at start
-  JSR ret_home
-  LDI 40            ; columns
-  STA .num_digits   ; reuse as counter
-cl_loop:
-  LDI 32
-  STA .char
-  JSR write_char
-  LDA .num_digits
-  SUI 1
-  STA .num_digits
-  JPZ cl_done
-  JMP cl_loop
-cl_done:
-  JSR ret_home
-  JSR print_prompt
-  RET
-  
-print_prompt:
-  LDI 62            ; '>'
-  STA .char
-  JSR write_char
-  LDI 32            ; space
-  STA .char
-  JSR write_char
-  RET
-
-cursor_left:        ; move cursor one position left on the display
-  DIS 18            ; cursor left control
-  DIC 0
-  DIC 128           ; set enable
-  DIC 0
-  RET
-
-enter:              ; go to first character on the next line
-  JSR ret_home      ; ret_home puts cursor at column 0 on current line
-  JSR newline       ; newline moves to next line keeping column -> now at column 0 on next line
-  RET
-
-
-; --- Command history ---
-; Save current input buffer into history ring
-save_history:
-  ; if cmd_len == 0 -> return
-  LDA .cmd_len
-  CPI 0
-  JPZ sh_done
-  ; compute destination pointer: hist_base + hist_head*hist_entry_len (80)
-  LDA .hist_head
-  STA .hist_tmp1            ; idx
-  ; res2 = idx*80 = idx*64 + idx*16
-  LDA .hist_tmp1
-  LSA
-  LSA
-  LSA
-  LSA
-  STA .hist_tmp2            ; *16
-  LDA .hist_tmp1
-  LSA
-  LSA
-  LSA
-  LSA
-  LSA
-  LSA                       ; *64
-  ADD .hist_tmp2            ; *80
-  STA .res2
-  LDI .hist_base
-  ADD .res2
-  STA .arg2                 ; dest_ptr
-  ; copy up to 80 bytes from input_buf to history entry, pad with zeros
-  LDI .input_buf
-  STA .arg1                 ; src_ptr
-  LDI 0
-  STA .num_digits           ; count copied
-sh_copy:
-  ; if count == 80 -> pad done
-  LDA .num_digits
-  CPI 80
-  JPZ sh_pad_done
-  ; read src char
-  LDA .arg1
-  PHA
-  LAS
-  STA .char
-  CPI 0
-  JPZ sh_pad                ; if terminator, start padding
-  ; write char to dest
-  LDA .arg2
-  PHA
-  LDA .char
-  SAS
-  ; advance src/dest and count
-  LDA .arg1
-  ADI 1
-  STA .arg1
-  LDA .arg2
-  ADI 1
-  STA .arg2
-  LDA .num_digits
-  ADI 1
-  STA .num_digits
-  JMP sh_copy
-sh_pad:
-  ; write zeros until 80 bytes
-  LDA .arg2
-  PHA
-  LDI 0
-  SAS
-  LDA .arg2
-  ADI 1
-  STA .arg2
-  LDA .num_digits
-  ADI 1
-  STA .num_digits
-  JMP sh_copy
-sh_pad_done:
-  ; advance head = (head+1) % hist_max
-  LDA .hist_head
-  ADI 1
-  CPI .hist_max
-  JPZ sh_head_wrap
-  STA .hist_head
-  JMP sh_head_set
-sh_head_wrap:
-  LDI 0
-  STA .hist_head
-sh_head_set:
-  ; hist_count = min(hist_count+1, hist_max)
-  LDA .hist_count
-  ADI 1
-  CPI .hist_max
-  JPZ sh_cnt_cap
-  STA .hist_count
-  JMP sh_cnt_done
-sh_cnt_cap:
-  LDI .hist_max
-  STA .hist_count
-sh_cnt_done:
-  ; reset browse position to 0 (blank/new)
-  LDI 0
-  STA .hist_pos
-sh_done:
-  RET
-
-; Load history entry by current hist_pos into input line
-; hist_pos == 0 -> clear line to blank after prompt
-history_load_current:
-  ; clear line first and print prompt
-  JSR clear_line
-  ; reset input ptr/len
-  LDI .input_buf
-  STA .input_ptr
-  LDI 0
-  STA .cmd_len
-  ; if hist_pos == 0 -> done (blank line)
-  LDA .hist_pos
-  CPI 0
-  JPZ hlc_blank
-  ; compute physical index = (hist_head - hist_pos) modulo hist_max => in res1
-  LDA .hist_head
-  CMP .hist_pos
-  JPC hlc_nowrap
-  ; wrap: index = hist_head + hist_max - hist_pos
-  LDA .hist_head
-  ADI .hist_max
-  SUB .hist_pos
-  STA .res1
-  JMP hlc_idx_ready
-hlc_nowrap:
-  LDA .hist_head
-  SUB .hist_pos
-  STA .res1
-hlc_idx_ready:
-  ; res2 = index*80
-  LDA .res1
-  LSA
-  LSA
-  LSA
-  LSA
-  STA .hist_tmp1
-  LDA .res1
-  LSA
-  LSA
-  LSA
-  LSA
-  LSA
-  LSA
-  ADD .hist_tmp1
-  STA .res2
-  LDI .hist_base
-  ADD .res2
-  STA .arg1              ; src_ptr = entry start
-  ; copy chars until 0 or 80, display and buffer them
-  LDI 0
-  STA .num_digits        ; count
-hlc_copy:
-  LDA .num_digits
-  CPI 80
-  JPZ hlc_done
-  LDA .arg1
-  PHA
-  LAS
-  STA .char
-  CPI 0
-  JPZ hlc_done
-  ; display char
-  JSR write_char
-  ; write into input buffer at [.input_ptr]
-  LDA .input_ptr
-  PHA
-  LDA .char
-  SAS
-  ; advance pointers and counters
-  LDA .arg1
-  ADI 1
-  STA .arg1
-  LDA .input_ptr
-  ADI 1
-  STA .input_ptr
-  LDA .cmd_len
-  ADI 1
-  STA .cmd_len
-  LDA .num_digits
-  ADI 1
-  STA .num_digits
-  JMP hlc_copy
-hlc_done:
-  ; null-terminate at current input_ptr
-  LDA .input_ptr
-  PHA
-  LDI 0
-  SAS
-  RET
-hlc_blank:
-  ; ensure buffer is null-terminated at start
-  LDA .input_ptr
-  PHA
-  LDI 0
-  SAS
-  RET
-
-history_up:
-  ; if no history -> return
-  LDA .hist_count
-  CPI 0
-  JPZ hup_done
-  ; if hist_pos < hist_count -> hist_pos++
-  LDA .hist_pos
-  CMP .hist_count
-  JPC hup_load      ; A >= count -> no inc
-  LDA .hist_pos
-  ADI 1
-  STA .hist_pos
-hup_load:
-  JSR history_load_current
-hup_done:
-  RET
-
-history_down:
-  ; if hist_pos > 0 -> hist_pos--, else keep 0
-  LDA .hist_pos
-  CPI 0
-  JPZ hdn_load
-  LDA .hist_pos
-  SUI 1
-  STA .hist_pos
-hdn_load:
-  JSR history_load_current
   RET

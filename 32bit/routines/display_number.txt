@@ -1,0 +1,45 @@
+;! name: DISPNUM
+;! entry: display_number
+;! base: 50200
+;! deps: divide
+;! abi: os
+;! bss: none
+;! align: 100
+
+display_number:
+  LDI 0
+  STA .num_digits
+  LDA .arg1
+  CMP 0
+calc_next_val:
+  LDI 10
+  STA .arg2
+  JSR @divide
+  STA .arg1
+  LDA .res2
+  ADI 48
+  PHA
+  LDA .num_digits
+  ADI 1
+  STA .num_digits
+  LDA .arg1
+  CPI 0
+  JPZ print_stack
+  JMP calc_next_val
+print_stack:
+  PLA
+  STA .char
+  ; inline write_char
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  LDA .num_digits
+  SUI 1
+  STA .num_digits
+  JPZ dn_done
+  JMP print_stack
+dn_done:
+  RET
+

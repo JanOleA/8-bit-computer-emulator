@@ -1,0 +1,44 @@
+;! name: MULTIPLY
+;! entry: multiply
+;! base: 50000
+;! deps:
+;! abi: os
+;! bss: none
+;! align: 100
+
+multiply:
+  LDA .arg1
+  CPI 0
+  JPZ mult_zero
+  LDA .arg2
+  CPI 0
+  JPZ mult_zero
+  LDA .arg1
+  CMP .arg2
+  JPC mult_begin
+  PHA
+  LDA .arg2
+  STA .arg1
+  PLA
+  STA .arg2
+  LDA .arg1
+mult_begin:
+  STA .res1
+mult_loop:
+  LDA .arg2
+  SUI 1
+  JPZ mult_end
+  STA .arg2
+  LDA .res1
+  ADD .arg1
+  STA .res1
+  JMP mult_loop
+mult_end:
+  LDA .res1
+  RET
+mult_zero:
+  LDI 0
+  STA .res1
+  LDA .res1
+  RET
+

@@ -5,6 +5,12 @@ import sys
 import pygame
 from pygame.locals import *
 from pygame import gfxdraw
+# Optional lightweight assembler core for building instruction map and assembling
+try:
+    from tools.assembler_core import build_instruction_map as _build_instruction_map, assemble_lines as _assemble_lines
+except Exception:
+    _build_instruction_map = None
+    _assemble_lines = None
 import numpy as np
 
 
@@ -114,7 +120,11 @@ class Computer:
         self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT   254     display the value from A on the output display
         self.assembly[0b11111111] = [HLT]                                                                                   # HLT   255     halt operation
 
-        self.instruction_map = {"NOP": 0,
+        # Instruction opcode map
+        if _build_instruction_map is not None:
+            self.instruction_map = _build_instruction_map()
+        else:
+            self.instruction_map = {"NOP": 0,
                                 "LDA": 1,
                                 "ADD": 2,
                                 "SUB": 3,
@@ -146,151 +156,9 @@ class Computer:
     
     @staticmethod
     def assemble_lines(lines, memory, instruction_map):
-        addresses = {}
-        addresses_line = {}
-        variables = {}
-        program = []
-
-        address = 0
-        progline = 0
-        s = ""
-        print("First pass...")
-        for i, line in enumerate(lines):
-            line = line.split(";")[0]
-            if line.replace(" ", "") == "":
-                continue
-
-            if line.startswith("  ") and line[2] != " " and line[2:] != "\n":
-                """ Instruction line """
-                instruction = line.strip().split(" ")
-                if len(instruction) > 2:
-                    operand = "".join(instruction[1:])
-                    instruction[1] = operand
-                    instruction = instruction[:2]
-
-                program.append([instruction, address - progline])
-                print(len(s)*" ", end = "\r")
-                s = f"{instruction[0]} in address {address}"
-                print(s, end = "\r")
-                for item in instruction:
-                    address += 1
-                progline += 1
-            elif not line.startswith(" "):
-                if "=" in line:
-                    var = False
-                    try:
-                        if line[0] == ".":
-                            var = True
-                        elif int(line[0]) in range(0, 10):
-                            var = True
-                    except ValueError:
-                        pass
-
-                    if var:
-                        """ Variable """
-                        line_ = line.strip().split("=")
-                        memaddress = line_[0].strip()
-                        memaddress = memaddress.replace(" ", "")
-                        value = line_[1].strip()
-                        terms_pos = memaddress.split("+")
-                        val = 0
-                        for t1 in terms_pos:
-                            terms_neg = t1.split("-")
-                            pos_val = terms_neg[0]
-                            if pos_val[0] == ".":
-                                """ Pointer variable """
-                                val += variables[pos_val[1:]]
-                            else:
-                                val += int(pos_val)
-                            for t2 in terms_neg[1:]:
-                                if t2[0] == ".":
-                                    """ Pointer variable """
-                                    val -= variables[t2[1:]]
-                                else:
-                                    val -= int(t2)
-                        memaddress = val
-
-                        if '"' in value:
-                            val_string = value.split('"')[1]
-                            for i, item in enumerate(val_string):
-                                memory[memaddress + i] = ord(item)
-                        elif "'" in value:
-                            val_string = value.split("'")[1]
-                            for i, item in enumerate(val_string):
-                                memory[memaddress + i] = ord(item)
-                        else:
-                            memory[memaddress] = int(value)
-                    else:
-                        """ Pointer variable """
-                        line_ = line.strip().split("=")
-                        varname = line_[0].strip()
-                        if line_[1].strip()[0] == ".":
-                            varvalue = variables[line_[1].strip()[1:]]
-                        else:
-                            varvalue = int(line_[1].strip())
-                        variables[varname] = varvalue
-                        print(len(s)*" ", end = "\r")
-                        s = f"Pointer variable {varname:>20s} = {varvalue:>5d}"
-                        print(s)
-                elif ":" in line:
-                    """ Labels """
-                    address_name = line.strip().split(":")[0]
-                    addresses[address_name] = address
-                    addresses_line[address] = progline
-                    print(len(s)*" ", end = "\r")
-                    s = f"label {address_name:>20s} | address {address:>5d} | progline {progline:>5d}"
-                    print(s)
-
-        print(len(s)*" ", end = "\r")
-        print("Second pass...")
-        print("[" + " "*50 + "]", end = "\r")
-        memaddress = 0
-        for i, line in enumerate(program):
-            jump = False
-            items = line[0]
-            for item in items:
-                if item == items[0]: # item is instruction code
-                    mem_ins = instruction_map[str(item)]
-                    if 6 <= mem_ins <= 8 or 16 <= mem_ins <= 17:
-                        # Jump instruction
-                        jump = True
-                else:                # item is operand
-                    if jump:
-                        if item[0] == "#":
-                            address = item[1:]
-                            program[i][0][1] = item[1:]
-                        else:
-                            address = addresses[item]
-                            program[i][0][1] = str(addresses_line[addresses[item]])
-                        mem_ins = int(address)
-                    else:
-                        terms_pos = item.split("+")
-                        val = 0
-                        for t1 in terms_pos:
-                            terms_neg = t1.split("-")
-                            pos_val = terms_neg[0]
-                            if pos_val[0] == ".":
-                                """ Pointer variable """
-                                val += variables[pos_val[1:]]
-                            else:
-                                val += int(pos_val)
-                            for t2 in terms_neg[1:]:
-                                if t2[0] == ".":
-                                    """ Pointer variable """
-                                    val -= variables[t2[1:]]
-                                else:
-                                    val -= int(t2)
-                        program[i][0][1] = str(val)
-                        mem_ins = int(val)
-                memory[memaddress] = mem_ins
-                memaddress += 1
-            half_pct = min(int((i + 1)/len(program)*50), 50)
-            print("[" + "#"*half_pct + " "*(50 - half_pct) + "]", end = "\r")
-
-        print("\nProgram assembled.")
-        print(f"{memaddress} words of memory used for program.")
-
-        return program
+        if _assemble_lines is None:
+            raise RuntimeError("assembler_core not available")
+        return _assemble_lines(lines, memory, instruction_map)
 
     def assembler(self, progload):
         """ Assembles a program file into values in memory for the computer to

@@ -1,0 +1,747 @@
+;! name: SHELL
+;! entry: start
+;! base: 51100
+;! deps:
+;! abi: os
+;! bss: none
+;! align: 100
+
+; Pointers to OS memory/layout
+textloc = 4001
+ascii_start = 4008
+prog_table = 4300
+argv_base = 4400
+argv_buf  = 4500
+work1 = 4010
+work2 = 4011
+work3 = 4012
+work4 = 4013
+
+; Input buffering and history
+input_buf   = 4122
+input_ptr   = 4202
+cmd_len     = 4203
+cmd_ready   = 4204
+no_input    = 4009
+hist_head   = 4014
+hist_count  = 4015
+hist_pos    = 4016
+hist_tmp1   = 4017
+hist_tmp2   = 4018
+hist_base   = 100000
+hist_entry_len = 80
+hist_max    = 100
+
+start:
+  ; initialize shell state
+  LDI 0
+  STA .cmd_len
+  STA .cmd_ready
+  STA .hist_head
+  STA .hist_count
+  STA .hist_pos
+  LDI .input_buf
+  STA .input_ptr
+  JSR print_prompt
+  JMP main_loop
+
+; --- Main loop ---
+main_loop:
+  JSR check_input
+  LDA .res2
+  CPI 0
+  JPZ no_input
+  LDA .no_input
+  CPI 1
+  JPZ main_loop
+  LDA .res1
+  CPI 31
+  JPZ handle_enter
+  CPI 32
+  JPZ handle_enter
+  CPI 42
+  JPZ handle_hist_up
+  CPI 53
+  JPZ handle_hist_down
+  CPI 43
+  JPZ handle_backspace
+  LDA .ascii_start
+  ADD .res1
+  PHA
+  LAS
+  STA .char
+  JSR write_char
+  ; buffer char
+  LDA .input_ptr
+  PHA
+  LDA .char
+  SAS
+  ; advance ptr and len with clamps
+  LDA .input_ptr
+  ADI 1
+  STA .input_ptr
+  CPI 4202
+  JPZ clamp_ptr
+  JMP after_ptr
+clamp_ptr:
+  LDA .input_ptr
+  SUI 1
+  STA .input_ptr
+after_ptr:
+  LDA .cmd_len
+  ADI 1
+  STA .cmd_len
+  CPI 80
+  JPZ clamp_len
+  JMP after_len
+clamp_len:
+  LDA .cmd_len
+  SUI 1
+  STA .cmd_len
+after_len:
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+no_input:
+  LDI 0
+  STA .no_input
+  JMP main_loop
+
+check_input:
+  KEI
+  PHA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 1
+  JPZ input_entered
+  PLA
+  LDI 0
+  STA .res2
+  RET
+input_entered:
+  PLA
+  SUI 128
+  OUT
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+
+handle_hist_up:
+  JSR history_up
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+handle_hist_down:
+  JSR history_down
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+handle_backspace:
+  LDA .input_ptr
+  CPI .input_buf
+  JPZ hb_done
+  LDA .input_ptr
+  SUI 1
+  STA .input_ptr
+  LDA .input_ptr
+  PHA
+  LDI 0
+  SAS
+  LDA .cmd_len
+  CPI 0
+  JPZ hb_after_len
+  SUI 1
+  STA .cmd_len
+hb_after_len:
+  JSR cursor_left
+  LDI 32
+  STA .char
+  JSR write_char
+  JSR cursor_left
+hb_done:
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+handle_enter:
+  ; terminate buffer, set ready
+  LDA .input_ptr
+  PHA
+  LDI 0
+  SAS
+  LDI 1
+  STA .cmd_ready
+  ; newline
+  JSR enter
+  ; run command
+  JSR run_command
+  ; save to history
+  JSR save_history
+  ; reset buffer
+  LDI .input_buf
+  STA .input_ptr
+  LDI 0
+  STA .cmd_len
+  ; prompt
+  JSR print_prompt
+  LDI 1
+  STA .no_input
+  JMP main_loop
+
+; --- UI helpers ---
+write_char:
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+
+ret_home:
+  JSR newline
+  DIS 24
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+
+instruction:
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+
+print_prompt:
+  LDI 62
+  STA .char
+  JSR write_char
+  LDI 32
+  STA .char
+  JSR write_char
+  RET
+
+cursor_left:
+  DIS 18
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+
+enter:
+  JSR ret_home
+  JSR newline
+  RET
+
+clear_line:
+  JSR ret_home
+  LDI 40
+  STA .num_digits
+cl_loop:
+  LDI 32
+  STA .char
+  JSR write_char
+  LDA .num_digits
+  SUI 1
+  STA .num_digits
+  JPZ cl_done
+  JMP cl_loop
+cl_done:
+  JSR ret_home
+  JSR print_prompt
+  RET
+
+; --- Command parsing ---
+run_command:
+  LDI .input_buf
+  STA .arg1
+  JSR skip_spaces
+  JSR dispatch_program
+  LDA .res1
+  CPI 1
+  JPZ rc_done
+  ; Fallback: RUN <addr>
+  LDA .arg1
+  PHA
+  LAS
+  CPI 82
+  JPZ rc_ch1
+  RET
+rc_ch1:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 85
+  JPZ rc_ch2
+  RET
+rc_ch2:
+  LDA .arg1
+  ADI 2
+  PHA
+  LAS
+  CPI 78
+  JPZ rc_delim
+  RET
+rc_delim:
+  LDA .arg1
+  ADI 3
+  STA .arg1
+  JSR parse_number
+  LDA .res1
+  PHA
+  RET
+rc_done:
+  RET
+
+skip_spaces:
+  LDA .arg1
+  PHA
+  LAS
+  CPI 32
+  JPZ sksp_inc
+  RET
+sksp_inc:
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP skip_spaces
+
+parse_number:
+  LDI 0
+  STA .res1
+  JSR skip_spaces
+pn_loop:
+  LDA .arg1
+  PHA
+  LAS
+  CPI 48
+  JPC pn_check_hi
+  JMP pn_done
+pn_check_hi:
+  CPI 58
+  JPC pn_done
+  SUI 48
+  STA .char
+  LDA .res1
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .res1
+  LDA .res1
+  ADD .char
+  STA .res1
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP pn_loop
+pn_done:
+  RET
+
+dispatch_program:
+  LDI 0
+  STA .res1
+  LDA .arg1
+  STA .textloc
+  LDI .prog_table
+  STA .arg2
+dp_entry:
+  LDA .arg2
+  PHA
+  LAS
+  CPI 0
+  JPZ dp_nomatch
+  LDA .arg2
+  STA .res2
+  LDA .textloc
+  STA .pow2
+  LDI 8
+  STA .num_digits
+dp_cmp_loop:
+  LDA .pow2
+  PHA
+  LAS
+  STA .char
+  LDA .res2
+  PHA
+  LAS
+  STA .no_input
+  LDA .no_input
+  CPI 0
+  JPZ dp_ct_zero
+  LDA .char
+  CPI 0
+  JPZ dp_cmp_mismatch
+  CPI 32
+  JPZ dp_cmp_mismatch
+  LDA .char
+  SUB .no_input
+  JPZ dp_equal
+  JMP dp_cmp_mismatch
+dp_ct_zero:
+  LDA .char
+  CPI 0
+  JPZ dp_match
+  CPI 32
+  JPZ dp_match
+  JMP dp_cmp_mismatch
+dp_equal:
+  LDA .pow2
+  ADI 1
+  STA .pow2
+  LDA .res2
+  ADI 1
+  STA .res2
+  LDA .num_digits
+  SUI 1
+  STA .num_digits
+  JPZ dp_post8
+  JMP dp_cmp_loop
+dp_post8:
+  LDA .res2
+  PHA
+  LAS
+  CPI 0
+  JPZ dp_ct_zero2
+  JMP dp_cmp_mismatch
+dp_ct_zero2:
+  LDA .pow2
+  PHA
+  LAS
+  CPI 0
+  JPZ dp_match
+  CPI 32
+  JPZ dp_match
+  JMP dp_cmp_mismatch
+dp_cmp_mismatch:
+  LDA .arg2
+  ADI 10
+  STA .arg2
+  JMP dp_entry
+dp_match:
+  LDA .arg2
+  STA .work4
+  LDA .pow2
+  STA .arg1
+  JSR skip_spaces
+  JSR build_argv
+  LDI .argv_base
+  STA .arg1
+  LDI .argv_buf
+  STA .arg2
+  LDA .work4
+  ADI 8
+  PHA
+  LAS
+  STA .res2
+  LDI 49801
+  PHA
+  LDA .res2
+  SAS
+  JSR #49800
+  LDI 1
+  STA .res1
+  RET
+dp_nomatch:
+  LDI 0
+  STA .res1
+  RET
+
+; Build argc/argv from the raw argument string at .arg1
+build_argv:
+  LDI .argv_base
+  PHA
+  LDI 0
+  SAS
+  LDI .argv_base
+  ADI 1
+  STA .work1
+  LDI .argv_buf
+  STA .work2
+  LDA .arg1
+  STA .work3
+ba_next_token:
+  LDA .work3
+  PHA
+  LAS
+  CPI 32
+  JPZ ba_skip1
+  CPI 0
+  JPZ ba_done
+  JMP ba_start
+ba_skip1:
+  LDA .work3
+  ADI 1
+  STA .work3
+  JMP ba_next_token
+ba_start:
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 8
+  JPZ ba_done
+  LDA .work1
+  PHA
+  LDA .work2
+  SAS
+ba_copy:
+  LDA .work3
+  PHA
+  LAS
+  CPI 0
+  JPZ ba_term
+  CPI 32
+  JPZ ba_term
+  STA .char
+  LDA .work2
+  PHA
+  LDA .char
+  SAS
+  LDA .work3
+  ADI 1
+  STA .work3
+  LDA .work2
+  ADI 1
+  STA .work2
+  JMP ba_copy
+ba_term:
+  LDA .work2
+  PHA
+  LDI 0
+  SAS
+  LDA .work2
+  ADI 1
+  STA .work2
+  LDI .argv_base
+  PHA
+  LAS
+  ADI 1
+  STA .num_digits
+  LDI .argv_base
+  PHA
+  LDA .num_digits
+  SAS
+  LDA .work1
+  ADI 1
+  STA .work1
+  JMP ba_next_token
+ba_done:
+  RET
+
+; --- History ---
+save_history:
+  LDA .cmd_len
+  CPI 0
+  JPZ sh_done
+  ; compute dest = hist_base + hist_head*80
+  LDA .hist_head
+  STA .hist_tmp1
+  LDA .hist_tmp1
+  LSA
+  LSA
+  LSA
+  LSA
+  STA .hist_tmp2
+  LDA .hist_tmp1
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  ADD .hist_tmp2
+  STA .res2
+  LDI .hist_base
+  ADD .res2
+  STA .arg2
+  LDI .input_buf
+  STA .arg1
+  LDI 0
+  STA .num_digits
+sh_copy:
+  LDA .num_digits
+  CPI 80
+  JPZ sh_pad_done
+  LDA .arg1
+  PHA
+  LAS
+  STA .char
+  CPI 0
+  JPZ sh_pad
+  LDA .arg2
+  PHA
+  LDA .char
+  SAS
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  LDA .arg2
+  ADI 1
+  STA .arg2
+  LDA .num_digits
+  ADI 1
+  STA .num_digits
+  JMP sh_copy
+sh_pad:
+  LDA .arg2
+  PHA
+  LDI 0
+  SAS
+  LDA .arg2
+  ADI 1
+  STA .arg2
+  LDA .num_digits
+  ADI 1
+  STA .num_digits
+  JMP sh_copy
+sh_pad_done:
+  LDA .hist_head
+  ADI 1
+  CPI .hist_max
+  JPZ sh_head_wrap
+  STA .hist_head
+  JMP sh_head_set
+sh_head_wrap:
+  LDI 0
+  STA .hist_head
+sh_head_set:
+  LDA .hist_count
+  ADI 1
+  CPI .hist_max
+  JPZ sh_cnt_cap
+  STA .hist_count
+  JMP sh_cnt_done
+sh_cnt_cap:
+  LDI .hist_max
+  STA .hist_count
+sh_cnt_done:
+  LDI 0
+  STA .hist_pos
+sh_done:
+  RET
+
+history_load_current:
+  JSR clear_line
+  LDI .input_buf
+  STA .input_ptr
+  LDI 0
+  STA .cmd_len
+  LDA .hist_pos
+  CPI 0
+  JPZ hlc_blank
+  LDA .hist_head
+  CMP .hist_pos
+  JPC hlc_nowrap
+  LDA .hist_head
+  ADI .hist_max
+  SUB .hist_pos
+  STA .res1
+  JMP hlc_idx_ready
+hlc_nowrap:
+  LDA .hist_head
+  SUB .hist_pos
+  STA .res1
+hlc_idx_ready:
+  LDA .res1
+  LSA
+  LSA
+  LSA
+  LSA
+  STA .hist_tmp1
+  LDA .res1
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  ADD .hist_tmp1
+  STA .res2
+  LDI .hist_base
+  ADD .res2
+  STA .arg1
+  LDI 0
+  STA .num_digits
+hlc_copy:
+  LDA .num_digits
+  CPI 80
+  JPZ hlc_done
+  LDA .arg1
+  PHA
+  LAS
+  STA .char
+  CPI 0
+  JPZ hlc_done
+  JSR write_char
+  LDA .input_ptr
+  PHA
+  LDA .char
+  SAS
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  LDA .input_ptr
+  ADI 1
+  STA .input_ptr
+  LDA .cmd_len
+  ADI 1
+  STA .cmd_len
+  LDA .num_digits
+  ADI 1
+  STA .num_digits
+  JMP hlc_copy
+hlc_done:
+  LDA .input_ptr
+  PHA
+  LDI 0
+  SAS
+  RET
+hlc_blank:
+  LDA .input_ptr
+  PHA
+  LDI 0
+  SAS
+  RET
+
+history_up:
+  LDA .hist_count
+  CPI 0
+  JPZ hup_done
+  LDA .hist_pos
+  CMP .hist_count
+  JPC hup_load
+  LDA .hist_pos
+  ADI 1
+  STA .hist_pos
+hup_load:
+  JSR history_load_current
+hup_done:
+  RET
+
+history_down:
+  LDA .hist_pos
+  CPI 0
+  JPZ hdn_load
+  LDA .hist_pos
+  SUI 1
+  STA .hist_pos
+hdn_load:
+  JSR history_load_current
+  RET

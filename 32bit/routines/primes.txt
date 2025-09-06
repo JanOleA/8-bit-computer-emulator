@@ -1,0 +1,73 @@
+;! name: PRIMES
+;! entry: main
+;! base: 50800
+;! deps: divide, display_number
+;! abi: os
+;! bss: none
+;! align: 100
+
+check_value = 120010
+loop_index  = 120011
+half_check  = 120012
+
+main:
+  ; print 2
+  LDI 2
+  STA .arg1
+  JSR @display_number
+  ; newline
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  ; start from 3
+  LDI 3
+  STA .check_value
+main_loop:
+  LDA .check_value
+  CPI 301
+  JPC done
+  JSR check_prime_os
+  LDA .check_value
+  ADI 2
+  STA .check_value
+  JMP main_loop
+done:
+  RET
+
+; check if .check_value is prime; prints it if it is
+check_prime_os:
+  LDA .check_value
+  RSA
+  STA .half_check
+  LDI 3
+  STA .loop_index
+prime_loop_os:
+  LDA .loop_index
+  CMP .half_check
+  JPC prime_os
+  ; divide check_value by loop_index
+  LDA .check_value
+  STA .arg1
+  LDA .loop_index
+  STA .arg2
+  JSR @divide
+  LDA .res2
+  CPI 0
+  JPZ not_prime_os
+  LDA .loop_index
+  ADI 2
+  STA .loop_index
+  JMP prime_loop_os
+not_prime_os:
+  RET
+prime_os:
+  ; print the prime then newline
+  LDA .check_value
+  STA .arg1
+  JSR @display_number
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
