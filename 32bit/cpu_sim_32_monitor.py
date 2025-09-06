@@ -424,7 +424,9 @@ class Game_32(Game):
 
         """ Draw the operations included in the current instruction """
         if self.draw_ops:
-            self._screen.blit(self.microins_title, (1180, 620))
+            x = 1360
+            y = 860
+            self._screen.blit(self.microins_title, (x, y))
             if self.computer.op_timestep >= 2:
                 self.op_address_draw = self.computer.inst_reg_a
             operations = self.computer.assembly[self.op_address_draw].copy()
@@ -439,9 +441,9 @@ class Game_32(Game):
                         s += f"{label:>8s} | "
                 self.arrow = self._font_small_console_bold.render("> " + "_"*(len(s) - 4), "True", self.DARKKGREEN)
                 if i == self.computer.op_timestep:
-                    self._screen.blit(self.arrow, (1170, 650 + i*15))
+                    self._screen.blit(self.arrow, (x - 10, y + 30 + i*15))
                 out_text = self._font_small_console.render(s[:-2], True, self.TEXTGREY)
-                self._screen.blit(out_text, (1180, 650 + i*15))
+                self._screen.blit(out_text, (x, y + 30 + i*15))
 
         self._text_cycles_ran = self._font.render(f"Clock cycles ran: {self.computer.clockcycles_ran:>10d}", True, self.TEXTGREY)
 

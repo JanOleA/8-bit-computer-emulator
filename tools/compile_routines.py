@@ -30,12 +30,19 @@ def relocate_jumps_in_place(code_words, program, instruction_map, base_addr,
         J_OPS.add(instruction_map["JSR"])
 
     idx = 0
+    code_len = len(code_words)
     for ins in program:
         mnemonic = ins[0][0]
         opcode = instruction_map[mnemonic]
         if len(ins[0]) > 1:
             if opcode in J_OPS:
-                code_words[idx + 1] = int(code_words[idx + 1]) + int(base_addr)
+                # For JSR, only relocate if operand targets inside this module
+                if relocate_jsr and opcode == instruction_map["JSR"]:
+                    operand = int(code_words[idx + 1])
+                    if operand < code_len:
+                        code_words[idx + 1] = operand + int(base_addr)
+                else:
+                    code_words[idx + 1] = int(code_words[idx + 1]) + int(base_addr)
             idx += 2
         else:
             idx += 1
@@ -60,6 +67,8 @@ def main():
     LIST_BASE = 50300
     PEEK_BASE = 50450
     POKE_BASE = 50600
+    PRIMES_BASE = 50800
+    PUZZLE_BASE = 51000
 
     multiply_lines = vars_header + [
         "multiply:",
@@ -437,6 +446,192 @@ def main():
         "  RET",
     ]
 
+    # PRIMES using OS divide/display_number
+    primes_vars = [
+        "check_value = 60005",
+        "loop_index = 60006",
+        "half_check = 60007",
+    ]
+    primes_lines = vars_header + primes_vars + [
+        "start:",
+        # print 2 via OS display_number
+        "  LDI 2",
+        "  STA .arg1",
+        f"  JSR #{DISPLAY_NUMBER_BASE}",
+        # newline
+        "  DIS 32",
+        "  DIC 0",
+        "  DIC 128",
+        "  DIC 0",
+        # start from 3
+        "  LDI 3",
+        "  STA .check_value",
+        "main_loop:",
+        "  LDA .check_value",
+        "  CPI 301",
+        "  JPC done",
+        "  JSR check_prime_os",
+        "  LDA .check_value",
+        "  ADI 2",
+        "  STA .check_value",
+        "  JMP main_loop",
+        "done:",
+        "  RET",
+        # check if .check_value is prime; prints it if it is
+        "check_prime_os:",
+        "  LDA .check_value",
+        "  RSA",
+        "  STA .half_check",
+        "  LDI 3",
+        "  STA .loop_index",
+        "prime_loop_os:",
+        "  LDA .loop_index",
+        "  CMP .half_check",
+        "  JPC prime_os",
+        # set OS divide args and call
+        "  LDA .check_value",
+        "  STA .arg1",
+        "  LDA .loop_index",
+        "  STA .arg2",
+        f"  JSR #{DIVIDE_BASE}",
+        "  LDA .res2",
+        "  CPI 0",
+        "  JPZ not_prime_os",
+        "  LDA .loop_index",
+        "  ADI 2",
+        "  STA .loop_index",
+        "  JMP prime_loop_os",
+        "not_prime_os:",
+        "  RET",
+        "prime_os:",
+        # print the prime via OS display_number, then newline
+        "  LDA .check_value",
+        "  STA .arg1",
+        f"  JSR #{DISPLAY_NUMBER_BASE}",
+        "  DIS 32",
+        "  DIC 0",
+        "  DIC 128",
+        "  DIC 0",
+        "  RET",
+    ]
+
+    # PUZZLE: Matt Parker-style puzzle using OS divide/multiply
+    # Finds positions where (sum of prime squares) % (#primes) == 0
+    # Reuses OS ABI and calls the OS MULTIPLY and DIVIDE routines.
+    puzzle_vars = [
+        "check_value = 60010",
+        "loop_index = 60011",
+        "half_check = 60012",
+        "square_val = 60013",
+        "square_result = 60014",
+        "square_sum = 60015",
+        "num_primes = 60016",
+        "finds = 60017",
+    ]
+    puzzle_lines = vars_header + puzzle_vars + [
+        # init
+        "start:",
+        "  LDI 4",
+        "  STA .square_sum",
+        "  LDI 3",
+        "  STA .check_value",
+        "  LDI 1",
+        "  STA .num_primes",
+        "  LDI 232",
+        "  STA .finds",
+        # main loop
+        "main_loop:",
+        "  JSR check_prime_os",
+        "  CPI 0",
+        "  JPZ next_val",
+        # it's prime
+        "its_prime:",
+        "  LDA .num_primes",
+        "  ADI 1",
+        "  STA .num_primes",
+        "  LDA .check_value",
+        "  STA .square_val",
+        "  JSR square_os",
+        "  LDA .square_sum",
+        "  ADD .square_result",
+        "  STA .square_sum",
+        # divide square_sum by num_primes using OS divide
+        "  LDA .square_sum",
+        "  STA .arg1",
+        "  LDA .num_primes",
+        "  STA .arg2",
+        f"  JSR #{DIVIDE_BASE}",
+        "  LDA .res2",
+        "  CPI 0",
+        "  JPZ found_one",
+        "  JMP next_val",
+        # found one! store and display num_primes
+        "found_one:",
+        "  ; print num_primes on monitor",
+        "  LDA .num_primes",
+        "  STA .arg1",
+        f"  JSR #{DISPLAY_NUMBER_BASE}",
+        "  ; newline",
+        "  DIS 32",
+        "  DIC 0",
+        "  DIC 128",
+        "  DIC 0",
+        "  ; store num_primes at previous finds address",
+        "  LDA .finds",
+        "  ADI 1",
+        "  STA .finds",
+        "  LDA .finds",
+        "  SUI 1",
+        "  PHA",
+        "  LDA .num_primes",
+        "  SAS",
+        # next value to check
+        "next_val:",
+        "  LDA .check_value",
+        "  ADI 2",
+        "  JPC start",
+        "  STA .check_value",
+        "  JMP main_loop",
+        # square via OS multiply
+        "square_os:",
+        "  LDA .square_val",
+        "  STA .arg1",
+        "  LDA .square_val",
+        "  STA .arg2",
+        f"  JSR #{MULTIPLY_BASE}",
+        "  STA .square_result",
+        "  RET",
+        # primality test using OS divide; returns A=1 if prime else A=0
+        "check_prime_os:",
+        "  LDA .check_value",
+        "  RSA",
+        "  STA .half_check",
+        "  LDI 3",
+        "  STA .loop_index",
+        "prime_loop_os:",
+        "  LDA .loop_index",
+        "  CMP .half_check",
+        "  JPC prime_os",
+        "  LDA .check_value",
+        "  STA .arg1",
+        "  LDA .loop_index",
+        "  STA .arg2",
+        f"  JSR #{DIVIDE_BASE}",
+        "  LDA .res2",
+        "  CPI 0",
+        "  JPZ not_prime_os",
+        "  LDA .loop_index",
+        "  ADI 2",
+        "  STA .loop_index",
+        "  JMP prime_loop_os",
+        "not_prime_os:",
+        "  LDI 0",
+        "  RET",
+        "prime_os:",
+        "  LDI 1",
+        "  RET",
+    ]
+
     # Assemble and relocate
     mul_code, mul_prog, ins_map = assemble_snippet(multiply_lines)
     relocate_jumps_in_place(mul_code, mul_prog, ins_map, MULTIPLY_BASE, relocate_jsr=False)
@@ -457,6 +652,12 @@ def main():
     poke_code, poke_prog, _ = assemble_snippet(poke_lines)
     relocate_jumps_in_place(poke_code, poke_prog, ins_map, POKE_BASE, relocate_jsr=False)
 
+    primes_code, primes_prog, _ = assemble_snippet(primes_lines)
+    relocate_jumps_in_place(primes_code, primes_prog, ins_map, PRIMES_BASE, relocate_jsr=True)
+
+    puzzle_code, puzzle_prog, _ = assemble_snippet(puzzle_lines)
+    relocate_jumps_in_place(puzzle_code, puzzle_prog, ins_map, PUZZLE_BASE, relocate_jsr=True)
+
     data = {
         "multiply": {"base": MULTIPLY_BASE, "length": len(mul_code), "words": mul_code},
         "divide": {"base": DIVIDE_BASE, "length": len(div_code), "words": div_code},
@@ -469,6 +670,8 @@ def main():
         "list": {"base": LIST_BASE, "length": len(list_code), "words": list_code},
         "peek": {"base": PEEK_BASE, "length": len(peek_code), "words": peek_code, "deps": {"display_number": DISPLAY_NUMBER_BASE}},
         "poke": {"base": POKE_BASE, "length": len(poke_code), "words": poke_code},
+        "primes": {"base": PRIMES_BASE, "length": len(primes_code), "words": primes_code, "deps": {"divide": DIVIDE_BASE, "display_number": DISPLAY_NUMBER_BASE}},
+        "puzzle": {"base": PUZZLE_BASE, "length": len(puzzle_code), "words": puzzle_code, "deps": {"divide": DIVIDE_BASE, "multiply": MULTIPLY_BASE}},
     }
 
     out_path = Path(__file__).parent.parent / "32bit" / "compiled_routines.json"
