@@ -10,7 +10,7 @@
 22039,22100,61 ; between list and mult
 22156,22200,44 ; between mult and peek
 22278,22300,22 ; between peek and poke
-22430,22500,70 ; between poke and primes
+22422,22500,78 ; between poke and primes
 22590,22600,10 ; between primes and puzzle
 22754,22800,46 ; between puzzle and shell
 23875,130000,106125 ; between shell and help_data

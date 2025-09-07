@@ -87,9 +87,4 @@ pk_pval_done:
   PHA
   LDA .arg1
   SAS
-  ; newline on monitor
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
   RET
