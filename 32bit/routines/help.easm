@@ -15,15 +15,17 @@
 .txt_primes = "PRIMES: print primes up to 300"
 .txt_puzzle = "PUZZLE: Matt Parker 19 puzzle"
 .txt_shell  = "SHELL: simple command prompt"
+.txt_dump   = "DUMP addr len: print decimal words"
+.txt_hexdump = "HEXDUMP addr len: print hex words"
 
 ; BSS locals
 per_page = .bss
 
 help:
   ; Determine total items and per-page
-  LDI 9
-  STA .res2           ; total_items = 9
-  LDI 10
+  LDI 11
+  STA .res2           ; total_items = 11
+  LDI 14
   STA .per_page       ; per_page
 
   ; Compute total_pages into .char using loop: pages=1; while total_items > per_page: pages++, total_items -= per_page
@@ -215,6 +217,24 @@ hp_sk8:
   JSR print
   JSR hp_after_print
 hp_sk9:
+  ; item 9: DUMP
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk10
+  LDI .txt_dump
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk10:
+  ; item 10: HEXDUMP
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk11
+  LDI .txt_hexdump
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk11:
   RET
 
 ; print null-terminated string at .textloc

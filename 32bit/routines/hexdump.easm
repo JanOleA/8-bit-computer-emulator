@@ -1,0 +1,196 @@
+;! name: HEXDUMP
+;! entry: main
+;! deps: divide
+;! abi: os
+;! bss: auto
+;! align: 100
+
+; HEXDUMP <addr> <nwords>
+; Prints 32-bit words in hexadecimal, four columns per row,
+; each value as 8 hex digits (zero-padded).
+
+; Data (module-local)
+.hex_map = "0123456789ABCDEF"
+
+; BSS locals
+addr       = .bss          ; current address pointer (others via .bss + N)
+
+main:
+  ; argc at [argv_base]
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 2               ; need at least 2 args
+  JPZ hx_go
+  RET
+
+hx_go:
+  ; parse first arg -> addr
+  LDI .argv_base
+  ADI 1
+  PHA
+  LAS
+  STA .res2           ; res2 = pointer to string
+  LDI 0
+  STA .res1
+hx_pn1:
+  LDA .res2
+  PHA
+  LAS
+  CPI 0
+  JPZ hx_pn1_done
+  CPI 32
+  JPZ hx_pn1_done
+  SUI 48
+  STA .char
+  LDA .res1
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .res1
+  LDA .res1
+  ADD .char
+  STA .res1
+  LDA .res2
+  ADI 1
+  STA .res2
+  JMP hx_pn1
+hx_pn1_done:
+  LDA .res1
+  STA .addr
+
+  ; parse second arg -> lenv
+  LDI .argv_base
+  ADI 2
+  PHA
+  LAS
+  STA .res2           ; res2 = pointer to string
+  LDI 0
+  STA .res1
+hx_pn2:
+  LDA .res2
+  PHA
+  LAS
+  CPI 0
+  JPZ hx_pn2_done
+  CPI 32
+  JPZ hx_pn2_done
+  SUI 48
+  STA .char
+  LDA .res1
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .res1
+  LDA .res1
+  ADD .char
+  STA .res1
+  LDA .res2
+  ADI 1
+  STA .res2
+  JMP hx_pn2
+hx_pn2_done:
+  LDA .res1
+  STA .bss + 1
+
+  ; init column counter
+  LDI 0
+  STA .bss + 2
+
+hx_loop:
+  LDA .bss + 1
+  CPI 0
+  JPZ hx_end
+
+  ; read word at [addr] into A
+  LDA .addr
+  PHA
+  LAS
+  STA .arg1           ; keep a copy if needed
+  ; print 8 hex digits from A
+  JSR print_hex8
+
+  ; advance
+  LDA .addr
+  ADI 1
+  STA .addr
+  LDA .bss + 1
+  SUI 1
+  STA .bss + 1
+
+  ; column handling: 4 per row
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2
+  CPI 4
+  JPZ hx_newline
+  ; else space and continue
+  LDI 32
+  STA .char
+  JSR h_write_char
+  JMP hx_loop
+
+hx_newline:
+  JSR newline
+  LDI 0
+  STA .bss + 2
+  JMP hx_loop
+
+hx_end:
+  JSR newline
+  RET
+
+; Prints A as 8 hex digits (most significant first), zero-padded
+print_hex8:
+  LDI 0
+  STA .bss + 3
+ph_loop:
+  LDI 16
+  STA .arg2
+  ; A = quotient, .res2 = remainder (0..15)
+  JSR @divide
+  STA .arg1           ; carry quotient forward (optional)
+  ; map remainder to ASCII and push to stack
+  LDA .res2
+  ADI .hex_map
+  PHA
+  LAS
+  PHA                 ; push ASCII char
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+  CPI 8
+  JPZ ph_print
+  JMP ph_loop
+ph_print:
+  ; pop and print 8 ASCII hex digits
+  PLA
+  STA .char
+  JSR h_write_char
+  LDA .bss + 3
+  SUI 1
+  STA .bss + 3
+  JPZ ph_done
+  JMP ph_print
+ph_done:
+  RET
+
+; --- local helpers ---
+h_write_char:
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET

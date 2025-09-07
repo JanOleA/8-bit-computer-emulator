@@ -1,0 +1,157 @@
+;! name: DUMP
+;! entry: main
+;! deps: display_number
+;! abi: os
+;! bss: auto
+;! align: 100
+
+; DUMP <addr> <nwords>
+; Prints decimal words from memory starting at <addr>,
+; two columns per row.
+
+; BSS locals
+addr  = .bss          ; current address pointer (others accessed via .bss + N)
+
+main:
+  ; argc at [argv_base]
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 2               ; need at least 2 args
+  JPZ dmp_go
+  RET
+
+dmp_go:
+  ; parse first arg -> addr
+  LDI .argv_base
+  ADI 1
+  PHA
+  LAS
+  STA .res2           ; res2 = pointer to string
+  LDI 0
+  STA .res1
+dmp_pn1:
+  LDA .res2
+  PHA
+  LAS
+  CPI 0
+  JPZ dmp_pn1_done
+  CPI 32
+  JPZ dmp_pn1_done
+  SUI 48
+  STA .char
+  LDA .res1
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .res1
+  LDA .res1
+  ADD .char
+  STA .res1
+  LDA .res2
+  ADI 1
+  STA .res2
+  JMP dmp_pn1
+dmp_pn1_done:
+  LDA .res1
+  STA .addr
+
+  ; parse second arg -> lenv
+  LDI .argv_base
+  ADI 2
+  PHA
+  LAS
+  STA .res2           ; res2 = pointer to string
+  LDI 0
+  STA .res1
+dmp_pn2:
+  LDA .res2
+  PHA
+  LAS
+  CPI 0
+  JPZ dmp_pn2_done
+  CPI 32
+  JPZ dmp_pn2_done
+  SUI 48
+  STA .char
+  LDA .res1
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .res1
+  LDA .res1
+  ADD .char
+  STA .res1
+  LDA .res2
+  ADI 1
+  STA .res2
+  JMP dmp_pn2
+dmp_pn2_done:
+  LDA .res1
+  STA .bss + 1
+
+  ; init column counter
+  LDI 0
+  STA .bss + 2
+
+dmp_loop:
+  LDA .bss + 1
+  CPI 0
+  JPZ dmp_end
+
+  ; read word at [addr]
+  LDA .addr
+  PHA
+  LAS
+  STA .arg1
+  ; print decimal via display_number
+  JSR @display_number
+
+  ; advance
+  LDA .addr
+  ADI 1
+  STA .addr
+  LDA .bss + 1
+  SUI 1
+  STA .bss + 1
+
+  ; column handling: 2 per row
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2
+  CPI 2
+  JPZ dmp_newline
+  ; else print space and continue
+  LDI 32
+  STA .char
+  JSR h_write_char
+  JMP dmp_loop
+
+dmp_newline:
+  JSR newline
+  LDI 0
+  STA .bss + 2
+  JMP dmp_loop
+
+dmp_end:
+  RET
+
+; --- local helpers ---
+h_write_char:
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET

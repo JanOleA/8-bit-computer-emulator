@@ -106,9 +106,6 @@ class Game_32(Game):
                 except Exception as e:
                     print(f"Failed to load JSON image {jf}: {e}")
 
-        for i in range(0, 15):
-            print(self.computer.memory[10000 + i*10:10010 + i*10])
-
         self.bus_display = BitDisplay(cpos = (640, 50),
                                       font = self._font_exobold,
                                       textcolor = self.TEXTGREY,

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple
 import sys
+import re
 
 # Ensure project root is importable so we can import tools.assembler_core
 ROOT = Path(__file__).resolve().parent.parent
@@ -420,7 +421,8 @@ def main(apply_table: bool = False):
     modules_to_patch: List[Tuple[str, Dict]] = []
     if routines_dir.exists():
         # First pass: assemble modules, assign bases, collect extern sites
-        srcs = list(routines_dir.glob("*.txt"))
+        # Support new .easm extension (preferred), while keeping .txt during transition
+        srcs = list(routines_dir.glob("*.easm")) + list(routines_dir.glob("*.txt"))
         # Order: modules with explicit ;! base first, then auto-base, both alphabetically
         def has_base(p: Path) -> bool:
             try:
@@ -559,6 +561,45 @@ def main(apply_table: bool = False):
     suggest_path.write_text("\n".join(overview_lines) + "\n")
     print("\nProgram table overview (written to 32bit/prog_table_suggest.txt):\n")
     print("\n".join(overview_lines))
+
+    # Always patch the ECHON call site in emulator_os.txt if present
+    try:
+        echon_base = None
+        for k, v in data.items():
+            if isinstance(v, dict) and k.lower() == 'echon' and 'base' in v:
+                echon_base = int(v['base'])
+                break
+        if echon_base is not None:
+            os_path = Path(__file__).parent.parent / "32bit" / "emulator_os.txt"
+            if os_path.exists():
+                lines = os_path.read_text().splitlines()
+                did = False
+                pat = re.compile(r'(\bJSR\s+#)\d+')
+                for i, ln in enumerate(lines):
+                    # Only patch the JSR line that mentions ECHON in its comment
+                    if 'ECHON' not in ln.upper():
+                        continue
+                    if pat.search(ln):
+                        # Safe replacement using a function to avoid octal escapes
+                        lines[i] = pat.sub(lambda m: f"{m.group(1)}{echon_base}", ln)
+                        did = True
+                        break
+                    # Fallback: previous bad state like "  \122800  ; ..." or other formats
+                    # Reconstruct the instruction preserving indentation and comment
+                    m_ws = re.match(r'^(\s*)', ln)
+                    prefix = m_ws.group(1) if m_ws else ''
+                    comment_idx = ln.find(';')
+                    comment = ln[comment_idx:] if comment_idx != -1 else ''
+                    lines[i] = f"{prefix}JSR #{echon_base}" + (" " + comment.lstrip() if comment else '')
+                    did = True
+                    break
+                if did:
+                    os_path.write_text("\n".join(lines) + "\n")
+                    print(f"Patched ECHON call in {os_path} to base {echon_base}")
+                else:
+                    print("ECHON call site not found for patching (skipped)")
+    except Exception as e:
+        print(f"Warning: failed to patch ECHON call: {e}")
 
     if apply_table:
         # Legacy: still allow patching OS file on request (kept for compatibility)

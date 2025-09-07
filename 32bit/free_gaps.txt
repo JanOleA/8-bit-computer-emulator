@@ -1,6 +1,6 @@
 ; Free gaps between modules (start,end,words)
 20056,20100,44 ; between mult and divide
-20179,20200,21 ; between divide and dispnum
+20198,20200,2 ; between divide and dispnum
 20259,20300,41 ; between dispnum and list
 20439,20450,11 ; between list and cls
 20459,20500,41 ; between cls and peek
@@ -8,7 +8,10 @@
 20730,20800,70 ; between poke and primes
 20890,20900,10 ; between primes and puzzle
 21054,21200,146 ; between puzzle and shell
-22275,22300,25 ; between shell and echon
-22383,22400,17 ; between echon and help
-22788,24200,1412 ; between help and echo
+22275,22300,25 ; between shell and calc
+22506,22600,94 ; between calc and dump
+22883,22900,17 ; between echon and help
+23316,23400,84 ; between help and hexdump
+23649,24200,551 ; between hexdump and echo
 24331,130000,105669 ; between echo and help_data
+130346,130368,22 ; between help_data and hexdump_data
