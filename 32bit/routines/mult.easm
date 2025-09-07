@@ -1,6 +1,5 @@
 ;! name: MULT
 ;! entry: multiply
-;! base: 20000
 ;! deps:
 ;! abi: os
 ;! bss: none

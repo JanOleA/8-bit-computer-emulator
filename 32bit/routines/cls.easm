@@ -1,6 +1,5 @@
 ;! name: CLS
 ;! entry: main
-;! base: 20450
 ;! deps:
 ;! abi: none
 ;! bss: none

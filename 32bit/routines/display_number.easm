@@ -1,32 +1,53 @@
 ;! name: DISPNUM
 ;! entry: display_number
-;! base: 20200
 ;! deps: divide
 ;! abi: os
-;! bss: none
+;! bss: auto
 ;! align: 100
 
+; BSS locals
+; .bss      = working value (dividend)
+; .bss + 1  = digit count
+
 display_number:
-  LDI 0
-  STA .num_digits
+  ; Copy input value into local working storage
   LDA .arg1
-  CMP 0
-calc_next_val:
+  STA .bss
+  ; Handle zero specially -> print '0'
+  LDA .bss
+  CPI 0
+  JPZ dn_zero
+  ; Reset digit count
+  LDI 0
+  STA .bss + 1
+dn_loop:
+  ; Divide working value by 10, push remainder as ASCII
+  LDA .bss
+  CPI 0
+  JPZ dn_print
+  ; prepare args for divide
+  LDA .bss
+  STA .arg1
   LDI 10
   STA .arg2
+  ; divide by 10: returns A=quotient, .res2=remainder
   JSR @divide
-  STA .arg1
+  STA .bss            ; carry quotient forward
   LDA .res2
   ADI 48
-  PHA
-  LDA .num_digits
+  PHA                 ; push ASCII digit
+  ; increment digit count
+  LDA .bss + 1
   ADI 1
-  STA .num_digits
-  LDA .arg1
+  STA .bss + 1
+  JMP dn_loop
+
+dn_print:
+  ; Pop and print digits
+  LDA .bss + 1
   CPI 0
-  JPZ print_stack
-  JMP calc_next_val
-print_stack:
+  JPZ dn_done
+dn_pop:
   PLA
   STA .char
   ; inline write_char
@@ -35,10 +56,21 @@ print_stack:
   DIC 64
   DIC 192
   DIC 0
-  LDA .num_digits
+  LDA .bss + 1
   SUI 1
-  STA .num_digits
+  STA .bss + 1
   JPZ dn_done
-  JMP print_stack
+  JMP dn_pop
+
+dn_zero:
+  LDI 48
+  STA .char
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET
+
 dn_done:
   RET

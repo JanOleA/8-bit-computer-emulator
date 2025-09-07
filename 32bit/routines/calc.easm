@@ -88,6 +88,11 @@ do_div:
   STA .arg2
   JSR @divide
   ; A holds quotient, .res2 holds remainder — print both
+  ; Save quotient and remainder before display_number overwrites .res2
+  STA .work4          ; save quotient
+  LDA .res2
+  STA .work3          ; save remainder
+  LDA .work4          ; restore quotient
   ; print quotient
   STA .arg1
   JSR @display_number
@@ -102,7 +107,7 @@ do_div:
   STA .char
   JSR write_char
   ; print remainder
-  LDA .res2
+  LDA .work3
   STA .arg1
   JSR @display_number
   JSR newline

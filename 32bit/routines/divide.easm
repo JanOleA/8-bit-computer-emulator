@@ -1,79 +1,85 @@
 ;! name: DIVIDE
 ;! entry: divide
-;! base: 20100
 ;! deps:
 ;! abi: os
 ;! bss: auto
 ;! align: 100
 
-; BSS locals (use .bss offsets directly; assembler doesn't support arithmetic on RHS of pointer defs)
-quotient  = .bss        ; .bss + 0
+divide:             ; documented divide using BSS locals
+  ; Locals layout:
+  ;   .bss       = dividend (mutable)
+  ;   .bss + 1   = divisor (mutable)
+  ;   .bss + 2   = pow2 (scaling factor)
+  ;   .bss + 3   = quotient
 
-divide:             ; divides .arg1 (dividend) by .arg2 (divisor)
   ; Copy inputs into locals
   LDA .arg1
-  STA .bss + 2
+  STA .bss          ; dividend
   LDA .arg2
-  STA .bss + 1
+  STA .bss + 1      ; divisor
 
-  ; Handle divisor == 0: quotient=0, remainder=dividend
+  ; Initialize
+  LDI 0
+  STA .bss + 3      ; quotient = 0
+  LDI 1
+  STA .bss + 2      ; pow2 = 1
+
+  ; Handle divisor == 0 → quotient=0, remainder=dividend
   LDA .bss + 1
   CPI 0
   JPZ div_zero
 
-  ; init state
-  LDI 0
-  STA .bss          ; initialize quotient as 0
-  LDI 1
-  STA .bss + 3      ; initialize pow2 as 1
-inc_b:              ; increase the .divisor by dividing by 2 as many times as possible
-                    ; while keeping it below the dividend
-  LDA .bss + 1      ; load divisor into A
-  LSA               ; left shift (i.e. mult. by 2)
-  JPC div_loop      ; if the left shift causes a carry, done increasing .divisor
-  CMP .bss + 2      ; compare with dividend
-  JPZ pass          ; pass if they are equal
-  JPC div_loop      ; done increasing .divisor
+inc_b:
+  ; Double divisor until it would exceed dividend
+  LDA .bss + 1      ; A = divisor
+  LSA               ; A = divisor * 2
+  JPC div_loop      ; overflow → stop increasing
+  CMP .bss          ; compare with dividend
+  JPZ pass          ; if equal, still accept doubling once
+  JPC div_loop      ; if > dividend, stop increasing
 pass:
-  STA .bss + 1      ; store divisor*2 as new divisor
-  LDA .bss + 3
-  LSA               ; multiply pow2 by 2 as well
-  STA .bss + 3      ; store it as new pow2
-  JMP inc_b         ; go back to inc_b
+  STA .bss + 1      ; divisor = divisor * 2
+  LDA .bss + 2
+  LSA
+  STA .bss + 2      ; pow2 *= 2
+  JMP inc_b
+
 div_loop:
-  LDA .bss + 3
-  CPI 0             ; compare pow2 to zero
-  JPZ div_end       ; if zero, done divide
+  ; While pow2 > 0
   LDA .bss + 2
-  CMP .bss + 1      ; compare dividend to divisor
-  JPC a_geq_b       ; if dividend >= divisor
-  JMP continue      ; else
-a_geq_b:
+  CPI 0
+  JPZ div_end
+  ; If dividend >= divisor: quotient += pow2; dividend -= divisor
   LDA .bss
-  ADD .bss + 3
-  STA .bss          ; add pow2 to the quotient and store it
-  LDA .bss + 2
+  CMP .bss + 1
+  JPC a_geq_b
+  JMP continue
+a_geq_b:
+  LDA .bss + 3
+  ADD .bss + 2
+  STA .bss + 3      ; quotient += pow2
+  LDA .bss
   SUB .bss + 1
-  STA .bss + 2      ; subtract divisor from the dividend and store it
+  STA .bss          ; dividend -= divisor
 continue:
+  ; Shift down and continue
   LDA .bss + 1
   RSA
-  STA .bss + 1      ; divide divisor by 2 and store
-  LDA .bss + 3
-  RSA
-  STA .bss + 3      ; divide pow2 by 2 and store
-  JMP div_loop
-div_end:            ; store remainder in .arg2 and quotient in .arg1
+  STA .bss + 1      ; divisor >>= 1
   LDA .bss + 2
-  STA .res2         ; remainder
+  RSA
+  STA .bss + 2      ; pow2 >>= 1
+  JMP div_loop
+
+div_end:
+  ; remainder in dividend, quotient in A
   LDA .bss
-  STA .res1         ; quotient
+  STA .res2
+  LDA .bss + 3
   RET
 
 div_zero:
-  ; remainder = dividend, quotient = 0
-  LDA .bss + 2
+  LDA .bss
   STA .res2
   LDI 0
-  STA .res1         ; quotient
   RET

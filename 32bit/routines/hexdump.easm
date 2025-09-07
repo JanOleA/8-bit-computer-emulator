@@ -146,19 +146,32 @@ hx_end:
 
 ; Prints A as 8 hex digits (most significant first), zero-padded
 print_hex8:
+  ; Capture the input word from .arg1 into a local temp (.bss + 4)
+  ; Caller stored the memory word into .arg1 before calling us.
+  LDA .arg1
+  STA .bss + 4       ; local working value
   LDI 0
-  STA .bss + 3
+  STA .bss + 3       ; digit counter
 ph_loop:
+  ; Divide current value by 16, push remainder as hex digit
+  LDA .bss + 4
+  STA .arg1           ; dividend for divide
   LDI 16
   STA .arg2
   ; A = quotient, .res2 = remainder (0..15)
   JSR @divide
-  STA .arg1           ; carry quotient forward (optional)
-  ; map remainder to ASCII and push to stack
+  ; carry quotient forward locally (A holds quotient)
+  STA .bss + 4
+  ; map remainder (0..15) to ASCII and push to stack
   LDA .res2
-  ADI .hex_map
-  PHA
-  LAS
+  CPI 10
+  JPC ph_hex_ge10
+  ADI 48              ; '0'..'9'
+  JMP ph_hex_push
+ph_hex_ge10:
+  SUI 10
+  ADI 65              ; 'A'..'F'
+ph_hex_push:
   PHA                 ; push ASCII char
   LDA .bss + 3
   ADI 1

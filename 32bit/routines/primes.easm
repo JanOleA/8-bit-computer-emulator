@@ -1,6 +1,5 @@
 ;! name: PRIMES
 ;! entry: main
-;! base: 20800
 ;! deps: divide, display_number
 ;! abi: os
 ;! bss: none

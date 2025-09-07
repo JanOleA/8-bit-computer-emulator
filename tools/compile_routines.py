@@ -136,7 +136,7 @@ def assemble_dynamic_module(src_path: Path,
                             abi_inject: bool,
                             bss_auto_start: int,
                             known_symbols: Dict[str, int],
-                            data_auto_start: int) -> Tuple[Dict, int, List[Tuple[int, int]], int]:
+                            data_auto_start: int) -> Tuple[Dict, int, List[Tuple[int, int]], int, int]:
     text = src_path.read_text()
     headers, raw_lines, extern_calls, auto_ptrs, data_items = parse_headers_and_preprocess(text)
 
@@ -172,6 +172,7 @@ def assemble_dynamic_module(src_path: Path,
         ]
 
     # BSS injection with size/overlap checks
+    bss_info: Tuple[int, int] | None = None
     def _scan_bss_required(src_lines: List[str]) -> int:
         max_off = -1
         for ln in src_lines:
@@ -214,11 +215,13 @@ def assemble_dynamic_module(src_path: Path,
         # Reserve BSS region to avoid overlaps with other modules' code/data
         used_bases.append((bss_base, bss_base + bss_size))
         bss_auto_start = bss_base + bss_size
+        bss_info = (bss_base, bss_size)
     elif bss.isdigit():
         bss_base = int(bss)
         bss_size = max(default_bss_size, bss_required) if bss_required else default_bss_size
         lines.append(f"bss = {bss_base}")
         used_bases.append((bss_base, bss_base + bss_size))
+        bss_info = (bss_base, bss_size)
     else:
         # none; warn if usage detected
         if bss_required:
@@ -291,6 +294,8 @@ def assemble_dynamic_module(src_path: Path,
         "entry": entry,
         "externs": [{"code_index": ci, "symbol": sym} for ci, sym in zip(jsr_zero_code_indexes, extern_calls)],
     }
+    if bss_info is not None:
+        mod["bss"] = {"base": bss_info[0], "size": bss_info[1]}
     # Update used ranges and cursor (approximate range: base..base+len)
     used_bases.append((base_addr, base_addr + len(code)))
     base_cursor = base_addr + len(code)
@@ -310,7 +315,7 @@ def assemble_dynamic_module(src_path: Path,
         used_bases.append((d_start, d_end))
         out[f"{name}_data"] = {"base": data_base, "length": len(words), "words": words}
 
-    return out, base_cursor, used_bases, data_auto_start
+    return out, base_cursor, used_bases, data_auto_start, bss_auto_start
 
 
 def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> bool:
@@ -438,7 +443,7 @@ def main(apply_table: bool = False):
         srcs.sort(key=lambda p: (1 if not has_base(p) else 0, p.name.lower()))
         for src in srcs:
             try:
-                mod_map, base_cursor, used_ranges, data_auto_start = assemble_dynamic_module(
+                mod_map, base_cursor, used_ranges, data_auto_start, bss_auto_start = assemble_dynamic_module(
                     src,
                     used_bases=used_ranges,
                     base_cursor=base_cursor,
@@ -562,6 +567,25 @@ def main(apply_table: bool = False):
     print("\nProgram table overview (written to 32bit/prog_table_suggest.txt):\n")
     print("\n".join(overview_lines))
 
+    # Emit BSS map overview (console + file)
+    bss_lines = [
+        "BSS regions:",
+    ]
+    for name, mod in sorted(data.items(), key=lambda kv: int(kv[1].get("base", 0)) if isinstance(kv[1], dict) else 0):
+        if not isinstance(mod, dict):
+            continue
+        bss = mod.get("bss")
+        if isinstance(bss, dict):
+            bbase = int(bss.get("base", 0))
+            bsize = int(bss.get("size", 0))
+            bend = bbase + bsize
+            bss_lines.append(f"  {name.upper():8} BSS [{bbase},{bend}) size={bsize}")
+    if len(bss_lines) > 1:
+        print("\n" + "\n".join(bss_lines))
+        bss_path = Path(__file__).parent.parent / "32bit" / "bss_map.txt"
+        bss_path.write_text("\n".join(bss_lines) + "\n")
+        print(f"Wrote BSS map to {bss_path}")
+
     # Always patch the ECHON call site in emulator_os.txt if present
     try:
         echon_base = None
@@ -600,6 +624,60 @@ def main(apply_table: bool = False):
                     print("ECHON call site not found for patching (skipped)")
     except Exception as e:
         print(f"Warning: failed to patch ECHON call: {e}")
+
+    # Always patch CALL_STUB operand to SHELL base in emulator_os.txt
+    try:
+        shell_base = None
+        for k, v in data.items():
+            if isinstance(v, dict) and k.lower() == 'shell' and 'base' in v:
+                shell_base = int(v['base'])
+                break
+        if shell_base is not None:
+            os_path = Path(__file__).parent.parent / "32bit" / "emulator_os.txt"
+            if os_path.exists():
+                lines = os_path.read_text().splitlines()
+                # Find CALL_STUB base
+                call_stub_base = None
+                for ln in lines:
+                    s = ln.strip().replace(" ", "")
+                    if s.startswith('CALL_STUB='):
+                        try:
+                            call_stub_base = int(s.split('=', 1)[1])
+                        except Exception:
+                            pass
+                        break
+                did = False
+                if call_stub_base is not None:
+                    target = call_stub_base + 1
+                    for i, ln in enumerate(lines):
+                        s = ln.replace(" ", "")
+                        if s.startswith(f"{target}="):
+                            comment_idx = ln.find(';')
+                            comment = ln[comment_idx:] if comment_idx != -1 else ''
+                            lines[i] = f"{target} = {shell_base}" + (" " + comment.lstrip() if comment else '')
+                            did = True
+                            break
+                if not did:
+                    # Fallback heuristic: patch the line following the ' = 16' (JSR) in the call stub region
+                    for i in range(len(lines) - 1):
+                        if '= 16' in lines[i]:
+                            # next line should be operand
+                            parts = lines[i+1].split(';', 1)
+                            left = parts[0]
+                            comment = ';' + parts[1] if len(parts) > 1 else ''
+                            # Replace right-hand side after '=' with shell_base
+                            if '=' in left:
+                                addr = left.split('=')[0].rstrip()
+                                lines[i+1] = f"{addr}= {shell_base}{comment}"
+                                did = True
+                                break
+                if did:
+                    os_path.write_text("\n".join(lines) + "\n")
+                    print(f"Patched CALL_STUB operand in {os_path} to SHELL base {shell_base}")
+                else:
+                    print("CALL_STUB operand not found for patching (skipped)")
+    except Exception as e:
+        print(f"Warning: failed to patch CALL_STUB to SHELL: {e}")
 
     if apply_table:
         # Legacy: still allow patching OS file on request (kept for compatibility)

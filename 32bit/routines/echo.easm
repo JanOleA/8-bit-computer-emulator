@@ -1,6 +1,5 @@
 ;! name: ECHO
 ;! entry: start
-;! base: 24200
 ;! deps:
 ;! abi: os
 ;! bss: auto

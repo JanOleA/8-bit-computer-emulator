@@ -1,6 +1,5 @@
 ;! name: SHELL
 ;! entry: start
-;! base: 21200
 ;! deps:
 ;! abi: os
 ;! bss: none
@@ -18,8 +17,8 @@ hist_pos    = 4016
 hist_tmp1   = 4017
 hist_tmp2   = 4018
 hist_base   = 100000
-hist_entry_len = 80
-hist_max    = 100
+hist_entry_len = 80   ; max characters per history entry and input line
+hist_max    = 100     ; max number of history entries
 
 start:
   ; initialize shell state
@@ -69,7 +68,8 @@ main_loop:
   LDA .input_ptr
   ADI 1
   STA .input_ptr
-  CPI 4202
+  ; clamp input_ptr to input_buf + hist_entry_len
+  CPI .input_buf + .hist_entry_len
   JPZ clamp_ptr
   JMP after_ptr
 clamp_ptr:
@@ -80,7 +80,8 @@ after_ptr:
   LDA .cmd_len
   ADI 1
   STA .cmd_len
-  CPI 80
+  ; clamp cmd_len to hist_entry_len
+  CPI .hist_entry_len
   JPZ clamp_len
   JMP after_len
 clamp_len:
@@ -670,7 +671,7 @@ hlc_idx_ready:
   STA .num_digits
 hlc_copy:
   LDA .num_digits
-  CPI 80
+  CPI .hist_entry_len
   JPZ hlc_done
   LDA .arg1
   PHA

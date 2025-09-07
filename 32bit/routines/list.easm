@@ -1,6 +1,5 @@
 ;! name: LIST
 ;! entry: list_commands
-;! base: 20300
 ;! deps:
 ;! abi: os
 ;! bss: none

@@ -103,7 +103,7 @@ dmp_loop:
   CPI 0
   JPZ dmp_end
 
-  ; read word at [addr]
+  ; read word at [addr] into .arg1 safely
   LDA .addr
   PHA
   LAS

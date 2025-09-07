@@ -1,6 +1,5 @@
 ;! name: PEEK
 ;! entry: peek
-;! base: 20500
 ;! deps: display_number
 ;! abi: os
 ;! bss: none

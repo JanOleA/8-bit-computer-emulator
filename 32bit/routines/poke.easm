@@ -1,6 +1,5 @@
 ;! name: POKE
 ;! entry: poke
-;! base: 20600
 ;! deps:
 ;! abi: os
 ;! bss: none

@@ -1,6 +1,5 @@
 ;! name: DIVIDE
 ;! entry: divide
-;! base: 20100
 ;! deps:
 ;! abi: os
 ;! bss: none

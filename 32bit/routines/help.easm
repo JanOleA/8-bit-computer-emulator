@@ -17,14 +17,15 @@
 .txt_shell  = "SHELL: simple command prompt"
 .txt_dump   = "DUMP addr len: print decimal words"
 .txt_hexdump = "HEXDUMP addr len: print hex words"
+.txt_calc   = "CALC a op b: compute result"
 
 ; BSS locals
 per_page = .bss
 
 help:
   ; Determine total items and per-page
-  LDI 11
-  STA .res2           ; total_items = 11
+  LDI 12
+  STA .res2           ; total_items = 12
   LDI 14
   STA .per_page       ; per_page
 
@@ -235,6 +236,15 @@ hp_sk10:
   JSR print
   JSR hp_after_print
 hp_sk11:
+  ; item 11: CALC
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk12
+  LDI .txt_calc
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk12:
   RET
 
 ; print null-terminated string at .textloc
