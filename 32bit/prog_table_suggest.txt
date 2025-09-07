@@ -10,6 +10,6 @@ Entries (NAME → BASE):
   PRIMES   → 20800
   PUZZLE   → 20900
   SHELL    → 21200
+  ECHON    → 22300
+  HELP     → 22400
   ECHO     → 24200
-  ECHON    → 24400
-  HELP     → 24500

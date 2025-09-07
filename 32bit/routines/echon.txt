@@ -11,10 +11,36 @@
 ;   .num_digits = count (N)
 
 start:
-  ; if N == 0 just newline
+  ; If .num_digits == 0, compute length until null (cap 80)
   LDA .num_digits
   CPI 0
-  JPZ end_nl
+  JPZ en_compute_len
+  JMP en_print
+
+en_compute_len:
+  LDI 0
+  STA .num_digits
+en_len_loop:
+  ; read *(arg1 + num_digits)
+  LDA .arg1
+  ADD .num_digits
+  PHA
+  LAS
+  CPI 0
+  JPZ en_len_done
+  ; inc length
+  LDA .num_digits
+  ADI 1
+  STA .num_digits
+  ; cap at 80
+  LDA .num_digits
+  CPI 80
+  JPZ en_len_done
+  JMP en_len_loop
+en_len_done:
+  ; fallthrough to printing
+
+en_print:
 
 lp:
   ; load *arg1 into .char

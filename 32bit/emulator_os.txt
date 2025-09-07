@@ -49,27 +49,6 @@ work4 = 4013         ; preserved entry base for handler lookup
 ; Program dispatch table (name[0..7], addr[8], reserved[9]) repeated; sentinel when name[0]==0
 prog_table = 10000
 
-; Text blocks for HELP
-txt_help   = 6000
-txt_echo   = 6050
-txt_list   = 6100
-txt_cls    = 6150
-txt_peek   = 6200
-txt_poke   = 6250
-txt_primes = 6300
-txt_puzzle = 6350
-txt_shell  = 6400
-
-.txt_help   = "HELP page: show this help at page"
-.txt_echo   = "ECHO arg: print argument to terminal"
-.txt_list   = "LIST: show all installed commands"
-.txt_cls    = "CLS: clear the screen"
-.txt_peek   = "PEEK addr: print mem[addr]"
-.txt_poke   = "POKE addr val: store val at addr"
-.txt_primes = "PRIMES: print primes up to 300"
-.txt_puzzle = "PUZZLE: Matt Parker 19 puzzle"
-.txt_shell  = "SHELL: simple command prompt"
-
 start:
   JSR initialize_display
   LDI 4052
@@ -111,7 +90,7 @@ initialize_display: ; initializes the display
 print:              ; minimal print via ECHON: print .num_digits chars from .textloc
   LDA .textloc
   STA .arg1
-  JSR #24400
+  JSR #22600        ; must be switched to ECHON location if it changes
   RET
 
 get_next_char:      ; unused after switching to ECHO

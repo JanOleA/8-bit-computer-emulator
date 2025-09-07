@@ -55,10 +55,33 @@ def relocate_jumps_in_place(code_words, program, instruction_map, base_addr,
 # Dynamic routines loader from folder
 # ----------
 
-def parse_headers_and_preprocess(text: str) -> Tuple[Dict[str, str], List[str], List[str]]:
+def parse_headers_and_preprocess(text: str):
+    """Parse headers, normalize extern calls, and pre-scan for auto data.
+
+    Returns:
+      headers: dict of ;! headers
+      lines: preprocessed source lines
+      extern_calls: symbols referenced as @name (order)
+      auto_ptrs: map varname->offset for auto data (.name = ... without prior definition)
+      data_items: list of (name, offset, words)
+    """
     headers: Dict[str, str] = {}
     lines: List[str] = []
     extern_calls: List[str] = []  # symbols in textual order
+
+    # First pass: detect explicit pointer vars (name = ...), not starting with dot
+    defined_ptrs: Dict[str, int] = {}
+    for raw in text.splitlines():
+        s = raw.split(';')[0].strip()
+        if not s or s.startswith(';'):
+            continue
+        if (not raw.startswith('  ')) and ('=' in s) and (not s.startswith('.')):
+            name = s.split('=', 1)[0].strip()
+            defined_ptrs[name] = 1
+
+    # Second pass: preprocess, collect externs and auto data
+    data_items: List[Tuple[str, int, List[int]]] = []
+    data_cursor = 0
     for raw in text.splitlines():
         if raw.startswith(";!"):
             try:
@@ -67,19 +90,43 @@ def parse_headers_and_preprocess(text: str) -> Tuple[Dict[str, str], List[str], 
             except ValueError:
                 pass
             continue
-        # Detect extern call syntax: "  JSR @name"
         stripped = raw.strip()
+        # Detect extern call syntax: "  JSR @name"
         if stripped.upper().startswith("JSR @"):
             sym = stripped.split("@", 1)[1].strip()
-            # Replace with immediate zero placeholder
             raw = raw.replace("@" + sym, "#0")
             extern_calls.append(sym)
-        elif stripped and not stripped.startswith(";") and not raw.startswith(" "):
-            # Non-instruction line (var/label) — don't count
-            pass
+        # Detect auto data assignment: .name = "..." or number, when name not predefined
+        if (not raw.startswith(' ')) and ('=' in raw) and raw.strip().startswith('.'):
+            try:
+                lhs, rhs = raw.split('=', 1)
+                varname = lhs.strip()[1:]
+                if varname not in defined_ptrs:
+                    val = rhs.strip()
+                    words: List[int] = []
+                    if '"' in val:
+                        sval = val.split('"')[1]
+                        words = [ord(c) for c in sval]
+                        words.append(0)  # null-terminate strings
+                    elif "'" in val:
+                        sval = val.split("'")[1]
+                        words = [ord(c) for c in sval]
+                        words.append(0)  # null-terminate strings
+                    else:
+                        try:
+                            words = [int(val.split(';')[0].strip())]
+                        except Exception:
+                            words = []
+                    if words:
+                        data_items.append((varname, data_cursor, words))
+                        data_cursor += len(words)
+            except Exception:
+                pass
         # keep raw
         lines.append(raw)
-    return headers, lines, extern_calls
+
+    auto_ptrs = {n: off for n, off, _ in data_items}
+    return headers, lines, extern_calls, auto_ptrs, data_items
 
 
 def assemble_dynamic_module(src_path: Path,
@@ -87,9 +134,10 @@ def assemble_dynamic_module(src_path: Path,
                             base_cursor: int,
                             abi_inject: bool,
                             bss_auto_start: int,
-                            known_symbols: Dict[str, int]) -> Tuple[Dict, int, List[Tuple[int, int]]]:
+                            known_symbols: Dict[str, int],
+                            data_auto_start: int) -> Tuple[Dict, int, List[Tuple[int, int]], int]:
     text = src_path.read_text()
-    headers, raw_lines, extern_calls = parse_headers_and_preprocess(text)
+    headers, raw_lines, extern_calls, auto_ptrs, data_items = parse_headers_and_preprocess(text)
 
     name = headers.get("name", src_path.stem).lower()
     entry = headers.get("entry", "start")
@@ -99,23 +147,6 @@ def assemble_dynamic_module(src_path: Path,
     bss = headers.get("bss", "auto").lower()
     bss_align = int(headers.get("bss_align", "16"))
     base = headers.get("base")
-
-    # Determine base
-    if base is not None:
-        base_addr = int(base)
-    else:
-        # allocate next aligned base not overlapping used_bases
-        def fits(addr: int) -> bool:
-            # unknown length yet; just ensure addr not inside existing ranges starts
-            for s, e in used_bases:
-                if s <= addr < e:
-                    return False
-            return True
-
-        addr = ((base_cursor + align - 1) // align) * align
-        while not fits(addr):
-            addr += align
-        base_addr = addr
 
     # Inject OS ABI if requested
     lines = []
@@ -139,24 +170,96 @@ def assemble_dynamic_module(src_path: Path,
             "prog_table = 10000",
         ]
 
-    # BSS injection
+    # BSS injection with size/overlap checks
+    def _scan_bss_required(src_lines: List[str]) -> int:
+        max_off = -1
+        for ln in src_lines:
+            s = ln.split(';')[0]
+            if '.bss' not in s:
+                continue
+            t = s.replace(' ', '')
+            idx = 0
+            while True:
+                j = t.find('.bss+', idx)
+                if j == -1:
+                    break
+                k = j + len('.bss+')
+                n = ''
+                while k < len(t) and t[k].isdigit():
+                    n += t[k]
+                    k += 1
+                if n:
+                    try:
+                        off = int(n)
+                        if off > max_off:
+                            max_off = off
+                    except Exception:
+                        pass
+                idx = k
+        # If '.bss' occurs at all, ensure at least 1 word
+        if max_off < 0:
+            for ln in src_lines:
+                if '.bss' in ln.split(';')[0]:
+                    return 1
+            return 0
+        return max_off + 1
+
+    bss_required = _scan_bss_required(raw_lines)
+    default_bss_size = 512
     if bss == "auto":
-        # allocate aligned bss region; keep it above history base by default
         bss_base = ((bss_auto_start + bss_align - 1) // bss_align) * bss_align
+        bss_size = max(default_bss_size, bss_required)
         lines.append(f"bss = {bss_base}")
-        # Update bss_auto_start for next module
-        bss_auto_start = bss_base + 512  # reserve a page for vars
+        # Reserve BSS region to avoid overlaps with other modules' code/data
+        used_bases.append((bss_base, bss_base + bss_size))
+        bss_auto_start = bss_base + bss_size
     elif bss.isdigit():
-        lines.append(f"bss = {int(bss)}")
+        bss_base = int(bss)
+        bss_size = max(default_bss_size, bss_required) if bss_required else default_bss_size
+        lines.append(f"bss = {bss_base}")
+        used_bases.append((bss_base, bss_base + bss_size))
     else:
-        # none
-        pass
+        # none; warn if usage detected
+        if bss_required:
+            print(f"Warning: {src_path.name} references .bss but 'bss' is 'none'.")
+
+    # DATA injection (auto variables)
+    data_base = None
+    data_len = sum(len(words) for _, _, words in data_items)
+    if data_len > 0:
+        # allocate aligned data region
+        data_base = ((data_auto_start + 16 - 1) // 16) * 16
+        for ap_name, off in auto_ptrs.items():
+            lines.append(f"{ap_name} = {data_base + off}")
+        data_auto_start = data_base + data_len + 16
 
     # Append preprocessed source
     lines += raw_lines
 
-    # Assemble
-    code, program, ins_map = assemble_snippet(lines)
+    # Assemble with larger memory to allow high addresses
+    mem_cap = max(200000, (data_base or 0) + data_len + 64)
+    code, program, ins_map = assemble_snippet(lines, memory_size=mem_cap)
+
+    # Determine base after we know code length, to avoid overlaps
+    code_len = len(code)
+    if base is not None:
+        base_addr = int(base)
+    else:
+        # Find first aligned gap where [addr, addr+code_len) does not overlap any used range
+        ranges = sorted(used_bases)
+        addr = ((base_cursor + align - 1) // align) * align
+        i = 0
+        while True:
+            overlapped = False
+            for s, e in ranges:
+                if not (addr + code_len <= s or addr >= e):
+                    # bump addr to end of this range, keep alignment
+                    addr = ((e + align - 1) // align) * align
+                    overlapped = True
+                    break
+            if not overlapped:
+                break
+        base_addr = addr
 
     # Collect extern patch sites but do not resolve yet; we'll patch after all modules are placed
     jsr_zero_code_indexes: List[int] = []
@@ -170,7 +273,7 @@ def assemble_dynamic_module(src_path: Path,
     if len(jsr_zero_code_indexes) != len(extern_calls):
         raise ValueError(f"Extern calls count mismatch in {src_path.name}: found {len(jsr_zero_code_indexes)} JSR #0, headers referenced {len(extern_calls)} symbols")
 
-    # Relocate internal jumps
+    # Relocate internal jumps to chosen base
     relocate_jumps_in_place(code, program, ins_map, base_addr, relocate_jsr=True)
 
     # Validate no overlap with existing used ranges now that we know length
@@ -190,7 +293,23 @@ def assemble_dynamic_module(src_path: Path,
     # Update used ranges and cursor (approximate range: base..base+len)
     used_bases.append((base_addr, base_addr + len(code)))
     base_cursor = base_addr + len(code)
-    return {name: mod}, base_cursor, used_bases
+
+    out = {name: mod}
+    # Emit data module if present
+    if data_base is not None and data_len > 0:
+        words: List[int] = [0] * data_len
+        for _, off, w in data_items:
+            for i, b in enumerate(w):
+                if 0 <= off + i < data_len:
+                    words[off + i] = int(b)
+        d_start, d_end = data_base, data_base + len(words)
+        for s, e in used_bases:
+            if not (d_end <= s or d_start >= e):
+                raise ValueError(f"Overlap: data for {src_path.name} [{d_start},{d_end}) conflicts with [{s},{e})")
+        used_bases.append((d_start, d_end))
+        out[f"{name}_data"] = {"base": data_base, "length": len(words), "words": words}
+
+    return out, base_cursor, used_bases, data_auto_start
 
 
 def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> bool:
@@ -297,18 +416,34 @@ def main(apply_table: bool = False):
     # Optionally scan 32bit/routines for extra modules
     routines_dir = Path(__file__).parent.parent / "32bit" / "routines"
     bss_auto_start = 120000  # keep above OS/history
+    data_auto_start = 130000
     modules_to_patch: List[Tuple[str, Dict]] = []
     if routines_dir.exists():
         # First pass: assemble modules, assign bases, collect extern sites
-        for src in sorted(routines_dir.glob("*.txt")):
+        srcs = list(routines_dir.glob("*.txt"))
+        # Order: modules with explicit ;! base first, then auto-base, both alphabetically
+        def has_base(p: Path) -> bool:
             try:
-                mod_map, base_cursor, used_ranges = assemble_dynamic_module(
+                txt = p.read_text()
+                for ln in txt.splitlines():
+                    if ln.startswith(';!'):
+                        k, _, v = ln[2:].partition(':')
+                        if k.strip().lower() == 'base' and v.strip() != '':
+                            return True
+                return False
+            except Exception:
+                return False
+        srcs.sort(key=lambda p: (1 if not has_base(p) else 0, p.name.lower()))
+        for src in srcs:
+            try:
+                mod_map, base_cursor, used_ranges, data_auto_start = assemble_dynamic_module(
                     src,
                     used_bases=used_ranges,
                     base_cursor=base_cursor,
                     abi_inject=True,
                     bss_auto_start=bss_auto_start,
                     known_symbols=known_symbols,
+                    data_auto_start=data_auto_start,
                 )
                 # Merge module and record symbol
                 for k, v in mod_map.items():
@@ -393,7 +528,7 @@ def main(apply_table: bool = False):
         pass
 
     # Compose program table bytes: 10-byte entries: name[0..7], addr[8], reserved[9]
-    entries = [kv for kv in sorted(data.items(), key=lambda kv: int(kv[1].get("base", 0))) if isinstance(kv[1], dict) and "base" in kv[1]]
+    entries = [kv for kv in sorted(data.items(), key=lambda kv: int(kv[1].get("base", 0))) if isinstance(kv[1], dict) and "base" in kv[1] and "entry" in kv[1]]
     table_words: list[int] = []
     for name, mod in entries:
         nm = str(name).upper()[:8]

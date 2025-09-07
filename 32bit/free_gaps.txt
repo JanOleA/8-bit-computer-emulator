@@ -8,6 +8,7 @@
 20730,20800,70 ; between poke and primes
 20890,20900,10 ; between primes and puzzle
 21054,21200,146 ; between puzzle and shell
-22275,24200,1925 ; between shell and echo
-24331,24400,69 ; between echo and echon
-24453,24500,47 ; between echon and help
+22275,22300,25 ; between shell and echon
+22383,22400,17 ; between echon and help
+22788,24200,1412 ; between help and echo
+24331,130000,105669 ; between echo and help_data
