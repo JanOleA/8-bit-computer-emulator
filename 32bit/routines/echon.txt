@@ -1,0 +1,55 @@
+;! name: ECHON
+;! entry: start
+;! deps:
+;! abi: os
+;! bss: none
+;! align: 100
+
+; Prints exactly N characters from pointer .arg1, then newline.
+; Inputs:
+;   .arg1 = pointer to first character
+;   .num_digits = count (N)
+
+start:
+  ; if N == 0 just newline
+  LDA .num_digits
+  CPI 0
+  JPZ end_nl
+
+lp:
+  ; load *arg1 into .char
+  LDA .arg1
+  PHA
+  LAS
+  STA .char
+  ; write char
+  JSR write_char
+  ; advance arg1 and decrement N
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  LDA .num_digits
+  SUI 1
+  STA .num_digits
+  JPZ end_nl
+  JMP lp
+
+end_nl:
+  JSR newline
+  RET
+
+; --- display helpers ---
+write_char:
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET

@@ -1,82 +1,238 @@
 ;! name: HELP
 ;! entry: help
-;! base: 24000
-;! deps:
+;! deps: echon
 ;! abi: os
-;! bss: none
+;! bss: auto
 ;! align: 100
 
-textloc = 4001
-
 ; Text blocks
-txt_list   = 6000
-txt_cls    = 6050
-txt_peek   = 6100
-txt_poke   = 6150
-txt_primes = 6200
-txt_puzzle = 6250
-txt_shell  = 6300
+txt_help   = 6000
+txt_echo   = 6050
+txt_list   = 6100
+txt_cls    = 6150
+txt_peek   = 6200
+txt_poke   = 6250
+txt_primes = 6300
+txt_puzzle = 6350
+txt_shell  = 6400
+
+; BSS locals
+per_page = .bss
 
 help:
-  ; print LIST
+  ; Determine total items and per-page
+  LDI 9
+  STA .res2           ; total_items = 9
+  LDI 10
+  STA .per_page       ; per_page
+
+  ; Compute total_pages into .char using loop: pages=1; while total_items > per_page: pages++, total_items -= per_page
+  LDI 1
+  STA .char           ; pages = 1
+  ; if items <= per_page -> done
+  LDA .res2
+  CMP .per_page       ; C=1 if items >= per_page
+  JPZ hp_pages_done   ; items == per_page -> done
+  JPC hp_pages_enter  ; items > per_page -> loop
+  JMP hp_pages_done   ; items < per_page -> done
+hp_pages_enter:
+hp_pages_loop:
+  ; total_items -= per_page, pages++
+  LDA .res2
+  SUB .per_page
+  STA .res2
+  LDA .char
+  ADI 1
+  STA .char
+  ; continue while total_items > per_page
+  LDA .res2
+  CMP .per_page
+  JPZ hp_pages_done
+  JPC hp_pages_loop
+  ; else items < per_page
+  ; fallthrough
+hp_pages_done:
+  ; .char = total_pages, .res2 holds remainder (unused)
+
+  ; Default page = 1
+  LDI 1
+  STA .res1           ; page = 1
+  ; argv_base (preserve in bss+3)
+  LDA .arg1
+  STA .bss + 3
+  ; argc = [argv_base]
+  LDA .bss + 3
+  PHA
+  LAS
+  STA .num_digits
+  ; if argc == 0, keep default page = 1
+  LDA .num_digits
+  CPI 0
+  JPZ hp_after_parse
+  ; else parse first argument as page: arg_ptr = [argv_base+1]
+  LDA .bss + 3
+  ADI 1
+  PHA
+  LAS
+  STA .arg1           ; arg1 = pointer to page string
+  JSR parse_number    ; outputs into .res1
+hp_after_parse:
+  ; clamp page to [1, pages(.char)]
+  LDA .res1
+  CPI 1
+  JPC hp_have_min
+  LDI 1
+  STA .res1
+hp_have_min:
+  ; if page > total_pages, set to total_pages
+  LDA .char
+  CMP .res1           ; C=1 if total_pages >= page
+  JPC hp_page_ok
+  LDA .char
+  STA .res1
+hp_page_ok:
+  ; Print header directly: page, '/', total_pages
+  ; save total_pages (.char) to .res2
+  LDA .char
+  STA .res2
+  ; page digit
+  LDA .res1
+  ADI 48
+  STA .char
+  JSR h_write_char
+  ; slash
+  LDI 47
+  STA .char
+  JSR h_write_char
+  ; total pages digit
+  LDA .res2
+  ADI 48
+  STA .char
+  JSR h_write_char
+  JSR newline
+
+  ; skip = (page-1)*per_page into .skipv
+  LDA .res1
+  SUI 1
+  STA .num_digits     ; reuse num_digits as loops remaining of pages-1
+  LDI 0
+  STA .bss + 1        ; skip = 0
+hp_skip_lp:
+  LDA .num_digits
+  CPI 0
+  JPZ hp_skip_done
+  LDA .bss + 1
+  ADD .per_page
+  STA .bss + 1
+  LDA .num_digits
+  SUI 1
+  STA .num_digits
+  JMP hp_skip_lp
+hp_skip_done:
+  ; printed = 0 (store in bss+2)
+  LDI 0
+  STA .bss + 2
+
+  ; iterate items, skipping first 'skip' and printing up to per_page
+  ; item 0: LIST
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk1
   LDI .txt_list
   STA .textloc
   JSR print
-  JSR newline
-  ; print CLS
+  JSR hp_after_print
+hp_sk1:
+  ; item 1: HELP
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk2
+  LDI .txt_help
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk2:
+  ; item 2: ECHO
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk3
+  LDI .txt_echo
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk3:
+  ; item 3: CLS
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk4
   LDI .txt_cls
   STA .textloc
   JSR print
-  JSR newline
-  ; print PEEK
+  JSR hp_after_print
+hp_sk4:
+  ; item 4: PEEK
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk5
   LDI .txt_peek
   STA .textloc
   JSR print
-  JSR newline
-  ; print POKE
+  JSR hp_after_print
+hp_sk5:
+  ; item 5: POKE
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk6
   LDI .txt_poke
   STA .textloc
   JSR print
-  JSR newline
-  ; print PRIMES
+  JSR hp_after_print
+hp_sk6:
+  ; item 6: PRIMES
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk7
   LDI .txt_primes
   STA .textloc
   JSR print
-  JSR newline
-  ; print PUZZLE
+  JSR hp_after_print
+hp_sk7:
+  ; item 7: PUZZLE
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk8
   LDI .txt_puzzle
   STA .textloc
   JSR print
-  JSR newline
-  ; print SHELL
+  JSR hp_after_print
+hp_sk8:
+  ; item 8: SHELL
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk9
   LDI .txt_shell
   STA .textloc
   JSR print
-  JSR newline
+  JSR hp_after_print
+hp_sk9:
   RET
 
 ; print null-terminated string at .textloc
-print:
-  JSR get_next_char
-  CPI 0
-  JPZ end_print
-  ; write_char inline
+print:              ; minimal print via ECHON: print up to 50 chars from .textloc
+  LDI 50
+  STA .num_digits
+  LDA .textloc
+  STA .arg1
+  JSR @ECHON
+  RET
+
+; Local write_char helper
+h_write_char:
   LDD .char
   DIC 0
   DIC 64
   DIC 192
   DIC 0
-  JMP print
-end_print:
-  RET
-
-get_next_char:
-  LDA .textloc
-  PHA
-  ADI 1
-  STA .textloc
-  LAS
-  STA .char
   RET
 
 newline:
@@ -84,4 +240,66 @@ newline:
   DIC 0
   DIC 128
   DIC 0
+  RET
+
+; Consider printing next item based on skip and printed counters
+hp_consider_print:
+  ; if skip > 0, skip-- and return 0
+  LDA .bss + 1
+  CPI 0
+  JPZ hp_cp_noskip
+  SUI 1
+  STA .bss + 1
+  LDI 0
+  RET
+hp_cp_noskip:
+  ; if printed >= per_page, return 0
+  LDA .bss + 2
+  CMP .per_page
+  JPC hp_cp_full
+  LDI 1
+  RET
+hp_cp_full:
+  LDI 0
+  RET
+
+hp_after_print:
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2
+  RET
+
+; Parse a decimal number at .arg1 into .res1
+parse_number:
+  LDI 0
+  STA .res1
+pn_loop:
+  LDA .arg1
+  PHA
+  LAS                 ; A = current char
+  ; if A < '0' -> done
+  CPI 48
+  JPC pn_ge_48
+  JMP pn_done
+pn_ge_48:
+  ; if A >= ':' -> done
+  CPI 58
+  JPC pn_done
+  ; convert to digit and accumulate: res1 = res1*10 + digit
+  SUI 48
+  STA .textloc        ; temp digit
+  LDA .res1
+  LSA
+  STA .bss + 4        ; tmp = res*2
+  LSA
+  LSA                 ; A = res*8
+  ADD .bss + 4        ; A = res*10
+  ADD .textloc
+  STA .res1
+  ; advance pointer
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP pn_loop
+pn_done:
   RET

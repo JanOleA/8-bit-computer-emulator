@@ -121,13 +121,22 @@ def assemble_dynamic_module(src_path: Path,
     lines = []
     if abi == "os":
         lines += [
+            "char = 4000",
+            "textloc = 4001",
             "arg1 = 4002",
             "arg2 = 4003",
             "res1 = 4004",
             "res2 = 4005",
             "pow2 = 4006",
             "num_digits = 4007",
-            "char = 4000",
+            "ascii_start = 4008",
+            "work1 = 4010",
+            "work2 = 4011",
+            "work3 = 4012",
+            "work4 = 4013",
+            "argv_base = 4400",
+            "argv_buf  = 4500",
+            "prog_table = 10000",
         ]
 
     # BSS injection
@@ -207,7 +216,7 @@ def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> boo
         elif end_idx != start_idx and not text[i].strip().startswith(';') and text[i].strip() != "":
             # Stop when we hit the next non-comment, non-empty line after the block
             break
-    # Replace block
+    # Replace block (legacy path): keep existing text, but replace the table block with the provided lines
     new_block = table_lines
     new_text = text[:start_idx] + new_block + text[end_idx + 1:]
     # Discover CALL_STUB base
@@ -221,9 +230,11 @@ def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> boo
                 pass
             break
     # Patch CALL_STUB operand (CALL_STUB+1) to SHELL base, if present
+    # Prefer an explicit module named 'shell'. Do NOT heuristically use entry=='start',
+    # because many modules use 'start' and that can mispatch the boot target.
     shell_base = None
     for k, v in data.items():
-        if k.lower() == 'shell' or str(v.get('entry','')).lower() == 'start':
+        if k.lower() == 'shell':
             shell_base = int(v.get('base', 0))
             break
     if shell_base is not None and call_stub_base is not None:
@@ -231,8 +242,6 @@ def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> boo
             s = ln.replace(" ", "")
             if s.startswith(f"{call_stub_base+1}="):
                 new_text[i] = f"{call_stub_base+1} = {shell_base}"
-            if ln.strip().startswith('JMP start_shell') or ln.strip().startswith('JSR #'):
-                new_text[i] = f'  JSR #{call_stub_base}'
 
     # Fill OS API vector with label addresses (simple first pass label indexer)
     # Build label->address mapping based on assembled instruction layout
@@ -275,7 +284,7 @@ def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> boo
                 if val is not None:
                     new_text[i] = f'.os_api + {idx} = {val}'
     os_path.write_text("\n".join(new_text) + "\n")
-    print(f"Applied program table to {os_path}")
+    print(f"Applied call stub and (legacy) table to {os_path}")
     return True
 
 
@@ -370,13 +379,9 @@ def main(apply_table: bool = False):
             gaps_path = Path(__file__).parent.parent / "32bit" / "free_gaps.txt"
             gaps_path.write_text("\n".join(gap_lines) + "\n")
 
-    out_path = Path(__file__).parent.parent / "32bit" / "compiled_routines.json"
-    out_path.write_text(json.dumps(data, indent=2))
-    print(f"Wrote {out_path}")
-
-    # Emit a handy program table overview to help update the OS dispatch table
-    # Read current prog_table base from OS file (fallback 4300)
-    pt_base = 4300
+    # Build and embed program table into JSON image
+    # Determine program table base: prefer reading from OS file, else default 10000
+    pt_base = 10000
     try:
         os_text = (Path(__file__).parent.parent / "32bit" / "emulator_os.txt").read_text().splitlines()
         for ln in os_text:
@@ -387,25 +392,50 @@ def main(apply_table: bool = False):
     except Exception:
         pass
 
-    table_lines = []
-    table_lines.append(f"prog_table = {pt_base}")
-    table_lines.append("; Command/program table entries: name[0..7], addr[8], reserved[9]")
-    entries = [kv for kv in sorted(data.items(), key=lambda kv: int(kv[1].get("base", 0)))]
-    for i, (name, mod) in enumerate(entries):
-        off = i * 10
+    # Compose program table bytes: 10-byte entries: name[0..7], addr[8], reserved[9]
+    entries = [kv for kv in sorted(data.items(), key=lambda kv: int(kv[1].get("base", 0))) if isinstance(kv[1], dict) and "base" in kv[1]]
+    table_words: list[int] = []
+    for name, mod in entries:
         nm = str(name).upper()[:8]
-        base = int(mod.get("base", 0))
-        table_lines.append(f".prog_table + {off}  = \"{nm}\"")
-        table_lines.append(f".prog_table + {off+8} = {base}")
-        table_lines.append(f".prog_table + {off+9} = 0")
-    table_lines.append(f".prog_table + {len(entries)*10} = 0    ; sentinel")
+        # Name bytes (padded with zeros so the OS matcher sees terminators)
+        for i in range(8):
+            ch = ord(nm[i]) if i < len(nm) else 0
+            table_words.append(ch)
+        # Address
+        table_words.append(int(mod.get("base", 0)))
+        # Reserved
+        table_words.append(0)
+    # Sentinel: a single zero at the next name[0]
+    table_words.append(0)
+    data["program_table"] = {"base": pt_base, "length": len(table_words), "words": table_words}
 
+    out_path = Path(__file__).parent.parent / "32bit" / "compiled_routines.json"
+    out_path.write_text(json.dumps(data, indent=2))
+    print(f"Wrote {out_path}")
+
+    # Emit a human-readable overview (optional legacy helper)
+    overview_lines = [
+        f"Program table base: {pt_base}",
+        "Entries (NAME → BASE):",
+    ]
+    for name, mod in entries:
+        overview_lines.append(f"  {str(name).upper():8} → {int(mod.get('base', 0))}")
     suggest_path = Path(__file__).parent.parent / "32bit" / "prog_table_suggest.txt"
-    suggest_path.write_text("\n".join(table_lines) + "\n")
-    print("\nSuggested OS program table (written to 32bit/prog_table_suggest.txt):\n")
-    print("\n".join(table_lines))
+    suggest_path.write_text("\n".join(overview_lines) + "\n")
+    print("\nProgram table overview (written to 32bit/prog_table_suggest.txt):\n")
+    print("\n".join(overview_lines))
 
     if apply_table:
+        # Legacy: still allow patching OS file on request (kept for compatibility)
+        table_lines = [f"prog_table = {pt_base}", "; Command/program table entries: name[0..7], addr[8], reserved[9]"]
+        for i, (name, mod) in enumerate(entries):
+            off = i * 10
+            nm = str(name).upper()[:8]
+            base = int(mod.get("base", 0))
+            table_lines.append(f".prog_table + {off}  = \"{nm}\"")
+            table_lines.append(f".prog_table + {off+8} = {base}")
+            table_lines.append(f".prog_table + {off+9} = 0")
+        table_lines.append(f".prog_table + {len(entries)*10} = 0    ; sentinel")
         apply_prog_table_to_os(table_lines, data)
 
 

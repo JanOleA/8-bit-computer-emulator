@@ -1,5 +1,5 @@
 ; Free gaps between modules (start,end,words)
-20056,20100,44 ; between multiply and divide
+20056,20100,44 ; between mult and divide
 20179,20200,21 ; between divide and dispnum
 20259,20300,41 ; between dispnum and list
 20439,20450,11 ; between list and cls
@@ -8,3 +8,6 @@
 20730,20800,70 ; between poke and primes
 20890,20900,10 ; between primes and puzzle
 21054,21200,146 ; between puzzle and shell
+22275,24200,1925 ; between shell and echo
+24331,24400,69 ; between echo and echon
+24453,24500,47 ; between echon and help

@@ -1,33 +1,15 @@
-prog_table = 10000
-; Command/program table entries: name[0..7], addr[8], reserved[9]
-.prog_table + 0  = "MULTIPLY"
-.prog_table + 8 = 20000
-.prog_table + 9 = 0
-.prog_table + 10  = "DIVIDE"
-.prog_table + 18 = 20100
-.prog_table + 19 = 0
-.prog_table + 20  = "DISPNUM"
-.prog_table + 28 = 20200
-.prog_table + 29 = 0
-.prog_table + 30  = "LIST"
-.prog_table + 38 = 20300
-.prog_table + 39 = 0
-.prog_table + 40  = "CLS"
-.prog_table + 48 = 20450
-.prog_table + 49 = 0
-.prog_table + 50  = "PEEK"
-.prog_table + 58 = 20500
-.prog_table + 59 = 0
-.prog_table + 60  = "POKE"
-.prog_table + 68 = 20600
-.prog_table + 69 = 0
-.prog_table + 70  = "PRIMES"
-.prog_table + 78 = 20800
-.prog_table + 79 = 0
-.prog_table + 80  = "PUZZLE"
-.prog_table + 88 = 20900
-.prog_table + 89 = 0
-.prog_table + 90  = "SHELL"
-.prog_table + 98 = 21200
-.prog_table + 99 = 0
-.prog_table + 100 = 0    ; sentinel
+Program table base: 10000
+Entries (NAME → BASE):
+  MULT     → 20000
+  DIVIDE   → 20100
+  DISPNUM  → 20200
+  LIST     → 20300
+  CLS      → 20450
+  PEEK     → 20500
+  POKE     → 20600
+  PRIMES   → 20800
+  PUZZLE   → 20900
+  SHELL    → 21200
+  ECHO     → 24200
+  ECHON    → 24400
+  HELP     → 24500

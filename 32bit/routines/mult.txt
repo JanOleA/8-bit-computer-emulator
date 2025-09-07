@@ -1,4 +1,4 @@
-;! name: MULTIPLY
+;! name: MULT
 ;! entry: multiply
 ;! base: 20000
 ;! deps:

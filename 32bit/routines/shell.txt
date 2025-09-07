@@ -6,17 +6,6 @@
 ;! bss: none
 ;! align: 100
 
-; Pointers to OS memory/layout
-textloc = 4001
-ascii_start = 4008
-prog_table = 10000
-argv_base = 4400
-argv_buf  = 4500
-work1 = 4010
-work2 = 4011
-work3 = 4012
-work4 = 4013
-
 ; Input buffering and history
 input_buf   = 4122
 input_ptr   = 4202

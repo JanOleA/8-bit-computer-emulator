@@ -84,7 +84,7 @@ class Game_32(Game):
         self.computer = Computer_32(self.progload, bits = self.cpubits,
                                     bits_stackpointer = self.stackbits)
 
-        # Optionally load JSON memory images
+        # Optionally load JSON memory images (including program_table)
         if self._json_images:
             import json as _json
             for jf in self._json_images:
@@ -94,6 +94,8 @@ class Game_32(Game):
                     limit = getattr(self.computer, "overflow_limit", 2**self.cpubits)
                     mask = limit - 1
                     for name, mod in data.items():
+                        if not isinstance(mod, dict):
+                            continue
                         base = int(mod.get("base", 0))
                         words = mod.get("words", [])
                         for i, w in enumerate(words):
@@ -103,6 +105,9 @@ class Game_32(Game):
                     print(f"Loaded JSON image: {jf}")
                 except Exception as e:
                     print(f"Failed to load JSON image {jf}: {e}")
+
+        for i in range(0, 15):
+            print(self.computer.memory[10000 + i*10:10010 + i*10])
 
         self.bus_display = BitDisplay(cpos = (640, 50),
                                       font = self._font_exobold,
@@ -290,7 +295,7 @@ class Game_32(Game):
 
         memcolumn = ""
         self.memrows = []
-        ncols = 56
+        ncols = 60
         nrows = 72
         for i in range(ncols):
             text = f"{i:>08d} "
@@ -308,7 +313,7 @@ class Game_32(Game):
     def draw_memory(self):
         memwidth = self.memcolumn.get_width()
         titlewidth = self.memory_title.get_width()
-        self.computer.get_mem_strings(72, 56, False, 8)
+        self.computer.get_mem_strings(72, 60, False, 8)
         x = 1710
         y = 57
         self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))

@@ -48,60 +48,34 @@ work4 = 4013         ; preserved entry base for handler lookup
 
 ; Program dispatch table (name[0..7], addr[8], reserved[9]) repeated; sentinel when name[0]==0
 prog_table = 10000
-; Command/program table entries: name[0..7], addr[8], reserved[9]
-.prog_table + 0  = "MULTIPLY"
-.prog_table + 8 = 20000
-.prog_table + 9 = 0
-.prog_table + 10  = "DIVIDE"
-.prog_table + 18 = 20100
-.prog_table + 19 = 0
-.prog_table + 20  = "DISPNUM"
-.prog_table + 28 = 20200
-.prog_table + 29 = 0
-.prog_table + 30  = "LIST"
-.prog_table + 38 = 20300
-.prog_table + 39 = 0
-.prog_table + 40  = "CLS"
-.prog_table + 48 = 20450
-.prog_table + 49 = 0
-.prog_table + 50  = "PEEK"
-.prog_table + 58 = 20500
-.prog_table + 59 = 0
-.prog_table + 60  = "POKE"
-.prog_table + 68 = 20600
-.prog_table + 69 = 0
-.prog_table + 70  = "PRIMES"
-.prog_table + 78 = 20800
-.prog_table + 79 = 0
-.prog_table + 80  = "PUZZLE"
-.prog_table + 88 = 20900
-.prog_table + 89 = 0
-.prog_table + 90  = "SHELL"
-.prog_table + 98 = 21200
-.prog_table + 99 = 0
-.prog_table + 100 = 0    ; sentinel
 
 ; Text blocks for HELP
-txt_list   = 6000
-txt_cls    = 6050
-txt_peek   = 6100
-txt_poke   = 6150
-txt_primes = 6200
-txt_puzzle = 6250
-txt_shell  = 6300
+txt_help   = 6000
+txt_echo   = 6050
+txt_list   = 6100
+txt_cls    = 6150
+txt_peek   = 6200
+txt_poke   = 6250
+txt_primes = 6300
+txt_puzzle = 6350
+txt_shell  = 6400
 
-.txt_list   = "LIST: show available commands"
+.txt_help   = "HELP page: show this help at page"
+.txt_echo   = "ECHO arg: print argument to terminal"
+.txt_list   = "LIST: show all installed commands"
 .txt_cls    = "CLS: clear the screen"
 .txt_peek   = "PEEK addr: print mem[addr]"
 .txt_poke   = "POKE addr val: store val at addr"
 .txt_primes = "PRIMES: print primes up to 300"
 .txt_puzzle = "PUZZLE: Matt Parker 19 puzzle"
-.txt_shell  = "SHELL: simple command prompt (history)"
+.txt_shell  = "SHELL: simple command prompt"
 
 start:
   JSR initialize_display
   LDI 4052
   STA .textloc
+  LDI 12
+  STA .num_digits
   JSR print
   JSR ret_home
   LDI 0           ; set variables to zero
@@ -114,12 +88,14 @@ start:
   STA .num_digits
   LDI 4020
   STA .textloc
+  LDI 16
+  STA .num_digits
   JSR print
-  JSR newline
   LDI 4036
   STA .textloc
+  LDI 16
+  STA .num_digits
   JSR print
-  JSR newline
   JSR newline
   JSR #19800
 
@@ -132,22 +108,13 @@ initialize_display: ; initializes the display
   JSR instruction
   RET
 
-print:              ; gets the first memory address for a string from .textloc and prints it to console (null terminated)
-  JSR get_next_char
-  CPI 0
-  JPZ end_print
-  JSR write_char
-  JMP print
-end_print:
+print:              ; minimal print via ECHON: print .num_digits chars from .textloc
+  LDA .textloc
+  STA .arg1
+  JSR #24400
   RET
 
-get_next_char:      ; gets the next character from .textloc and increases .textloc by 1
-  LDA .textloc
-  PHA
-  ADI 1
-  STA .textloc
-  LAS               ; get the value from .textloc into A
-  STA .char
+get_next_char:      ; unused after switching to ECHO
   RET
 
 write_char:         ; write the character in .char to screen

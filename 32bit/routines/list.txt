@@ -6,8 +6,6 @@
 ;! bss: none
 ;! align: 100
 
-prog_table = 10000
-
 list_commands:
   LDI .prog_table
   STA .arg2

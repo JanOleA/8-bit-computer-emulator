@@ -1,0 +1,113 @@
+;! name: ECHO
+;! entry: start
+;! base: 24200
+;! deps:
+;! abi: os
+;! bss: auto
+;! align: 100
+
+; OS ABI-provided pointers/temps:
+;  - .arg1 = argv_base (argc at [0], pointers at [1..])
+;  - .arg2 = argv_buf  (buffer with null-terminated tokens)
+;  - .res1/.res2/.pow2/.num_digits/.char are scratch
+
+start:
+  ; argc = [argv_base]
+  LDA .arg1
+  PHA
+  LAS
+  STA .res1
+  ; if argc == 0 → no args: just newline
+  LDA .res1
+  CPI 0
+  JPZ end_with_nl
+
+  ; slot_ptr = argv_base + 1  (points to argv[1] slot)
+  LDA .arg1
+  ADI 1
+  STA .res2
+  ; arg_ptr = *slot_ptr
+  LDA .res2
+  PHA
+  LAS
+  STA .pow2
+
+; print first token
+pf_loop:
+  LDA .pow2
+  PHA
+  LAS
+  STA .char
+  CPI 0
+  JPZ pf_done
+  JSR write_char
+  LDA .pow2
+  ADI 1
+  STA .pow2
+  JMP pf_loop
+pf_done:
+  ; remaining = argc - 1 (number of args after the first)
+  LDA .res1
+  SUI 1
+  STA .num_digits
+  ; slot_ptr = argv_base + 2 (next argv slot)
+  LDA .arg1
+  ADI 2
+  STA .res2
+
+rem_loop_check:
+  LDA .num_digits
+  CPI 0
+  JPZ end_with_nl
+  ; print a space between tokens
+  LDI 32
+  STA .char
+  JSR write_char
+  ; load next arg pointer
+  LDA .res2
+  PHA
+  LAS
+  STA .pow2
+
+; print token
+pl_loop:
+  LDA .pow2
+  PHA
+  LAS
+  STA .char
+  CPI 0
+  JPZ pl_done
+  JSR write_char
+  LDA .pow2
+  ADI 1
+  STA .pow2
+  JMP pl_loop
+pl_done:
+  ; advance slot_ptr and decrement remaining
+  LDA .res2
+  ADI 1
+  STA .res2
+  LDA .num_digits
+  SUI 1
+  STA .num_digits
+  JMP rem_loop_check
+
+end_with_nl:
+  JSR newline
+  RET
+
+; --- display helpers ---
+write_char:
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET

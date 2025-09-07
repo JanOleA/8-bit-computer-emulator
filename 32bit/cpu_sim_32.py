@@ -82,7 +82,7 @@ class Game_32(Game):
         self.computer = Computer_32(self.progload, bits = self.cpubits,
                                     bits_stackpointer = self.stackbits)
 
-        # Optionally load JSON memory images
+        # Optionally load JSON memory images (including program_table)
         if self._json_images:
             import json as _json
             for jf in self._json_images:
@@ -92,6 +92,8 @@ class Game_32(Game):
                     limit = getattr(self.computer, "overflow_limit", 2**self.cpubits)
                     mask = limit - 1
                     for name, mod in data.items():
+                        if not isinstance(mod, dict):
+                            continue
                         base = int(mod.get("base", 0))
                         words = mod.get("words", [])
                         for i, w in enumerate(words):
