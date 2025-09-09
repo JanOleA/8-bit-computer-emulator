@@ -1,6 +1,6 @@
 ;! name: LIST
 ;! entry: list_commands
-;! deps:
+;! deps: write_char, newline
 ;! abi: os
 ;! bss: none
 ;! align: 20
@@ -30,12 +30,7 @@ lc_printchar:
   CPI 0
   JPZ lc_pad
   STA .char
-  ; inline write_char
-  LDD .char
-  DIC 0
-  DIC 64
-  DIC 192
-  DIC 0
+  JSR @write_char
   LDA .res2
   ADI 1
   STA .res2
@@ -49,12 +44,7 @@ lc_pad:
   JPZ lc_aftercol
   LDI 32
   STA .char
-  ; inline write_char
-  LDD .char
-  DIC 0
-  DIC 64
-  DIC 192
-  DIC 0
+  JSR @write_char
   LDA .num_digits
   ADI 1
   STA .num_digits
@@ -67,11 +57,7 @@ lc_aftercol:
   JPZ lc_newline
   JMP lc_advance
 lc_newline:
-  ; inline newline
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @newline
   LDI 0
   STA .res1
 lc_advance:
@@ -83,10 +69,6 @@ lc_end:
   LDA .res1
   CPI 0
   JPZ lc_done
-  ; inline newline
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @newline
 lc_done:
   RET

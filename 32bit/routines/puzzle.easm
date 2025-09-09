@@ -1,6 +1,6 @@
 ;! name: PUZZLE
 ;! entry: main
-;! deps: multiply, divide, display_number
+;! deps: multiply, divide, display_number, newline
 ;! abi: os
 ;! bss: auto
 ;! align: 20
@@ -52,10 +52,7 @@ found_one:
   LDA .bss + 6
   STA .arg1
   JSR @display_number
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @newline
   ; store bss + 6 at bss + 7++
   LDA .bss + 7
   ADI 1

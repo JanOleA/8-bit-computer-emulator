@@ -1,6 +1,6 @@
 ;! name: PEEK
 ;! entry: peek
-;! deps: display_number
+;! deps: display_number, newline
 ;! abi: os
 ;! bss: none
 ;! align: 20
@@ -55,10 +55,6 @@ pk_pn_done:
   STA .arg1
   ; print via display_number
   JSR @display_number
-  ; newline
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @newline
 pk_end:
   RET

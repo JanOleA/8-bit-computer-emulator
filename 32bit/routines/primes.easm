@@ -1,6 +1,6 @@
 ;! name: PRIMES
 ;! entry: main
-;! deps: divide, display_number
+;! deps: divide, display_number, newline
 ;! abi: os
 ;! bss: none
 ;! align: 20
@@ -14,11 +14,7 @@ main:
   LDI 2
   STA .arg1
   JSR @display_number
-  ; newline
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @newline
   ; start from 3
   LDI 3
   STA .check_value
@@ -65,8 +61,5 @@ prime_os:
   LDA .check_value
   STA .arg1
   JSR @display_number
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @newline
   RET

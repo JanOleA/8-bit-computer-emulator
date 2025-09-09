@@ -1,6 +1,6 @@
 ;! name: CALC
 ;! entry: calc
-;! deps: display_number, divide, mult, parse_number, newline
+;! deps: display_number, divide, mult, parse_number, newline, write_char
 ;! abi: os
 ;! bss: none
 ;! align: 20
@@ -99,13 +99,13 @@ do_div:
   ; print " R "
   LDI 32
   STA .char
-  JSR write_char
+  JSR @write_char
   LDI 82              ; 'R'
   STA .char
-  JSR write_char
+  JSR @write_char
   LDI 32
   STA .char
-  JSR write_char
+  JSR @write_char
   ; print remainder
   LDA .work3
   STA .arg1
@@ -117,13 +117,4 @@ do_print:
   STA .arg1
   JSR @display_number
   JSR @newline
-  RET
-
-; local write_char helper
-write_char:
-  LDD .char
-  DIC 0
-  DIC 64
-  DIC 192
-  DIC 0
   RET

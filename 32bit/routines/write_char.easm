@@ -1,0 +1,14 @@
+;! name: WRTCHAR
+;! entry: write_char
+;! deps: 
+;! abi: os
+;! bss: none
+;! align: 20
+
+write_char:
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET

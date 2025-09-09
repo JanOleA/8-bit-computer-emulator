@@ -1,6 +1,6 @@
 ;! name: MEMEDIT
 ;! entry: main
-;! deps: display_number, newline
+;! deps: display_number, newline, write_char
 ;! abi: os
 ;! bss: auto
 ;! align: 20
@@ -107,7 +107,7 @@ me_loop:
   PHA
   LAS
   STA .char
-  JSR write_char
+  JSR @write_char
   ; store into buffer
   LDA .bss + 2
   PHA
@@ -165,7 +165,7 @@ me_backspace:
   JSR cursor_left
   LDI 32
   STA .char
-  JSR write_char
+  JSR @write_char
   JSR cursor_left
 me_bs_done:
   ; wait for key release to avoid repeats
@@ -289,31 +289,23 @@ pas_done:
 print_prompt:
   LDI 35              ; '#'
   STA .char
-  JSR write_char
+  JSR @write_char
   LDI 32
   STA .char
-  JSR write_char
+  JSR @write_char
   ; print current write pointer in brackets: "[<addr>] "
   LDI 91              ; '['
   STA .char
-  JSR write_char
+  JSR @write_char
   LDA .bss + 1        ; current write address
   STA .arg1
   JSR @display_number
   LDI 93              ; ']'
   STA .char
-  JSR write_char
+  JSR @write_char
   LDI 32              ; space
   STA .char
-  JSR write_char
-  RET
-
-write_char:
-  LDD .char
-  DIC 0
-  DIC 64
-  DIC 192
-  DIC 0
+  JSR @write_char
   RET
 
 cursor_left:

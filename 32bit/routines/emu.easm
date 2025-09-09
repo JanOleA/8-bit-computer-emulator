@@ -1,6 +1,6 @@
 ;! name: EMU
 ;! entry: main
-;! deps: newline
+;! deps: newline, write_char
 ;! abi: os
 ;! bss: none
 ;! align: 20
@@ -86,21 +86,12 @@ print_zstr:
   STA .char
   CPI 0
   JPZ pzs_done
-  JSR write_char
+  JSR @write_char
   LDA .arg1
   ADI 1
   STA .arg1
   JMP print_zstr
 pzs_done:
-  RET
-
-; Inline write_char using display registers
-write_char:
-  LDD .char
-  DIC 0
-  DIC 64
-  DIC 192
-  DIC 0
   RET
 
 ; Auto data (null-terminated by routine compiler)

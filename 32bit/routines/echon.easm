@@ -1,6 +1,6 @@
 ;! name: ECHON
 ;! entry: start
-;! deps: newline
+;! deps: newline, write_char
 ;! abi: os
 ;! bss: none
 ;! align: 20
@@ -49,7 +49,7 @@ lp:
   LAS
   STA .char
   ; write char
-  JSR write_char
+  JSR @write_char
   ; advance arg1 and decrement N
   LDA .arg1
   ADI 1
@@ -62,13 +62,4 @@ lp:
 
 end_nl:
   JSR @newline
-  RET
-
-; --- display helpers ---
-write_char:
-  LDD .char
-  DIC 0
-  DIC 64
-  DIC 192
-  DIC 0
   RET
