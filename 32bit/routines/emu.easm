@@ -1,0 +1,133 @@
+;! name: EMU
+;! entry: main
+;! deps:
+;! abi: os
+;! bss: none
+;! align: 100
+
+; Print EMU ASCII art using OS display ABI
+
+main:
+  LDI .l1
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l2
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l3
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l4
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l5
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l6
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l7
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l8
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l9
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l10
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l11
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l12
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l13
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l14
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l15
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l16
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  LDI .l17
+  STA .arg1
+  JSR print_zstr
+  JSR newline
+  RET
+  RET
+
+; Print zero-terminated string at .arg1
+print_zstr:
+  LDA .arg1
+  PHA
+  LAS
+  STA .char
+  CPI 0
+  JPZ pzs_done
+  JSR write_char
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP print_zstr
+pzs_done:
+  RET
+
+; Inline write_char using display registers
+write_char:
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET
+
+; Newline helper
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+
+; Auto data (null-terminated by routine compiler)
+
+.l1 =  "...............--------........."
+.l2 =  "........--.--.---------........."
+.l3 =  ".....--.----+++++#++----........"
+.l4 =  "-...-++#++++++++###++#++-......."
+.l5 =  "+++#######++++++++#+++##+++-+-++"
+.l6 =  "+++######++++----+-++++++#++++++"
+.l7 =  "+--+#-###++-------++++######+---"
+.l8 =  "++--##+#+++++-------+#######+---"
+.l9 =  "++++###++-+#------#+++#####+#+++"
+.l10 = "+++#++++++---+++-----+####++++++"
+.l11 = "++##+++++++++###+++++++###+++-++"
+.l12 = "+++##++####################+++++"
+.l13 = "++++#######################+++++"
+.l14 = "++++++++++###############+++++++"
+.l15 = "+++++++##++############+++++++++"
+.l16 = "+++++++++++#########++++++++++++"
+.l17 = "+++++++++###+###+++++###++++++++"

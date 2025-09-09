@@ -7,7 +7,7 @@
 
 ; HEXDUMP <addr> <nwords>
 ; Prints 32-bit words in hexadecimal, four columns per row,
-; each value as 8 hex digits (zero-padded).
+; each value right-aligned in 8 characters (space-padded).
 
 ; Data (module-local)
 .hex_map = "0123456789ABCDEF"
@@ -144,7 +144,8 @@ hx_end:
   JSR newline
   RET
 
-; Prints A as 8 hex digits (most significant first), zero-padded
+; Prints .arg1 as up to 8 hex digits (most significant first),
+; space-padded on the left to width 8
 print_hex8:
   ; Capture the input word from .arg1 into a local temp (.bss + 4)
   ; Caller stored the memory word into .arg1 before calling us.
@@ -152,6 +153,10 @@ print_hex8:
   STA .bss + 4       ; local working value
   LDI 0
   STA .bss + 3       ; digit counter
+  ; Special case: if value==0, push single '0' and set digits=1
+  LDA .bss + 4
+  CPI 0
+  JPZ ph_zero
 ph_loop:
   ; Divide current value by 16, push remainder as hex digit
   LDA .bss + 4
@@ -176,11 +181,35 @@ ph_hex_push:
   LDA .bss + 3
   ADI 1
   STA .bss + 3
-  CPI 8
-  JPZ ph_print
+  ; continue until working value becomes 0
+  LDA .bss + 4
+  CPI 0
+  JPZ ph_pad
   JMP ph_loop
+ph_zero:
+  LDI 48              ; '0'
+  PHA
+  LDI 1
+  STA .bss + 3
+  JMP ph_pad
+ph_pad:
+  ; Emit spaces to left-pad to width 8: pad = 8 - digits
+  LDI 8
+  SUB .bss + 3
+  STA .bss + 5        ; pad count
+ph_pad_loop:
+  LDA .bss + 5
+  CPI 0
+  JPZ ph_print
+  LDI 32
+  STA .char
+  JSR h_write_char
+  LDA .bss + 5
+  SUI 1
+  STA .bss + 5
+  JMP ph_pad_loop
 ph_print:
-  ; pop and print 8 ASCII hex digits
+  ; pop and print 'digits' ASCII hex digits
   PLA
   STA .char
   JSR h_write_char

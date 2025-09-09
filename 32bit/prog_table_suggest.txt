@@ -5,14 +5,16 @@ Entries (NAME → BASE):
   DISPNUM  → 20400
   DIVIDE   → 20500
   DUMP     → 20600
-  ECHO     → 20800
-  ECHON    → 21000
-  HELP     → 21100
-  HEXDUMP  → 21600
-  LIST     → 21900
-  MULT     → 22100
-  PEEK     → 22200
-  POKE     → 22300
-  PRIMES   → 22500
-  PUZZLE   → 22600
-  SHELL    → 22800
+  ECHO     → 20900
+  ECHON    → 21100
+  EMU      → 21200
+  HELP     → 21400
+  HEXDUMP  → 21900
+  LIST     → 22300
+  MEMEDIT  → 22500
+  MULT     → 23000
+  PEEK     → 23100
+  POKE     → 23200
+  PRIMES   → 23400
+  PUZZLE   → 23500
+  SHELL    → 23700

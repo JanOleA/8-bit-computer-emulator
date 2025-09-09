@@ -63,7 +63,7 @@ lc_aftercol:
   LDA .res1
   ADI 1
   STA .res1
-  CPI 3
+  CPI 4
   JPZ lc_newline
   JMP lc_advance
 lc_newline:

@@ -1,0 +1,360 @@
+;! name: MEMEDIT
+;! entry: main
+;! deps: display_number
+;! abi: os
+;! bss: auto
+;! align: 100
+
+; Interactive memory editor
+; Usage: MEMEDIT <start_addr>
+; After prompt '# ', type space-separated decimal values and press Enter to write
+; them to memory at the current write pointer. Empty line exits. Write pointer
+; advances after each value.
+
+line_len = 80
+no_input = 4009
+
+; BSS locals layout (use .bss offsets directly)
+;   .bss      = starting write address (write_base)
+;   .bss + 1  = current write address (write_ptr)
+;   .bss + 2  = current input buffer pointer (buf_ptr)
+;   .bss + 3  = current input length (buf_len)
+;   .bss + 4  = base of input buffer, computed at runtime (buf_base)
+;   .bss + 5  = tokenizer scan pointer (scan_ptr)
+;   .bss + 6  = parsed number accumulator (val_acc)
+
+main:
+  ; require at least 1 argument
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 1
+  JPZ me_go
+  RET
+
+me_go:
+  ; parse first arg -> write_base
+  LDI .argv_base
+  ADI 1
+  PHA
+  LAS
+  STA .res2           ; res2 = pointer to string
+  LDI 0
+  STA .res1
+me_pn:
+  LDA .res2
+  PHA
+  LAS
+  CPI 0
+  JPZ me_pn_done
+  CPI 32
+  JPZ me_pn_done
+  SUI 48
+  STA .char
+  LDA .res1
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .res1
+  LDA .res1
+  ADD .char
+  STA .res1
+  LDA .res2
+  ADI 1
+  STA .res2
+  JMP me_pn
+me_pn_done:
+  LDA .res1
+  STA .bss
+  STA .bss + 1
+
+  ; init input buffer pointers
+  LDI .bss
+  ADI 64
+  STA .bss + 4
+  LDA .bss + 4
+  STA .bss + 2
+  LDI 0
+  STA .bss + 3
+
+  ; initial prompt '# '
+  JSR print_prompt
+  ; flush any pending key (e.g., the Enter used to launch MEMEDIT)
+  JSR flush_input
+
+me_loop:
+  JSR check_input
+  LDA .res2
+  CPI 0
+  JPZ me_loop
+
+  ; Enter?
+  LDA .res1
+  CPI 31
+  JPZ me_enter
+  CPI 32
+  JPZ me_enter
+
+  ; Backspace?
+  CPI 43
+  JPZ me_backspace
+
+  ; Regular character: convert via ascii_map and append to buffer
+  LDA .ascii_start
+  ADD .res1
+  PHA
+  LAS
+  STA .char
+  JSR write_char
+  ; store into buffer
+  LDA .bss + 2
+  PHA
+  LDA .char
+  SAS
+  ; advance ptr and len with clamps
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2
+  ; clamp buf_ptr <= (buf_base + line_len)
+  LDA .bss + 4
+  ADI .line_len
+  STA .res2
+  LDA .bss + 2
+  CMP .res2
+  JPZ me_clamp_ptr
+  JMP me_after_ptr
+me_clamp_ptr:
+  LDA .bss + 2
+  SUI 1
+  STA .bss + 2
+me_after_ptr:
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+  ; clamp buf_len <= line_len
+  LDI .line_len
+  CMP .bss + 3
+  JPZ me_clamp_len
+  JMP me_after_len
+me_clamp_len:
+  LDA .bss + 3
+  SUI 1
+  STA .bss + 3
+me_after_len:
+  ; wait for key release to avoid repeats
+  JSR flush_input
+  JMP me_loop
+
+; Handle backspace: remove last char from buffer and screen
+me_backspace:
+  LDA .bss + 3
+  CPI 0
+  JPZ me_bs_done
+  LDA .bss + 2
+  SUI 1
+  STA .bss + 2
+  LDA .bss + 2
+  PHA
+  LDI 0
+  SAS
+  LDA .bss + 3
+  SUI 1
+  STA .bss + 3
+  JSR cursor_left
+  LDI 32
+  STA .char
+  JSR write_char
+  JSR cursor_left
+me_bs_done:
+  ; wait for key release to avoid repeats
+  JSR flush_input
+  JMP me_loop
+
+; Handle enter: empty line exits; else parse and write values
+me_enter:
+  ; terminate buffer
+  LDA .bss + 2
+  PHA
+  LDI 0
+  SAS
+  ; if empty -> exit
+  LDA .bss + 3
+  CPI 0
+  JPZ me_exit
+  ; parse and store
+  JSR parse_and_store
+  ; reset buffer
+  LDA .bss + 4
+  STA .bss + 2
+  LDI 0
+  STA .bss + 3
+  ; newline and prompt
+  JSR newline
+  JSR print_prompt
+  ; wait for key release to avoid repeats
+  JSR flush_input
+  JMP me_loop
+
+me_exit:
+  ; print newline, wait for key release, then clear any debounce flag
+  JSR newline
+  JSR flush_input
+  LDI 0
+  STA .no_input
+  RET
+
+; --- Parsing and writing ---
+; parse tokens from buffer and write to memory starting at .write_ptr
+parse_and_store:
+  LDA .bss + 4
+  STA .bss + 5
+pas_next_token:
+  ; skip spaces
+  LDA .bss + 5
+  PHA
+  LAS
+  CPI 32
+  JPZ pas_skip1
+  CPI 0
+  JPZ pas_done
+  JMP pas_start
+pas_skip1:
+  LDA .bss + 5
+  ADI 1
+  STA .bss + 5
+  JMP pas_next_token
+pas_start:
+  LDI 0
+  STA .bss + 6
+  LDI 0
+  STA .num_digits
+pas_digits:
+  LDA .bss + 5
+  PHA
+  LAS
+  CPI 48
+  JPC pas_check_hi
+  JMP pas_after_num
+pas_check_hi:
+  CPI 58
+  JPC pas_after_num
+  ; digit: val = val*10 + (ch-48)
+  SUI 48
+  STA .char
+  LDA .bss + 6
+  LSA
+  STA .pow2
+  LSA
+  LSA
+  ADD .pow2
+  STA .bss + 6
+  LDA .bss + 6
+  ADD .char
+  STA .bss + 6
+  ; advance
+  LDA .bss + 5
+  ADI 1
+  STA .bss + 5
+  LDA .num_digits
+  ADI 1
+  STA .num_digits
+  JMP pas_digits
+pas_after_num:
+  ; if no digits, either separator or end
+  LDA .num_digits
+  CPI 0
+  JPZ pas_next_token
+  ; write value to memory at write_ptr
+  LDA .bss + 1
+  PHA
+  LDA .bss + 6
+  SAS
+  ; advance write_ptr
+  LDA .bss + 1
+  ADI 1
+  STA .bss + 1
+  JMP pas_next_token
+pas_done:
+  RET
+
+; --- UI helpers (adapted from SHELL) ---
+print_prompt:
+  LDI 35              ; '#'
+  STA .char
+  JSR write_char
+  LDI 32
+  STA .char
+  JSR write_char
+  ; print current write pointer in brackets: "[<addr>] "
+  LDI 91              ; '['
+  STA .char
+  JSR write_char
+  LDA .bss + 1        ; current write address
+  STA .arg1
+  JSR @display_number
+  LDI 93              ; ']'
+  STA .char
+  JSR write_char
+  LDI 32              ; space
+  STA .char
+  JSR write_char
+  RET
+
+write_char:
+  LDD .char
+  DIC 0
+  DIC 64
+  DIC 192
+  DIC 0
+  RET
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+
+cursor_left:
+  DIS 18
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+
+check_input:
+  KEI
+  PHA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 1
+  JPZ input_entered
+  PLA
+  LDI 0
+  STA .res2
+  RET
+input_entered:
+  PLA
+  SUI 128
+  OUT
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+
+; Drain any pending keypresses so we start with a clean state
+flush_input:
+  JSR check_input
+  LDA .res2
+  CPI 0
+  JPZ fi_done
+  JMP flush_input
+fi_done:
+  RET

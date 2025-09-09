@@ -44,7 +44,7 @@ class Game_32(Game):
                          progload, LCD_display, json_images)
         self.cpubits = cpubits
         self.stackbits = stackbits
-        self._width = 5000
+        self._width = 2000
         self._height = 1200
         self._size = (self._width, self._height)
 
@@ -292,7 +292,7 @@ class Game_32(Game):
 
         memcolumn = ""
         self.memrows = []
-        ncols = 60
+        ncols = 4
         nrows = 72
         for i in range(ncols):
             text = f"{i:>08d} "
@@ -310,7 +310,7 @@ class Game_32(Game):
     def draw_memory(self):
         memwidth = self.memcolumn.get_width()
         titlewidth = self.memory_title.get_width()
-        self.computer.get_mem_strings(72, 60, False, 8)
+        self.computer.get_mem_strings(72, 4, False, 8)
         x = 1710
         y = 57
         self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))

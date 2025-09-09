@@ -552,7 +552,27 @@ def main(apply_table: bool = False):
     data["program_table"] = {"base": pt_base, "length": len(table_words), "words": table_words}
 
     out_path = Path(__file__).parent.parent / "32bit" / "compiled_routines.json"
-    out_path.write_text(json.dumps(data, indent=2))
+    # Write JSON with compact lists (inline) but pretty-printed dicts
+    def _dumps_compact_lists(obj, indent=2):
+        def _dump(o, lvl=0):
+            sp = ' ' * (indent * lvl)
+            if isinstance(o, dict):
+                if not o:
+                    return '{}'
+                parts = []
+                for k, v in o.items():
+                    key = json.dumps(k)
+                    val = _dump(v, lvl + 1)
+                    parts.append(f"{sp}{' ' * indent}{key}: {val}")
+                return '{\n' + ',\n'.join(parts) + "\n" + sp + '}'
+            elif isinstance(o, list):
+                # Inline arrays with no spaces
+                return json.dumps(o, separators=(',', ':'))
+            else:
+                return json.dumps(o)
+        return _dump(obj, 0)
+
+    out_path.write_text(_dumps_compact_lists(data, indent=2))
     print(f"Wrote {out_path}")
 
     # Emit a human-readable overview (optional legacy helper)
