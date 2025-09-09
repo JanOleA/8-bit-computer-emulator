@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: os
 ;! bss: none
-;! align: 100
+;! align: 20
 
 divide:
   LDI 0

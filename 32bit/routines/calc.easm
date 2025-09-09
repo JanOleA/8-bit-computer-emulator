@@ -1,9 +1,9 @@
 ;! name: CALC
 ;! entry: calc
-;! deps: display_number, divide, mult
+;! deps: display_number, divide, mult, parse_number, newline
 ;! abi: os
 ;! bss: none
-;! align: 100
+;! align: 20
 
 ; CALC <num1> <op> <num2>
 ; Computes num1 <op> num2 where op is one of + - * /
@@ -25,7 +25,7 @@ cl_go:
   PHA
   LAS
   STA .arg1           ; arg1 = pointer to first number string
-  JSR parse_number
+  JSR @parse_number
   LDA .res1
   STA .work1
 
@@ -46,7 +46,7 @@ cl_go:
   PHA
   LAS
   STA .arg1           ; arg1 = pointer to second number string
-  JSR parse_number
+  JSR @parse_number
   LDA .res1
   STA .work2
 
@@ -110,54 +110,13 @@ do_div:
   LDA .work3
   STA .arg1
   JSR @display_number
-  JSR newline
+  JSR @newline
   RET
 
 do_print:
   STA .arg1
   JSR @display_number
-  JSR newline
-  RET
-
-; Parse a decimal number at .arg1 into .res1 (stops at first non-digit)
-parse_number:
-  LDI 0
-  STA .res1
-pn_loop:
-  LDA .arg1
-  PHA
-  LAS                 ; A = current char
-  CPI 48              ; if A < '0' -> done
-  JPC pn_ge_48
-  JMP pn_done
-pn_ge_48:
-  CPI 58              ; if A >= ':' -> done
-  JPC pn_done
-  ; convert to digit and accumulate: res1 = res1*10 + digit
-  SUI 48
-  STA .textloc        ; temp digit
-  LDA .res1
-  LSA
-  STA .pow2           ; tmp = res*2
-  LSA
-  LSA                 ; A = res*8
-  ADD .pow2           ; A = res*10
-  ADD .textloc
-  STA .res1
-  ; advance pointer
-  LDA .arg1
-  ADI 1
-  STA .arg1
-  JMP pn_loop
-pn_done:
-  RET
-
-; simple newline helper
-newline:
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @newline
   RET
 
 ; local write_char helper

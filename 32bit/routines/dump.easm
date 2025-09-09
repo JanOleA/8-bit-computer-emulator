@@ -1,9 +1,9 @@
 ;! name: DUMP
 ;! entry: main
-;! deps: display_number
+;! deps: display_number, newline
 ;! abi: os
 ;! bss: auto
-;! align: 100
+;! align: 20
 
 ; DUMP <addr> <nwords>
 ; Prints decimal words from memory starting at <addr>,
@@ -147,12 +147,13 @@ dmp_loop:
   JMP dmp_loop
 
 dmp_newline:
-  JSR newline
+  JSR @newline
   LDI 0
   STA .bss + 2
   JMP dmp_loop
 
 dmp_end:
+  JSR @newline
   RET
 
 ; --- local helpers ---
@@ -161,13 +162,6 @@ h_write_char:
   DIC 0
   DIC 64
   DIC 192
-  DIC 0
-  RET
-
-newline:
-  DIS 32
-  DIC 0
-  DIC 128
   DIC 0
   RET
 

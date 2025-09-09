@@ -1,9 +1,9 @@
 ;! name: SHELL
 ;! entry: start
-;! deps:
+;! deps: newline
 ;! abi: os
-;! bss: none
-;! align: 100
+;! bss: auto
+;! align: 20
 
 ; Input buffering and history
 input_buf   = 4122
@@ -36,13 +36,13 @@ start:
 ; --- Main loop ---
 main_loop:
   JSR check_input
-  LDA .res2
+  LDA .bss + 1
   CPI 0
   JPZ no_input
   LDA .no_input
   CPI 1
   JPZ main_loop
-  LDA .res1
+  LDA .bss
   CPI 31
   JPZ handle_enter
   CPI 32
@@ -54,7 +54,7 @@ main_loop:
   CPI 43
   JPZ handle_backspace
   LDA .ascii_start
-  ADD .res1
+  ADD .bss
   PHA
   LAS
   STA .char
@@ -112,15 +112,15 @@ check_input:
   JPZ input_entered
   PLA
   LDI 0
-  STA .res2
+  STA .bss + 1
   RET
 input_entered:
   PLA
   SUI 128
   OUT
-  STA .res1
+  STA .bss
   LDI 1
-  STA .res2
+  STA .bss + 1
   RET
 
 handle_hist_up:
@@ -196,15 +196,8 @@ write_char:
   DIC 0
   RET
 
-newline:
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
-  RET
-
 ret_home:
-  JSR newline
+  JSR @newline
   DIS 24
   DIC 0
   DIC 128
@@ -235,7 +228,7 @@ cursor_left:
 
 enter:
   JSR ret_home
-  JSR newline
+  JSR @newline
   RET
 
 clear_line:
@@ -262,7 +255,7 @@ run_command:
   STA .arg1
   JSR skip_spaces
   JSR dispatch_program
-  LDA .res1
+  LDA .bss
   CPI 1
   JPZ rc_done
   ; Fallback: RUN <addr>
@@ -293,7 +286,7 @@ rc_delim:
   ADI 3
   STA .arg1
   JSR parse_number
-  LDA .res1
+  LDA .bss
   PHA
   RET
 rc_done:
@@ -314,7 +307,7 @@ sksp_inc:
 
 parse_number:
   LDI 0
-  STA .res1
+  STA .bss
   JSR skip_spaces
 pn_loop:
   LDA .arg1
@@ -328,16 +321,16 @@ pn_check_hi:
   JPC pn_done
   SUI 48
   STA .char
-  LDA .res1
+  LDA .bss
   LSA
   STA .pow2
   LSA
   LSA
   ADD .pow2
-  STA .res1
-  LDA .res1
+  STA .bss
+  LDA .bss
   ADD .char
-  STA .res1
+  STA .bss
   LDA .arg1
   ADI 1
   STA .arg1
@@ -347,7 +340,7 @@ pn_done:
 
 dispatch_program:
   LDI 0
-  STA .res1
+  STA .bss
   LDA .arg1
   STA .textloc
   LDI .prog_table
@@ -359,7 +352,7 @@ dp_entry:
   CPI 0
   JPZ dp_nomatch
   LDA .arg2
-  STA .res2
+  STA .bss + 1
   LDA .textloc
   STA .pow2
   LDI 8
@@ -369,7 +362,7 @@ dp_cmp_loop:
   PHA
   LAS
   STA .char
-  LDA .res2
+  LDA .bss + 1
   PHA
   LAS
   STA .no_input
@@ -396,16 +389,16 @@ dp_equal:
   LDA .pow2
   ADI 1
   STA .pow2
-  LDA .res2
+  LDA .bss + 1
   ADI 1
-  STA .res2
+  STA .bss + 1
   LDA .num_digits
   SUI 1
   STA .num_digits
   JPZ dp_post8
   JMP dp_cmp_loop
 dp_post8:
-  LDA .res2
+  LDA .bss + 1
   PHA
   LAS
   CPI 0
@@ -440,18 +433,20 @@ dp_match:
   ADI 8
   PHA
   LAS
-  STA .res2
+  STA .bss + 1
   LDI 19801
   PHA
-  LDA .res2
+  LDA .bss + 1
   SAS
   JSR #19800
+  LDA 19803
+  STA 19801 ; reset the call stub entry to the initial (shell)
   LDI 1
-  STA .res1
+  STA .bss
   RET
 dp_nomatch:
   LDI 0
-  STA .res1
+  STA .bss
   RET
 
 ; Build argc/argv from the raw argument string at .arg1
@@ -557,9 +552,9 @@ save_history:
   LSA
   LSA
   ADD .hist_tmp2
-  STA .res2
+  STA .bss + 1
   LDI .hist_base
-  ADD .res2
+  ADD .bss + 1
   STA .arg2
   LDI .input_buf
   STA .arg1
@@ -642,20 +637,20 @@ history_load_current:
   LDA .hist_head
   ADI .hist_max
   SUB .hist_pos
-  STA .res1
+  STA .bss
   JMP hlc_idx_ready
 hlc_nowrap:
   LDA .hist_head
   SUB .hist_pos
-  STA .res1
+  STA .bss
 hlc_idx_ready:
-  LDA .res1
+  LDA .bss
   LSA
   LSA
   LSA
   LSA
   STA .hist_tmp1
-  LDA .res1
+  LDA .bss
   LSA
   LSA
   LSA
@@ -663,9 +658,9 @@ hlc_idx_ready:
   LSA
   LSA
   ADD .hist_tmp1
-  STA .res2
+  STA .bss + 1
   LDI .hist_base
-  ADD .res2
+  ADD .bss + 1
   STA .arg1
   LDI 0
   STA .num_digits

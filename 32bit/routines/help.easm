@@ -1,9 +1,9 @@
 ;! name: HELP
 ;! entry: help
-;! deps: echon
+;! deps: echon, parse_number, newline
 ;! abi: os
 ;! bss: auto
-;! align: 100
+;! align: 20
 
 ; Text blocks (embedded as module-local data)
 .txt_help     = "HELP page: show this help at page"
@@ -27,7 +27,7 @@ help:
   ; Determine total items and per-page
   LDI 13
   STA .res2           ; total_items = 13
-  LDI 14
+  LDI 6
   STA .per_page       ; per_page
 
   ; Compute total_pages into .char using loop: pages=1; while total_items > per_page: pages++, total_items -= per_page
@@ -79,7 +79,7 @@ hp_pages_done:
   PHA
   LAS
   STA .arg1           ; arg1 = pointer to page string
-  JSR parse_number    ; outputs into .res1
+  JSR @parse_number
 hp_after_parse:
   ; clamp page to [1, pages(.char)]
   LDA .res1
@@ -113,7 +113,7 @@ hp_page_ok:
   ADI 48
   STA .char
   JSR h_write_char
-  JSR newline
+  JSR @newline
 
   ; skip = (page-1)*per_page into .skipv
   LDA .res1
@@ -275,13 +275,6 @@ h_write_char:
   DIC 0
   RET
 
-newline:
-  DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
-  RET
-
 ; Consider printing next item based on skip and printed counters
 hp_consider_print:
   ; if skip > 0, skip-- and return 0
@@ -307,39 +300,4 @@ hp_after_print:
   LDA .bss + 2
   ADI 1
   STA .bss + 2
-  RET
-
-; Parse a decimal number at .arg1 into .res1
-parse_number:
-  LDI 0
-  STA .res1
-pn_loop:
-  LDA .arg1
-  PHA
-  LAS                 ; A = current char
-  ; if A < '0' -> done
-  CPI 48
-  JPC pn_ge_48
-  JMP pn_done
-pn_ge_48:
-  ; if A >= ':' -> done
-  CPI 58
-  JPC pn_done
-  ; convert to digit and accumulate: res1 = res1*10 + digit
-  SUI 48
-  STA .textloc        ; temp digit
-  LDA .res1
-  LSA
-  STA .bss + 4        ; tmp = res*2
-  LSA
-  LSA                 ; A = res*8
-  ADD .bss + 4        ; A = res*10
-  ADD .textloc
-  STA .res1
-  ; advance pointer
-  LDA .arg1
-  ADI 1
-  STA .arg1
-  JMP pn_loop
-pn_done:
   RET

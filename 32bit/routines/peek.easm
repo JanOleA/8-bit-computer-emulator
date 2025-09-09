@@ -3,7 +3,7 @@
 ;! deps: display_number
 ;! abi: os
 ;! bss: none
-;! align: 100
+;! align: 20
 
 argv_base = 4400
 

@@ -1,9 +1,9 @@
 ;! name: ECHO
 ;! entry: start
-;! deps:
+;! deps: newline
 ;! abi: os
 ;! bss: auto
-;! align: 100
+;! align: 20
 
 ; OS ABI-provided pointers/temps:
 ;  - .arg1 = argv_base (argc at [0], pointers at [1..])
@@ -92,7 +92,7 @@ pl_done:
   JMP rem_loop_check
 
 end_with_nl:
-  JSR newline
+  JSR @newline
   RET
 
 ; --- display helpers ---
@@ -101,12 +101,5 @@ write_char:
   DIC 0
   DIC 64
   DIC 192
-  DIC 0
-  RET
-
-newline:
-  DIS 32
-  DIC 0
-  DIC 128
   DIC 0
   RET

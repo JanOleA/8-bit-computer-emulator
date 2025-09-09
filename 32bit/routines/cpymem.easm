@@ -1,0 +1,146 @@
+;! name: CPYMEM
+;! entry: start
+;! deps: display_number, parse_number
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; Copy memory safely handling overlap.
+; Inputs (OS ABI):
+;   bss + 0 = src
+;   bss + 1 = dst
+;   bss + 2 = len
+
+start:
+  ; require at least 3 args
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 3
+  JPZ cl_go
+  RET
+
+cl_go:
+  LDI .argv_base
+  ADI 1
+  PHA
+  LAS
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .bss
+
+  LDI .argv_base
+  ADI 2
+  PHA
+  LAS
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .bss + 1
+
+  LDI .argv_base
+  ADI 3
+  PHA
+  LAS
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .bss + 2
+
+cpy:
+  ; if len == 0: return
+  LDA .bss + 2
+  CPI 0
+  JPZ cpy_ret
+
+  ; work1 = src_end = src + len
+  LDA .bss
+  ADD .bss + 2
+  STA .work1
+
+  ; if dst >= src and dst < src_end then backward else forward
+  LDA .bss + 1
+  CMP .bss
+  JPC cpy_ge_src
+  JMP cpy_forward
+
+cpy_ge_src:
+  LDA .bss + 1
+  CMP .work1
+  JPC cpy_forward     ; dst >= src_end -> forward
+  JMP cpy_backward    ; overlap -> backward
+
+; forward copy
+cpy_forward:
+  LDA .bss
+  STA .work2          ; src_ptr
+  LDA .bss + 1
+  STA .work3          ; dst_ptr
+  LDA .bss + 2
+  STA .work4          ; count
+cf_loop:
+  LDA .work4          ; load count
+  CPI 0               ; compare count to 0
+  JPZ cpy_ret         ; if count is 0, return
+  ; A = *dst_ptr
+  LDA .work3
+  PHA ; push dst_prt to stack
+  ; A = *src_ptr
+  LDA .work2
+  PHA ; push src_ptr to stack
+  LAS ; pop pointer from stack, get source mem content to A
+  SAS ; pop dst_ptr from stack, store A
+  ; advance ptrs and dec count
+  LDA .work2
+  ADI 1
+  STA .work2
+  LDA .work3
+  ADI 1
+  STA .work3
+  LDA .work4
+  SUI 1
+  STA .work4
+  JMP cf_loop
+
+; backward copy
+cpy_backward:
+  ; src_ptr = src + len - 1
+  LDA .bss
+  ADD .bss + 2
+  SUI 1
+  STA .work2
+  ; dst_ptr = dst + len - 1
+  LDA .bss + 1
+  ADD .bss + 2
+  SUI 1
+  STA .work3
+  LDA .bss + 2
+  STA .work4
+cb_loop:
+  LDA .work4
+  CPI 0
+  JPZ cpy_ret
+  ; A = *dst_ptr
+  LDA .work3
+  PHA ; push dst_prt to stack
+  ; A = *src_ptr
+  LDA .work2
+  PHA ; push src_ptr to stack
+  LAS ; pop pointer from stack, get source mem content to A
+  SAS ; pop dst_ptr from stack, store A
+  ; decrement ptrs and count
+  LDA .work2
+  SUI 1
+  STA .work2
+  LDA .work3
+  SUI 1
+  STA .work3
+  LDA .work4
+  SUI 1
+  STA .work4
+  JMP cb_loop
+
+cpy_ret:
+  RET
+

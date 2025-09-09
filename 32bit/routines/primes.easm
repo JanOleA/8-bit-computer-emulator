@@ -3,7 +3,7 @@
 ;! deps: divide, display_number
 ;! abi: os
 ;! bss: none
-;! align: 100
+;! align: 20
 
 check_value = 120010
 loop_index  = 120011

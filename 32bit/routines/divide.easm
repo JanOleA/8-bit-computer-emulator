@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: os
 ;! bss: auto
-;! align: 100
+;! align: 20
 
 divide:             ; documented divide using BSS locals
   ; Locals layout:

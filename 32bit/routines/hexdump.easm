@@ -1,9 +1,9 @@
 ;! name: HEXDUMP
 ;! entry: main
-;! deps: divide
+;! deps: divide, newline
 ;! abi: os
 ;! bss: auto
-;! align: 100
+;! align: 20
 
 ; HEXDUMP <addr> <nwords>
 ; Prints 32-bit words in hexadecimal, four columns per row,
@@ -135,13 +135,13 @@ hx_loop:
   JMP hx_loop
 
 hx_newline:
-  JSR newline
+  JSR @newline
   LDI 0
   STA .bss + 2
   JMP hx_loop
 
 hx_end:
-  JSR newline
+  JSR @newline
   RET
 
 ; Prints .arg1 as up to 8 hex digits (most significant first),
@@ -227,12 +227,5 @@ h_write_char:
   DIC 0
   DIC 64
   DIC 192
-  DIC 0
-  RET
-
-newline:
-  DIS 32
-  DIC 0
-  DIC 128
   DIC 0
   RET

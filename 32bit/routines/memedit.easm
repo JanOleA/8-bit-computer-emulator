@@ -1,9 +1,9 @@
 ;! name: MEMEDIT
 ;! entry: main
-;! deps: display_number
+;! deps: display_number, newline
 ;! abi: os
 ;! bss: auto
-;! align: 100
+;! align: 20
 
 ; Interactive memory editor
 ; Usage: MEMEDIT <start_addr>
@@ -191,7 +191,7 @@ me_enter:
   LDI 0
   STA .bss + 3
   ; newline and prompt
-  JSR newline
+  JSR @newline
   JSR print_prompt
   ; wait for key release to avoid repeats
   JSR flush_input
@@ -199,7 +199,7 @@ me_enter:
 
 me_exit:
   ; print newline, wait for key release, then clear any debounce flag
-  JSR newline
+  JSR @newline
   JSR flush_input
   LDI 0
   STA .no_input
@@ -262,10 +262,10 @@ pas_check_hi:
   STA .num_digits
   JMP pas_digits
 pas_after_num:
-  ; if no digits, either separator or end
+  ; if no digits, treat current char as separator: advance and continue
   LDA .num_digits
   CPI 0
-  JPZ pas_next_token
+  JPZ pas_sep_adv
   ; write value to memory at write_ptr
   LDA .bss + 1
   PHA
@@ -275,6 +275,12 @@ pas_after_num:
   LDA .bss + 1
   ADI 1
   STA .bss + 1
+  JMP pas_next_token
+pas_sep_adv:
+  ; advance scan_ptr over non-digit separator and continue
+  LDA .bss + 5
+  ADI 1
+  STA .bss + 5
   JMP pas_next_token
 pas_done:
   RET
@@ -307,13 +313,6 @@ write_char:
   DIC 0
   DIC 64
   DIC 192
-  DIC 0
-  RET
-
-newline:
-  DIS 32
-  DIC 0
-  DIC 128
   DIC 0
   RET
 

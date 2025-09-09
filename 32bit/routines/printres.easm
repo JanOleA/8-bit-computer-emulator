@@ -1,0 +1,20 @@
+;! name: PRINTRS
+;! entry: start
+;! deps: display_number
+;! abi: os
+;! bss: none
+;! align: 20
+
+; Print the value currently in .res1, followed by a newline.
+
+start:
+  LDA .res1
+  STA .arg1
+  JSR @display_number
+  ; newline
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
+

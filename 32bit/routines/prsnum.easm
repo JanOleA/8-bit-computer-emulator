@@ -1,0 +1,39 @@
+;! name: PRSNUM
+;! entry: parse_number
+;! deps: 
+;! abi: os
+;! bss: none
+;! align: 20
+
+; Parse a decimal number at .arg1 into .res1 (stops at first non-digit)
+parse_number:
+  LDI 0
+  STA .res1
+pn_loop:
+  LDA .arg1
+  PHA
+  LAS                 ; A = current char
+  CPI 48              ; if A < '0' -> done
+  JPC pn_ge_48
+  JMP pn_done
+pn_ge_48:
+  CPI 58              ; if A >= ':' -> done
+  JPC pn_done
+  ; convert to digit and accumulate: res1 = res1*10 + digit
+  SUI 48
+  STA .textloc        ; temp digit
+  LDA .res1
+  LSA
+  STA .pow2           ; tmp = res*2
+  LSA
+  LSA                 ; A = res*8
+  ADD .pow2           ; A = res*10
+  ADD .textloc
+  STA .res1
+  ; advance pointer
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP pn_loop
+pn_done:
+  RET

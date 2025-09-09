@@ -1,9 +1,9 @@
 ;! name: ECHON
 ;! entry: start
-;! deps:
+;! deps: newline
 ;! abi: os
 ;! bss: none
-;! align: 100
+;! align: 20
 
 ; Prints exactly N characters from pointer .arg1, then newline.
 ; Inputs:
@@ -61,7 +61,7 @@ lp:
   JMP lp
 
 end_nl:
-  JSR newline
+  JSR @newline
   RET
 
 ; --- display helpers ---
@@ -70,12 +70,5 @@ write_char:
   DIC 0
   DIC 64
   DIC 192
-  DIC 0
-  RET
-
-newline:
-  DIS 32
-  DIC 0
-  DIC 128
   DIC 0
   RET

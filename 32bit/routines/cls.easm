@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: none
 ;! bss: none
-;! align: 100
+;! align: 20
 
 ; Clear the LCD monitor: send clear-display instruction
 main:

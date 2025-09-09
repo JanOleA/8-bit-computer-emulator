@@ -1,0 +1,48 @@
+;! name: POW
+;! entry: pow
+;! deps: mult
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; Compute pow(arg1, arg2) = (base ^ exp)
+; Inputs: .arg1 = base, .arg2 = exp
+; Returns: .res1 = result; A = result
+
+pow:
+  ; Save base and exp into locals
+  LDA .arg1
+  STA .work1          ; base
+  LDA .arg2
+  STA .work2          ; exp
+  ; Handle exp == 0 -> 1
+  LDA .work2
+  CPI 0
+  JPZ pow_one
+  ; res = 1
+  LDI 1
+  STA .res1
+pow_loop:
+  LDA .work2
+  CPI 0
+  JPZ pow_done
+  ; res1 = res1 * base
+  LDA .res1
+  STA .arg1
+  LDA .work1
+  STA .arg2
+  JSR @multiply
+  ; dec exp
+  LDA .work2
+  SUI 1
+  STA .work2
+  JMP pow_loop
+
+pow_one:
+  LDI 1
+  STA .res1
+
+pow_done:
+  LDA .res1
+  RET
+

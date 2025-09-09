@@ -1,0 +1,49 @@
+;! name: SQRT
+;! entry: sqrt
+;! deps:
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; Integer floor square root using subtraction of odd numbers.
+; Inputs: .arg1 = n
+; Returns: .res1 = floor(sqrt(n)); A = result
+
+sqrt:
+  ; m = n
+  LDA .arg1
+  STA .bss          ; m
+  ; step = 1
+  LDI 1
+  STA .bss + 1      ; step
+  ; x = 0
+  LDI 0
+  STA .bss + 2      ; x
+
+sqrt_loop:
+  ; while m >= step
+  LDA .bss          ; m
+  CMP .bss + 1      ; step
+  JPC sqrt_ge       ; if m >= step
+  JMP sqrt_done
+sqrt_ge:
+  ; m -= step
+  LDA .bss
+  SUB .bss + 1
+  STA .bss
+  ; x += 1
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2
+  ; step += 2
+  LDA .bss + 1
+  ADI 2
+  STA .bss + 1
+  JMP sqrt_loop
+
+sqrt_done:
+  LDA .bss + 2
+  STA .res1
+  LDA .res1
+  RET
+

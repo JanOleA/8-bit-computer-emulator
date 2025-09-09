@@ -1,0 +1,82 @@
+;! name: FILLMEM
+;! entry: start
+;! deps:
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; Fill memory range with a value.
+; Inputs (OS ABI):
+;   .bss + 0 = dst
+;   .bss + 1 = len
+;   .bss + 2 = value
+
+start:
+  ; require at least 3 args
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 3
+  JPZ cl_go
+  RET
+
+cl_go:
+  LDI .argv_base
+  ADI 1
+  PHA
+  LAS
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .bss
+
+  LDI .argv_base
+  ADI 2
+  PHA
+  LAS
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .bss + 1
+
+  LDI .argv_base
+  ADI 3
+  PHA
+  LAS
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .bss + 2
+
+fill:
+  ; if len == 0: return
+  LDA .bss + 1
+  CPI 0
+  JPZ fl_ret
+  ; ptr = dst
+  LDA .bss
+  STA .work2
+  ; cnt = len
+  LDA .bss + 1
+  STA .work4
+fl_loop:
+  LDA .work4
+  CPI 0
+  JPZ fl_ret
+  ; *ptr = value
+  LDA .work2
+  PHA
+  LDA .bss + 2
+  SAS
+  ; advance
+  LDA .work2
+  ADI 1
+  STA .work2
+  LDA .work4
+  SUI 1
+  STA .work4
+  JMP fl_loop
+
+fl_ret:
+  RET
+

@@ -1,0 +1,13 @@
+;! name: NEWLINE
+;! entry: newline
+;! deps: 
+;! abi: none
+;! bss: none
+;! align: 20
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET

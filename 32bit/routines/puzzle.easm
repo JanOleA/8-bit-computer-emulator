@@ -3,7 +3,7 @@
 ;! deps: multiply, divide, display_number
 ;! abi: os
 ;! bss: auto
-;! align: 100
+;! align: 20
 
 bss        = 120020 ; check_value
 bss + 1    = 120021 ; loop_index

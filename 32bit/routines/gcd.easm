@@ -1,0 +1,42 @@
+;! name: GCD
+;! entry: gcd
+;! deps: divide
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; Compute gcd(arg1, arg2) using Euclid's algorithm.
+; Inputs: .arg1 = a, .arg2 = b
+; Returns: .res1 = gcd(a,b); A = gcd
+
+gcd:
+  ; a -> .bss, b -> .bss+1
+  LDA .arg1
+  STA .bss
+  LDA .arg2
+  STA .bss + 1
+
+gcd_loop:
+  ; if b == 0: done
+  LDA .bss + 1
+  CPI 0
+  JPZ gcd_done
+  ; r = a % b  (divide returns A=quot, .res2=remainder)
+  LDA .bss
+  STA .arg1
+  LDA .bss + 1
+  STA .arg2
+  JSR @divide
+  ; a = b, b = r
+  LDA .bss + 1
+  STA .bss
+  LDA .res2
+  STA .bss + 1
+  JMP gcd_loop
+
+gcd_done:
+  LDA .bss
+  STA .res1
+  LDA .res1
+  RET
+

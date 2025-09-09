@@ -1,0 +1,27 @@
+;! name: OFF
+;! entry: main
+;! deps:
+;! abi: none
+;! bss: none
+;! align: 20
+
+; Turn everything off: clear display, disable cursor/blink, then halt.
+; Uses direct LCD control instructions (no OS ABI).
+
+main:
+  ; Clear display
+  DIS 1
+  DIC 0
+  DIC 128
+  DIC 0
+
+  ; Disable cursor and blink (Display control: bit3 set; LSBs control cursor/blink)
+  ; Value 8 (0b00001000) => display control with cursor=0, blink=0
+  DIS 8
+  DIC 0
+  DIC 128
+  DIC 0
+
+  ; Halt the CPU
+  HLT
+
