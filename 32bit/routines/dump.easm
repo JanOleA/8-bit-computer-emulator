@@ -7,10 +7,16 @@
 
 ; DUMP <addr> <nwords>
 ; Prints decimal words from memory starting at <addr>,
-; two columns per row.
+; in fixed-width, space-padded columns (width = 9 chars).
 
 ; BSS locals
-addr  = .bss          ; current address pointer (others accessed via .bss + N)
+addr  = .bss          ; current address pointer
+; .bss + 1  = remaining count
+; .bss + 2  = column counter (fields per row)
+; .bss + 3  = work value for digit count (mutable)
+; .bss + 4  = digit count
+; .bss + 5  = padding spaces to print
+; .bss + 6  = original value (preserved)
 
 main:
   ; argc at [argv_base]
@@ -108,7 +114,20 @@ dmp_loop:
   PHA
   LAS
   STA .arg1
-  ; print decimal via display_number
+  STA .bss + 6        ; save original value
+  STA .bss + 3        ; working copy for digit count
+
+  ; compute decimal digit count into .bss + 4
+  JSR dmp_digit_count
+  ; compute left padding = 9 - digits
+  LDI 9
+  SUB .bss + 4
+  STA .bss + 5
+  ; emit left padding spaces
+  JSR dmp_emit_padding
+  ; print the number right-aligned in 9-char field
+  LDA .bss + 6
+  STA .arg1
   JSR @display_number
 
   ; advance
@@ -119,16 +138,12 @@ dmp_loop:
   SUI 1
   STA .bss + 1
 
-  ; column handling: 2 per row
+  ; column handling: 4 per row
   LDA .bss + 2
   ADI 1
   STA .bss + 2
-  CPI 2
+  CPI 4
   JPZ dmp_newline
-  ; else print space and continue
-  LDI 32
-  STA .char
-  JSR h_write_char
   JMP dmp_loop
 
 dmp_newline:
@@ -154,4 +169,50 @@ newline:
   DIC 0
   DIC 128
   DIC 0
+  RET
+
+; Count decimal digits of value in .bss + 3
+dmp_digit_count:
+  ; if value == 0 -> digits = 1
+  LDA .bss + 3
+  CPI 0
+  JPZ ddc_zero
+  LDI 0
+  STA .bss + 4
+ddc_loop:
+  LDA .bss + 3
+  CPI 0
+  JPZ ddc_done
+  ; divide by 10 (A=quotient, .res2=remainder)
+  LDA .bss + 3
+  STA .arg1
+  LDI 10
+  STA .arg2
+  JSR @divide
+  STA .bss + 3       ; carry quotient forward
+  LDA .bss + 4
+  ADI 1
+  STA .bss + 4
+  JMP ddc_loop
+ddc_zero:
+  LDI 1
+  STA .bss + 4
+ddc_done:
+  RET
+
+; Emit .bss + 5 spaces (left padding)
+dmp_emit_padding:
+  LDA .bss + 5
+  CPI 0
+  JPZ dep_done
+dep_loop:
+  LDI 32
+  STA .char
+  JSR h_write_char
+  LDA .bss + 5
+  SUI 1
+  STA .bss + 5
+  JPZ dep_done
+  JMP dep_loop
+dep_done:
   RET
