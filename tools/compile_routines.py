@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import List, Dict, Tuple
 import sys
 import re
+import glob
+import os
 
 # Ensure project root is importable so we can import tools.assembler_core
 ROOT = Path(__file__).resolve().parent.parent
@@ -130,17 +132,18 @@ def parse_headers_and_preprocess(text: str):
     return headers, lines, extern_calls, auto_ptrs, data_items
 
 
-def assemble_dynamic_module(src_path: Path,
+def assemble_dynamic_module(src_path: str,
                             used_bases: List[Tuple[int, int]],
                             base_cursor: int,
                             abi_inject: bool,
                             bss_auto_start: int,
                             known_symbols: Dict[str, int],
                             data_auto_start: int) -> Tuple[Dict, int, List[Tuple[int, int]], int, int]:
-    text = src_path.read_text()
+    with open(src_path, "r") as infile:
+        text = infile.read()
     headers, raw_lines, extern_calls, auto_ptrs, data_items = parse_headers_and_preprocess(text)
 
-    name = headers.get("name", src_path.stem).lower()
+    name = headers.get("name", os.path.split(src_path)[-1].split(".")[0]).lower()
     entry = headers.get("entry", "start")
     align = int(headers.get("align", "100"))
     deps = [d.strip().lower() for d in headers.get("deps", "").split(",") if d.strip()]
@@ -420,16 +423,17 @@ def main(apply_table: bool = False):
     base_cursor = 20000
 
     # Optionally scan 32bit/routines for extra modules
-    routines_dir = Path(__file__).parent.parent / "32bit" / "routines"
+    routines_dir = os.path.join(Path(__file__).parent.parent, "32bit", "routines")
     bss_auto_start = 120000  # keep above OS/history
     data_auto_start = 130000
     modules_to_patch: List[Tuple[str, Dict]] = []
-    if routines_dir.exists():
+    if os.path.exists(routines_dir):
         # First pass: assemble modules, assign bases, collect extern sites
         # Support new .easm extension (preferred), while keeping .txt during transition
-        srcs = list(routines_dir.glob("*.easm")) + list(routines_dir.glob("*.txt"))
+        #srcs = list(routines_dir.glob("*.easm")) + list(routines_dir.glob("*.txt"))
+        srcs = glob.glob(routines_dir + "/**/*.easm", recursive=True)
         # Order: modules with explicit ;! base first, then auto-base, both alphabetically
-        def has_base(p: Path) -> bool:
+        def has_base(p: str) -> bool:
             try:
                 txt = p.read_text()
                 for ln in txt.splitlines():
@@ -440,7 +444,7 @@ def main(apply_table: bool = False):
                 return False
             except Exception:
                 return False
-        srcs.sort(key=lambda p: (1 if not has_base(p) else 0, p.name.lower()))
+        srcs.sort(key=lambda p: (1 if not has_base(p) else 0, os.path.split(p)[-1].lower()))
         for src in srcs:
             try:
                 mod_map, base_cursor, used_ranges, data_auto_start, bss_auto_start = assemble_dynamic_module(
@@ -461,7 +465,7 @@ def main(apply_table: bool = False):
                         known_symbols[v["entry"].lower()] = v["base"]
                     modules_to_patch.append((k, v))
             except Exception as e:
-                print(f"Skipping {src.name}: {e}")
+                print(f"Skipping {src}: {e}")
 
         # Second pass: resolve externs now that all bases are known
         for name, mod in modules_to_patch:

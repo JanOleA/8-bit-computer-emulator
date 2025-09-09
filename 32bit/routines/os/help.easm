@@ -19,15 +19,19 @@
 .txt_hexdump  = "HEXDUMP addr len: print hex words"
 .txt_calc     = "CALC a op b: compute result"
 .txt_memedit  = "MEMEDIT addr: begin editing mem@addr"
+.txt_fillmem  = "FILLMEM start num val: fill memory"
+.txt_cpymem   = "CPYMEM src dst len: copy memory"
+.txt_cpymem2  = "   mem[src:src+len] > mem[dst:dst+len]"
+.txt_fibo     = "FIBO: print fibonacci values"
 
 ; BSS locals
 per_page = .bss
 
 help:
   ; Determine total items and per-page
-  LDI 13
-  STA .res2           ; total_items = 13
-  LDI 6
+  LDI 16
+  STA .res2           ; total_items = 16
+  LDI 14
   STA .per_page       ; per_page
 
   ; Compute total_pages into .char using loop: pages=1; while total_items > per_page: pages++, total_items -= per_page
@@ -255,6 +259,42 @@ hp_sk12:
   JSR print
   JSR hp_after_print
 hp_sk13:
+  ; item 13: FILLMEM
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk14
+  LDI .txt_fillmem
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk14:
+  ; item 14: CPYMEM
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk15
+  LDI .txt_cpymem
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk15:
+  ; item 15: CPYMEM2
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk16
+  LDI .txt_cpymem2
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk16:
+  ; item 16: FIBO
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk17
+  LDI .txt_fibo
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk17:
   RET
 
 ; print null-terminated string at .textloc
