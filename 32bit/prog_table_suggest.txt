@@ -8,13 +8,14 @@ Entries (NAME → BASE):
   ECHO     → 20900
   ECHON    → 21100
   EMU      → 21200
-  HELP     → 21400
-  HEXDUMP  → 21900
-  LIST     → 22300
-  MEMEDIT  → 22500
-  MULT     → 23000
-  PEEK     → 23100
-  POKE     → 23200
-  PRIMES   → 23400
-  PUZZLE   → 23500
-  SHELL    → 23700
+  FIBO     → 21400
+  HELP     → 21500
+  HEXDUMP  → 22000
+  LIST     → 22400
+  MEMEDIT  → 22600
+  MULT     → 23100
+  PEEK     → 23200
+  POKE     → 23300
+  PRIMES   → 23500
+  PUZZLE   → 23600
+  SHELL    → 23800

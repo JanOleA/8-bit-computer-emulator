@@ -34,7 +34,7 @@ input_buf = 4122            ; start of input buffer (80 bytes reserved)
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
 CALL_STUB = 19800
 19800 = 16
-19801 = 23700
+19801 = 23800
 19802 = 17
 
 ; ----- argv/argv buffer reservation -----

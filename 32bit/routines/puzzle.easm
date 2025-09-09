@@ -2,45 +2,45 @@
 ;! entry: main
 ;! deps: multiply, divide, display_number
 ;! abi: os
-;! bss: none
+;! bss: auto
 ;! align: 100
 
-check_value   = 120020
-loop_index    = 120021
-half_check    = 120022
-square_val    = 120023
-square_result = 120024
-square_sum    = 120025
-num_primes    = 120026
-finds         = 120027
+bss        = 120020 ; check_value
+bss + 1    = 120021 ; loop_index
+bss + 2    = 120022 ; half_check
+bss + 3    = 120023 ; square_val
+bss + 4    = 120024 ; square_result
+bss + 5    = 120025 ; square_sum
+bss + 6    = 120026 ; num_primes
+bss + 7    = 120027 ; finds
 
 main:
   LDI 4
-  STA .square_sum
+  STA .bss + 5
   LDI 3
-  STA .check_value
+  STA .bss    
   LDI 1
-  STA .num_primes
+  STA .bss + 6
   LDI 232
-  STA .finds
+  STA .bss + 7
 main_loop:
   JSR check_prime_os
   CPI 0
   JPZ next_val
 its_prime:
-  LDA .num_primes
+  LDA .bss + 6
   ADI 1
-  STA .num_primes
-  LDA .check_value
-  STA .square_val
+  STA .bss + 6
+  LDA .bss    
+  STA .bss + 3
   JSR square_os
-  LDA .square_sum
-  ADD .square_result
-  STA .square_sum
+  LDA .bss + 5
+  ADD .bss + 4
+  STA .bss + 5
   ; (sum of squares) % (#primes) == 0 ?
-  LDA .square_sum
+  LDA .bss + 5
   STA .arg1
-  LDA .num_primes
+  LDA .bss + 6
   STA .arg2
   JSR @divide
   LDA .res2
@@ -48,66 +48,69 @@ its_prime:
   JPZ found_one
   JMP next_val
 found_one:
-  ; print num_primes
-  LDA .num_primes
+  ; print bss + 6
+  LDA .bss + 6
   STA .arg1
   JSR @display_number
   DIS 32
   DIC 0
   DIC 128
   DIC 0
-  ; store num_primes at finds++
-  LDA .finds
+  ; store bss + 6 at bss + 7++
+  LDA .bss + 7
   ADI 1
-  STA .finds
-  LDA .finds
+  STA .bss + 7
+  LDA .bss + 7
   SUI 1
   PHA
-  LDA .num_primes
+  LDA .bss + 6
   SAS
 next_val:
-  LDA .check_value
+  LDA .bss
   ADI 2
-  JPC main
-  STA .check_value
+  CPI 500
+  JPC done
+  STA .bss    
   JMP main_loop
 
 ; square via OS multiply
 square_os:
-  LDA .square_val
+  LDA .bss + 3
   STA .arg1
-  LDA .square_val
+  LDA .bss + 3
   STA .arg2
   JSR @multiply
-  STA .square_result
+  STA .bss + 4
   RET
 
 ; primality test using OS divide; returns A=1 if prime else A=0
 check_prime_os:
-  LDA .check_value
+  LDA .bss    
   RSA
-  STA .half_check
+  STA .bss + 2
   LDI 3
-  STA .loop_index
+  STA .bss + 1
 prime_loop_os:
-  LDA .loop_index
-  CMP .half_check
+  LDA .bss + 1
+  CMP .bss + 2
   JPC prime_os
-  LDA .check_value
+  LDA .bss    
   STA .arg1
-  LDA .loop_index
+  LDA .bss + 1
   STA .arg2
   JSR @divide
   LDA .res2
   CPI 0
   JPZ not_prime_os
-  LDA .loop_index
+  LDA .bss + 1
   ADI 2
-  STA .loop_index
+  STA .bss + 1
   JMP prime_loop_os
 not_prime_os:
   LDI 0
   RET
 prime_os:
   LDI 1
+  RET
+done:
   RET

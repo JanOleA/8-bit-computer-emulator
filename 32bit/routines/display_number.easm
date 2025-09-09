@@ -8,11 +8,13 @@
 ; BSS locals
 ; .bss      = working value (dividend)
 ; .bss + 1  = digit count
+; .bss + 2  = input value, to return it to the A register at the end
 
 display_number:
   ; Copy input value into local working storage
   LDA .arg1
   STA .bss
+  STA .bss + 2
   ; Handle zero specially -> print '0'
   LDA .bss
   CPI 0
@@ -70,7 +72,9 @@ dn_zero:
   DIC 64
   DIC 192
   DIC 0
+  LDA .bss + 2
   RET
 
 dn_done:
+  LDA .bss + 2
   RET

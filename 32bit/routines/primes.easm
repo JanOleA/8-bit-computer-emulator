@@ -24,7 +24,7 @@ main:
   STA .check_value
 main_loop:
   LDA .check_value
-  CPI 50001
+  CPI 301
   JPC done
   JSR check_prime_os
   LDA .check_value

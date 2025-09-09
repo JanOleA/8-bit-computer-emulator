@@ -6,26 +6,27 @@
 ;! align: 100
 
 ; Text blocks (embedded as module-local data)
-.txt_help   = "HELP page: show this help at page"
-.txt_echo   = "ECHO arg: print argument to terminal"
-.txt_list   = "LIST: show all installed commands"
-.txt_cls    = "CLS: clear the screen"
-.txt_peek   = "PEEK addr: print mem[addr]"
-.txt_poke   = "POKE addr val: store val at addr"
-.txt_primes = "PRIMES: print primes up to 300"
-.txt_puzzle = "PUZZLE: Matt Parker 19 puzzle"
-.txt_shell  = "SHELL: simple command prompt"
-.txt_dump   = "DUMP addr len: print decimal words"
-.txt_hexdump = "HEXDUMP addr len: print hex words"
-.txt_calc   = "CALC a op b: compute result"
+.txt_help     = "HELP page: show this help at page"
+.txt_echo     = "ECHO arg: print argument to terminal"
+.txt_list     = "LIST: show all installed commands"
+.txt_cls      = "CLS: clear the screen"
+.txt_peek     = "PEEK addr: print mem[addr]"
+.txt_poke     = "POKE addr val: store val at addr"
+.txt_primes   = "PRIMES: print primes up to 300"
+.txt_puzzle   = "PUZZLE: Matt Parker 19 puzzle"
+.txt_shell    = "SHELL: simple command prompt"
+.txt_dump     = "DUMP addr len: print decimal words"
+.txt_hexdump  = "HEXDUMP addr len: print hex words"
+.txt_calc     = "CALC a op b: compute result"
+.txt_memedit  = "MEMEDIT addr: begin editing mem@addr"
 
 ; BSS locals
 per_page = .bss
 
 help:
   ; Determine total items and per-page
-  LDI 12
-  STA .res2           ; total_items = 12
+  LDI 13
+  STA .res2           ; total_items = 13
   LDI 14
   STA .per_page       ; per_page
 
@@ -245,6 +246,15 @@ hp_sk11:
   JSR print
   JSR hp_after_print
 hp_sk12:
+  ; item 12: MEMEDIT
+  JSR hp_consider_print
+  CPI 0
+  JPZ hp_sk13
+  LDI .txt_memedit
+  STA .textloc
+  JSR print
+  JSR hp_after_print
+hp_sk13:
   RET
 
 ; print null-terminated string at .textloc

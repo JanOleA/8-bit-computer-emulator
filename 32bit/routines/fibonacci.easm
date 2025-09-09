@@ -1,0 +1,45 @@
+;! name: FIBO
+;! entry: start
+;! deps: display_number
+;! abi: os
+;! bss: auto
+;! align: 100
+
+; .bss + 0: x
+; .bss + 1: y
+
+start:
+  LDI 1
+  STA .bss
+  LDI 0
+  STA .bss + 1
+  STA .arg1
+  JSR @display_number
+  JSR newline
+add:
+  LDA .bss
+  ADD .bss + 1
+  STA .arg1
+  STA .bss
+  JSR @display_number
+  JSR newline
+  CPI 30
+  JPC done
+  ADD .bss + 1
+  STA .arg1
+  STA .bss + 1
+  JSR @display_number
+  JSR newline
+  CPI 30
+  JPC done
+  JMP add
+
+done:
+  RET
+
+newline:
+  DIS 32
+  DIC 0
+  DIC 128
+  DIC 0
+  RET
