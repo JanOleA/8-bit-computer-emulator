@@ -1,5 +1,5 @@
 ;! name: ECHON
-;! entry: start
+;! entry: echon
 ;! deps: newline, write_char
 ;! abi: os
 ;! bss: none
@@ -10,7 +10,7 @@
 ;   .arg1 = pointer to first character
 ;   .num_digits = count (N)
 
-start:
+echon:
   ; If .num_digits == 0, compute length until null (cap 80)
   LDA .num_digits
   CPI 0

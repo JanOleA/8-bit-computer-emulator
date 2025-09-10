@@ -1,0 +1,29 @@
+;! name: TSTRING
+;! entry: start
+;! deps: strcmp
+;! abi: os
+;! bss: none
+;! align: 20
+
+start:
+  ; require at least 2 args
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 2
+  JPZ ts_go
+  RET
+
+ts_go:
+  LDI .argv_base
+  ADI 1
+  PHA
+  LAS 
+  STA .arg1         ; arg1 = pointer to first string
+  LDI .argv_base
+  ADI 2
+  PHA
+  LAS
+  STA .arg2         ; arg2 = pointer to second string
+  JSR @strcmp
+  RET

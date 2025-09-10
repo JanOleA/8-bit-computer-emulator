@@ -25,7 +25,8 @@
 8391,8400,9 ; between puzzle and shell
 9459,9460,1 ; between shell and sqrt
 9507,9520,13 ; between sqrt and strcmp
-9554,9560,6 ; between strcmp and wrtchar
-9571,25008,15437 ; between wrtchar and emu_data
+9566,9580,14 ; between strcmp and tstring
+9608,9620,12 ; between tstring and wrtchar
+9631,25008,15377 ; between wrtchar and emu_data
 25569,25600,31 ; between emu_data and help_data
 26146,26176,30 ; between help_data and hexdump_data

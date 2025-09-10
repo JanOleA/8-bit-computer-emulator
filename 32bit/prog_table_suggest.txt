@@ -29,4 +29,5 @@ Entries (NAME → BASE):
   SHELL    → 8400
   SQRT     → 9460
   STRCMP   → 9520
-  WRTCHAR  → 9560
+  TSTRING  → 9580
+  WRTCHAR  → 9620
