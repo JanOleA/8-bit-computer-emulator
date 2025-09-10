@@ -1,7 +1,6 @@
 import time
 import os
 import sys
-from numpy.lib.arraysetops import isin
 
 import pygame
 from pygame import mouse
