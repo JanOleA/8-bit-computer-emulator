@@ -1,0 +1,39 @@
+;! name: STRCMP
+;! entry: compare_loop
+;! deps:
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; compare strings
+; str1 pointer in .arg1, null-terminated
+; str2 pointer in .arg2, null-terminated
+; result stored in .res1. 1 = equal, 0 = not equal
+; bss     : temp char1
+
+compare_loop:
+  LDA .arg1     ; load pointer to A
+  PHA           ; push pointer to stack
+  LAS           ; use pointer as memory addres and load mem[pointer] to A
+  ; store char1 in .bss
+  STA .bss
+  LDA .arg2     ; load pointer to A
+  PHA           ; push pointer to stack
+  LAS           ; char2 to A
+  CMP .bss      ; compare char1 to A (char2)
+  JPZ equal
+  JMP not_equal
+equal:
+  CPI 0         ; if equal and zero, we've reached the end
+  JPZ done_equal
+  JMP compare_loop
+not_equal:
+  LDI 0
+  OUT
+  STA .res1
+  RET
+done_equal:
+  LDI 1
+  OUT
+  STA .res1
+  RET

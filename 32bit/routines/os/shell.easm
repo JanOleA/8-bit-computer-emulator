@@ -6,17 +6,17 @@
 ;! align: 20
 
 ; Input buffering and history
-input_buf   = 4122
-input_ptr   = 4202
-cmd_len     = 4203
-cmd_ready   = 4204
-no_input    = 4009
-hist_head   = 4014
-hist_count  = 4015
-hist_pos    = 4016
-hist_tmp1   = 4017
-hist_tmp2   = 4018
-hist_base   = 100000
+input_buf   = 2122
+input_ptr   = 2202
+cmd_len     = 2203
+cmd_ready   = 2204
+no_input    = 2009
+hist_head   = 2014
+hist_count  = 2015
+hist_pos    = 2016
+hist_tmp1   = 2017
+hist_tmp2   = 2018
+hist_base   = 57000
 hist_entry_len = 80   ; max characters per history entry and input line
 hist_max    = 100     ; max number of history entries
 
@@ -427,13 +427,13 @@ dp_match:
   PHA
   LAS
   STA .bss + 1
-  LDI 19801
+  LDI 12801
   PHA
   LDA .bss + 1
   SAS
-  JSR #19800
-  LDA 19803
-  STA 19801 ; reset the call stub entry to the initial (shell)
+  JSR #12800
+  LDA 12803
+  STA 12801 ; reset the call stub entry to the initial (shell)
   LDI 1
   STA .bss
   RET

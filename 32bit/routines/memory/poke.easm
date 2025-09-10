@@ -5,7 +5,7 @@
 ;! bss: none
 ;! align: 20
 
-argv_base = 4400
+argv_base = 2400
 
 poke:
   ; argc >= 2?

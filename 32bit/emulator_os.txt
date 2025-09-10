@@ -1,28 +1,28 @@
-char = 4000                 ; variable for printing
-textloc = 4001              ; location of next textline to print
-arg1 = 4002                 ; argument 1 for subroutines
-arg2 = 4003                 ; argument 2 for subroutines
-res1 = 4004                 ; result 1 for subroutines
-res2 = 4005                 ; result 2 for subroutines
-pow2 = 4006                 ; special variable for divide routine
-num_digits = 4007           ; number of digits to print in the display_number routine
-ascii_start = 4008          ; location where ascii map starts
-no_input = 4009             ; whether or not input has been reset
+char = 2000                 ; variable for printing
+textloc = 2001              ; location of next textline to print
+arg1 = 2002                 ; argument 1 for subroutines
+arg2 = 2003                 ; argument 2 for subroutines
+res1 = 2004                 ; result 1 for subroutines
+res2 = 2005                 ; result 2 for subroutines
+pow2 = 2006                 ; special variable for divide routine
+num_digits = 2007           ; number of digits to print in the display_number routine
+ascii_start = 2008          ; location where ascii map starts
+no_input = 2009             ; whether or not input has been reset
 
-text = 4020     ; 16 bytes
-text2 = 4036    ; 16 bytes
-text_su = 4052  ; 12 bytes
-space = 4064    ; 2 bytes
-ascii_map = 4066 ; 56 bytes
+text = 2020     ; 16 bytes
+text2 = 2036    ; 16 bytes
+text_su = 2052  ; 12 bytes
+space = 2064    ; 2 bytes
+ascii_map = 2066 ; 56 bytes
 
-input_buf = 4122            ; start of input buffer (80 bytes reserved)
+input_buf = 2122            ; start of input buffer (80 bytes reserved)
 
 .text     = "  EmuOS alpha  "
 .text2    = "    Welcome!   "
 .text_su  = "Starting..."
 .space    = " "
 .ascii_map = "0123456789 QWERTYUIOP ASDFGHJKL  ZXCVBNM,.             "
-.ascii_start = 4066
+.ascii_start = 2066
 ; Map arithmetic keys to ASCII for the 32-bit keyboard:
 ; Key codes: 10:'/', 21:'*', 50:'+', 51:'-'
 .ascii_map + 10 = "/"
@@ -32,29 +32,29 @@ input_buf = 4122            ; start of input buffer (80 bytes reserved)
 
 ; ----- Call stub for returning external commands -----
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
-CALL_STUB = 19800
-19800 = 16
-19801 = 23400
-19802 = 17
+CALL_STUB = 12800
+12800 = 16
+12801 = 8400
+12802 = 17
 
 ; ----- argv/argv buffer reservation -----
-argv_base = 4400            ; argv block base (argc + argv pointers)
-argv_buf  = 4500            ; buffer where argument strings are copied
+argv_base = 2400            ; argv block base (argc + argv pointers)
+argv_buf  = 2500            ; buffer where argument strings are copied
 ; Work registers for tokenizer
-work1 = 4010
-work2 = 4011
-work3 = 4012
-work4 = 4013         ; preserved entry base for handler lookup
+work1 = 2010
+work2 = 2011
+work3 = 2012
+work4 = 2013         ; preserved entry base for handler lookup
 
 ; Program dispatch table (name[0..7], addr[8], reserved[9]) repeated; sentinel when name[0]==0
-prog_table = 10000
+prog_table = 3000
 
 start:
-  ; store call stub initial entry in 19803
-  LDA 19801
-  STA 19803
+  ; store call stub initial entry in 12803
+  LDA 12801
+  STA 12803
   JSR initialize_display
-  LDI 4052
+  LDI 2052
   STA .textloc
   LDI 12
   STA .num_digits
@@ -67,18 +67,18 @@ start:
   STA .res2
   STA .pow2
   STA .num_digits
-  LDI 4020
+  LDI 2020
   STA .textloc
   LDI 16
   STA .num_digits
   JSR print
-  LDI 4036
+  LDI 2036
   STA .textloc
   LDI 16
   STA .num_digits
   JSR print
   JSR newline
-  JSR #19800
+  JSR #12800
 
 initialize_display: ; initializes the display
   DIS 1             ; 0000 0001 - clear display
@@ -92,7 +92,7 @@ initialize_display: ; initializes the display
 print:              ; 
   LDA .textloc
   STA .arg1
-  JSR #20920        ; must be switched to ECHON location if it changes
+  JSR #5920        ; must be switched to ECHON location if it changes
   RET
 
 newline:            ; print newline on the screen

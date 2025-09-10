@@ -12,7 +12,7 @@
 ; advances after each value.
 
 line_len = 80
-no_input = 4009
+no_input = 2009
 
 ; BSS locals layout (use .bss offsets directly)
 ;   .bss      = starting write address (write_base)

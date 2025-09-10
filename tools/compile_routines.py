@@ -156,22 +156,22 @@ def assemble_dynamic_module(src_path: str,
     lines = []
     if abi == "os":
         lines += [
-            "char = 4000",
-            "textloc = 4001",
-            "arg1 = 4002",
-            "arg2 = 4003",
-            "res1 = 4004",
-            "res2 = 4005",
-            "pow2 = 4006",
-            "num_digits = 4007",
-            "ascii_start = 4008",
-            "work1 = 4010",
-            "work2 = 4011",
-            "work3 = 4012",
-            "work4 = 4013",
-            "argv_base = 4400",
-            "argv_buf  = 4500",
-            "prog_table = 10000",
+            "char = 2000",
+            "textloc = 2001",
+            "arg1 = 2002",
+            "arg2 = 2003",
+            "res1 = 2004",
+            "res2 = 2005",
+            "pow2 = 2006",
+            "num_digits = 2007",
+            "ascii_start = 2008",
+            "work1 = 2010",
+            "work2 = 2011",
+            "work3 = 2012",
+            "work4 = 2013",
+            "argv_base = 2400",
+            "argv_buf  = 2500",
+            "prog_table = 3000",
         ]
 
     # BSS injection with size/overlap checks
@@ -210,7 +210,7 @@ def assemble_dynamic_module(src_path: str,
         return max_off + 1
 
     bss_required = _scan_bss_required(raw_lines)
-    default_bss_size = 512
+    default_bss_size = 16
     if bss == "auto":
         bss_base = ((bss_auto_start + bss_align - 1) // bss_align) * bss_align
         bss_size = max(default_bss_size, bss_required)
@@ -420,12 +420,12 @@ def main(apply_table: bool = False):
     data: Dict[str, Dict] = {}
     known_symbols: Dict[str, int] = {}
     used_ranges: List[Tuple[int, int]] = []
-    base_cursor = 20000
+    base_cursor = 5000
 
     # Optionally scan 32bit/routines for extra modules
     routines_dir = os.path.join(Path(__file__).parent.parent, "32bit", "routines")
-    bss_auto_start = 120000  # keep above OS/history
-    data_auto_start = 130000
+    bss_auto_start = 20000
+    data_auto_start = 25000
     modules_to_patch: List[Tuple[str, Dict]] = []
     if os.path.exists(routines_dir):
         # First pass: assemble modules, assign bases, collect extern sites
@@ -526,8 +526,8 @@ def main(apply_table: bool = False):
             gaps_path.write_text("\n".join(gap_lines) + "\n")
 
     # Build and embed program table into JSON image
-    # Determine program table base: prefer reading from OS file, else default 10000
-    pt_base = 10000
+    # Determine program table base: prefer reading from OS file, else default 3000
+    pt_base = 3000
     try:
         os_text = (Path(__file__).parent.parent / "32bit" / "emulator_os.txt").read_text().splitlines()
         for ln in os_text:

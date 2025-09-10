@@ -58,8 +58,8 @@ class Computer:
         SU  = self.SU  = 0b00000000000100000000000000000000 # Subtract
         BI  = self.BI  = 0b00000000000010000000000000000000 # Register B in
         OI  = self.OI  = 0b00000000000001000000000000000000 # Output in
-        CE  = self.CE  = 0b00000000000000100000000000000000 # Counter enable
-        CO  = self.CO  = 0b00000000000000010000000000000000 # Counter out
+        CE  = self.CE  = 0b00000000000000100000000000000000 # Program counter enable (steps on clock->high)
+        CO  = self.CO  = 0b00000000000000010000000000000000 # Program counter out
         JMP = self.JMP = 0b00000000000000001000000000000000 # Jump
         FI  = self.FI  = 0b00000000000000000100000000000000 # Flags in
         JC  = self.JC  = 0b00000000000000000010000000000000 # Jump on carry
@@ -74,15 +74,39 @@ class Computer:
         DDI = self.DDI = 0b00000000000000000000000000010000 # LCD screen (Display) data in
         DCI = self.DCI = 0b00000000000000000000000000001000 # LCD screen (Display) control signals in
 
-
-        self.microcodes = [HLT, MI, RI, RO, IAO, IAI, IBO, IBI, AI, AO, EO, SU, BI,
-                           OI, CE, CO, JMP, FI, JC, JZ, KEO, ORE, INS, DES, STO,
-                           RSA, LSA, DDI, DCI]
-        self.microcode_labels = ["Halt", "M.Ad. in", "RAM in", "RAM out", "InstA O", "InstA I", "InstB O",
-                                 "InstB I", "A in", "A out", "Sum out", "Sub", "B in",
-                                 "Outp. I", "Counter", "Cntr. O", "Jump", "Flg. in", "Jmp Cry",
-                                 "Jmp 0", "Inpt. O", "OpT rst", "Inc stk", "Dec stk", "Stk O",
-                                 "Shft A-", "Shft A+", "DispD I", "DispC I"]
+        microcode_defs = [
+            (HLT,   "Halt"      ),
+            (MI,    "M.Ad. in"  ),
+            (RI,    "RAM in"    ),
+            (RO,    "RAM out"   ),
+            (IAO,   "InstA O"   ),
+            (IAI,   "InstA I"   ),
+            (IBO,   "InstB O"   ),
+            (IBI,   "InstB I"   ),
+            (AI,    "A in"      ),
+            (AO,    "A out"     ),
+            (EO,    "Sum out"   ),
+            (SU,    "Sub"       ),
+            (BI,    "B in"      ),
+            (OI,    "Outp. I"   ),
+            (CE,    "Counter"   ),
+            (CO,    "Cntr. O"   ),
+            (JMP,   "Jump"      ),
+            (FI,    "Flg. in"   ),
+            (JC,    "Jmp Cry"   ),
+            (JZ,    "Jmp 0"     ),
+            (KEO,   "Inpt. O"   ),
+            (ORE,   "OpT rst"   ),
+            (INS,   "Inc stk"   ),
+            (DES,   "Dec stk"   ),
+            (STO,   "Stk O"     ),
+            (RSA,   "Shft A-"   ),
+            (LSA,   "Shft A+"   ),
+            (DDI,   "DispD I"   ),
+            (DCI,   "DispC I"   ),
+        ]
+        self.microcodes = [item[0] for item in microcode_defs]
+        self.microcode_labels = [item[1] for item in microcode_defs]
         
         self.assembly = {}
         for i in range(255):
@@ -125,34 +149,34 @@ class Computer:
             self.instruction_map = _build_instruction_map()
         else:
             self.instruction_map = {"NOP": 0,
-                                "LDA": 1,
-                                "ADD": 2,
-                                "SUB": 3,
-                                "STA": 4,
-                                "LDI": 5,
-                                "JMP": 6,
-                                "JPC": 7,
-                                "JPZ": 8,
-                                "KEI": 9,
-                                "ADI": 10,
-                                "SUI": 11,
-                                "CMP": 12,
-                                "PHA": 13,
-                                "PLA": 14,
-                                "LDS": 15,
-                                "JSR": 16,
-                                "RET": 17,
-                                "SAS": 18,
-                                "LAS": 19,
-                                "LDB": 20,
-                                "CPI": 21,
-                                "RSA": 22,
-                                "LSA": 23,
-                                "DIS": 24,
-                                "DIC": 25,
-                                "LDD": 26,
-                                "OUT": 254,
-                                "HLT": 255,}
+                                    "LDA": 1,
+                                    "ADD": 2,
+                                    "SUB": 3,
+                                    "STA": 4,
+                                    "LDI": 5,
+                                    "JMP": 6,
+                                    "JPC": 7,
+                                    "JPZ": 8,
+                                    "KEI": 9,
+                                    "ADI": 10,
+                                    "SUI": 11,
+                                    "CMP": 12,
+                                    "PHA": 13,
+                                    "PLA": 14,
+                                    "LDS": 15,
+                                    "JSR": 16,
+                                    "RET": 17,
+                                    "SAS": 18,
+                                    "LAS": 19,
+                                    "LDB": 20,
+                                    "CPI": 21,
+                                    "RSA": 22,
+                                    "LSA": 23,
+                                    "DIS": 24,
+                                    "DIC": 25,
+                                    "LDD": 26,
+                                    "OUT": 254,
+                                    "HLT": 255,}
     
     @staticmethod
     def assemble_lines(lines, memory, instruction_map):
