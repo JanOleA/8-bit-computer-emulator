@@ -1,5 +1,5 @@
 ;! name: STRCMP
-;! entry: strcmp
+;! entry: string_compare
 ;! deps:
 ;! abi: os
 ;! bss: auto
@@ -11,7 +11,7 @@
 ; result stored in .res1. 1 = equal, 0 = not equal
 ; bss     : temp char1
 
-strcmp:
+string_compare:
   LDA .arg1     ; load pointer to A
   PHA           ; push pointer to stack
   LAS           ; use pointer as memory addres and load mem[pointer] to A
@@ -32,7 +32,7 @@ equal:
   LDA .arg2
   ADI 1
   STA .arg2
-  JMP strcmp
+  JMP string_compare
 not_equal:
   LDI 0
   STA .res1

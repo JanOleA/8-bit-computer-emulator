@@ -1,5 +1,5 @@
 ;! name: PRINTRS
-;! entry: start
+;! entry: printres
 ;! deps: display_number, newline
 ;! abi: os
 ;! bss: none
@@ -7,7 +7,7 @@
 
 ; Print the value currently in .res1, followed by a newline.
 
-start:
+printres:
   LDA .res1
   STA .arg1
   JSR @display_number

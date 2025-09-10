@@ -12,22 +12,23 @@ Entries (NAME → BASE):
   FIBO     → 6160
   FILLMEM  → 6220
   GCD      → 6320
-  HELP     → 6380
-  HEXDUMP  → 6820
-  LIST     → 7120
-  MEMEDIT  → 7240
-  MULT     → 7700
-  NEWLINE  → 7760
-  OFF      → 7780
-  PEEK     → 7800
-  POKE     → 7880
-  POW      → 8020
-  PRIMES   → 8080
-  PRINTRS  → 8160
-  PRSNUM   → 8180
-  PUZZLE   → 8240
-  SHELL    → 8400
-  SQRT     → 9460
-  STRCMP   → 9520
-  TSTRING  → 9580
-  WRTCHAR  → 9620
+  GETMNEN  → 6380
+  HELP     → 6500
+  HEXDUMP  → 6940
+  LIST     → 7240
+  MEMEDIT  → 7360
+  MULT     → 7820
+  NEWLINE  → 7880
+  OFF      → 7900
+  PEEK     → 7920
+  POKE     → 8000
+  POW      → 8140
+  PRIMES   → 8200
+  PRINTRS  → 8280
+  PRSNUM   → 8300
+  PUZZLE   → 8360
+  SHELL    → 8520
+  SQRT     → 9580
+  STRCMP   → 9640
+  TESTGM   → 9700
+  WRTCHAR  → 9740

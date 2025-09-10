@@ -173,6 +173,11 @@ def assemble_dynamic_module(src_path: str,
             "argv_buf  = 2500",
             "prog_table = 3000",
         ]
+    elif abi == "argv":
+        lines += [
+            "argv_base = 2400",
+            "argv_buf  = 2500",
+        ]
 
     # BSS injection with size/overlap checks
     bss_info: Tuple[int, int] | None = None

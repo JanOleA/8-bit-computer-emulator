@@ -1,0 +1,89 @@
+;! name: GETMNEN
+;! entry: get_mnemonic
+;! deps: string_compare, parse_number
+;! abi: os
+;! bss: auto
+;! align: 20
+
+.separator = ","
+.mnemonics = "LDA,1,ADD,2,SUB,3,STA,4,LDI,5,JMP,6,JPC,7,JPZ,8,KEI,9,ADI,10,SUI,11,CMP,12,PHA,13,PLA,14,LDS,15,JSR,16,RET,17,SAS,18,LAS,19,LDB,20,CPI,21,RSA,22,LSA,23,DIS,24,DIC,25,LDD,26,OUT,254,HLT,255"
+
+; bss 0 - 3 : buffer
+; bss + 4   : write pointer
+; bss + 5   : read pointer
+; bss + 6   : pointer to input string
+
+; --- Compare the string pointed to by .arg1 to assembly mnemonics and return the corresponding instruction value, if it exists ---
+
+get_mnemonic:
+  LDA .arg1           ; .arg1 holds the pointer to the input string
+  STA .bss + 6
+  LDI .mnemonics      ; store start of mnemonics string in .bss + 5
+  STA .bss + 5
+compare:
+  JSR buffer_to_separator
+  LDI .bss
+  STA .arg1           ; store pointer to buffered value in arg1
+  LDI .bss
+  ADI 6               ; get pointer to input string stored in bss + 6
+  PHA
+  LAS
+  STA .arg2           ; store pointer in arg2
+  JSR @string_compare
+  LDA .res1
+  CPI 1
+  JPZ match
+  ; get character at read_pointer
+  LDA .bss + 5
+  PHA
+  LAS
+  CPI 0               ; if we reach null, end
+  JPZ end_no_match
+  JMP compare
+match:
+  JSR buffer_to_separator
+  LDI .bss
+  STA .arg1
+  JSR @parse_number
+  RET
+end_no_match:
+  LDI 0
+  RET
+
+buffer_to_separator:  ; fill the buffer from current read pointer position in ".mnemonics" until first occurence of the separator
+  LDI 0               ; clear buffer first
+  STA .bss
+  STA .bss + 1
+  STA .bss + 2
+  STA .bss + 3
+  LDI .bss            ; set write pointer to start of buffer
+  STA .bss + 4
+buf_loop:
+  ; get character at read_pointer
+  LDA .bss + 5
+  PHA
+  LAS
+  CMP .separator
+  JPZ buf_end         ; if we reach the separator, jump to buf_end
+  CPI 0
+  JPZ buf_end_null    ; if we reach null, return without advancing read pointer
+  STA .char           ; store character in .char for now
+  ; get write pointer
+  LDA .bss + 4
+  PHA                 ; push write pointer to stack
+  LDA .char           ; get the character again
+  SAS                 ; use pointer to write the character to the buffer
+  LDA .bss + 4
+  ADI 1               ; add 1 to write pointer
+  STA .bss + 4
+  LDA .bss + 5
+  ADI 1               ; add 1 to read pointer
+  STA .bss + 5
+  JMP buf_loop
+buf_end:
+  LDA .bss + 5
+  ADI 1               ; add 1 to read pointer
+  STA .bss + 5
+buf_end_null:
+  RET
+
