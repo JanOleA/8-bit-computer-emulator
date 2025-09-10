@@ -1190,7 +1190,7 @@ class Game:
             self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.TEXTGREY)
         self.fpstext = self._font.render(f"{int(self.fps):d} FPS", True, self.TEXTGREY)
 
-        print(f"Start of: ProgCount={self.computer.prog_count:>10d} | Mem={self.computer.memory[self.computer.prog_count]:>8d} | OpTimestep={self.computer.op_timestep:>8d} | Bus={self.computer.bus}      ", end="\r")
+        #print(f"Start of: ProgCount={self.computer.prog_count:>10d} | Mem={self.computer.memory[self.computer.prog_count]:>8d} | OpTimestep={self.computer.op_timestep:>8d} | Bus={self.computer.bus}      ", end="\r")
 
     def draw_memory(self):
         memwidth = self.memcolumn.get_width()
