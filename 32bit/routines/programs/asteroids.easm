@@ -12,7 +12,7 @@ screen_height = 20
 .game_over_text = "Game over! Your final score: "
 .asteroid_symbol = "O"
 .turret_symbol = "A"
-.bullet_symbol = "I"
+.bullet_symbol = "|"
 
 ; bss + 0     : turret position
 ; bss + 1     : asteroid X
