@@ -5,8 +5,10 @@
 ;! bss: auto
 ;! align: 20
 
-screen_width = 40
+screen_width = 39
 screen_height = 20
+repeat_delay = 64       ; ticks before first auto-repeat
+repeat_shift = 4        ; repeat rate = every 2^repeat_shift ticks after delay
 
 .score_text = "SCORE: "
 .game_over_text = "Game over! Your final score: "
@@ -24,6 +26,8 @@ screen_height = 20
 ; bss + 7     : input entered
 ; bss + 8     : entered value
 ; bss + 9     : score
+; bss + 10    : last_key (for repeat)
+; bss + 11    : hold_count (for repeat)
 
 main:
   DIS 8                 ; disable cursor and cursor blink
@@ -90,27 +94,10 @@ hit:
 
 update_display:
   JSR clear_display
-  LDA .score_text + 0
-  STA .char
-  JSR @write_char
-  LDA .score_text + 1
-  STA .char
-  JSR @write_char
-  LDA .score_text + 2
-  STA .char
-  JSR @write_char
-  LDA .score_text + 3
-  STA .char
-  JSR @write_char
-  LDA .score_text + 4
-  STA .char
-  JSR @write_char
-  LDA .score_text + 5
-  STA .char
-  JSR @write_char
-  LDA .score_text + 6
-  STA .char
-  JSR @write_char
+  ; print "SCORE: " without newline
+  LDI .score_text
+  STA .arg1
+  JSR print_z
   LDA .bss + 9
   STA .arg1
   JSR @display_number
@@ -207,9 +194,9 @@ advance_asteroid_line:
   JSR advance_cursor
 skip_advance:
   LDA .bss + 4
-  ADI 1
   CPI .screen_width
   JPC write_asteroid_end
+  ADI 1
   STA .bss + 4
   JMP write_asteroid_loop
 write_asteroid_end:
@@ -265,13 +252,81 @@ wait_100:
   LDA .bss + 7
   CPI 0
   JPZ set_no_input
+  ; --- Key repeat handling ---
+  ; If same key is still held, increment hold_count and allow repeats after a delay.
+  ; Generate repeats when hold_count >= repeat_delay and only every 2^repeat_shift ticks thereafter.
+  LDA .bss + 8
+  CMP .bss + 10
+  JPZ same_key_held
+  ; New key pressed: remember it, reset hold_count, and allow handling
+  LDA .bss + 8
+  STA .bss + 10       ; last_key = current
+  LDI 0
+  STA .bss + 11       ; hold_count = 0
+  LDI 0
+  STA .no_input       ; ensure this press is handled now
+  JMP after_repeat_gate
+same_key_held:
+  LDA .bss + 11
+  ADI 1
+  STA .bss + 11       ; ++hold_count
+  ; if hold_count >= repeat_delay and at a gated interval -> clear no_input to allow repeat
+  CPI .repeat_delay
+  JPC chk_rate        ; carry set when A >= 64
+  JMP after_repeat_gate
+chk_rate:
+  ; allow repeat only when hold_count is a multiple of 2^repeat_shift:
+  ; ((n >> repeat_shift) << repeat_shift) == n
+  ; Save original n in work3
+  LDA .bss + 11
+  STA .work3
+  ; work1 = n
+  LDA .work3
+  STA .work1
+  ; work2 = repeat_shift (right shift count)
+  LDI .repeat_shift
+  STA .work2
+crs_loop:
+  LDA .work2
+  CPI 0
+  JPZ cls_prep
+  LDA .work1
+  RSA
+  STA .work1
+  LDA .work2
+  SUI 1
+  STA .work2
+  JMP crs_loop
+cls_prep:
+  ; Left shift back by repeat_shift
+  LDI .repeat_shift
+  STA .work2
+cls_loop:
+  LDA .work2
+  CPI 0
+  JPZ chk_cmp
+  LDA .work1
+  LSA
+  STA .work1
+  LDA .work2
+  SUI 1
+  STA .work2
+  JMP cls_loop
+chk_cmp:
+  LDA .work1
+  CMP .work3
+  JPZ allow_repeat
+  JMP after_repeat_gate
+allow_repeat:
+  LDI 0
+  STA .no_input
+after_repeat_gate:
   LDA .no_input
   CPI 1
   JPZ after_input_handling
   LDI 1
   STA .no_input
   LDA .bss + 8
-  OUT
   CPI 52
   JPZ handle_left
   CPI 54
@@ -345,6 +400,10 @@ input_entered:
 set_no_input:
   LDI 0
   STA .no_input
+  ; reset repeat tracking when key released
+  LDI 0
+  STA .bss + 10
+  STA .bss + 11
   JMP after_input_handling
 
 advance_cursor:
@@ -379,4 +438,20 @@ screen_instruction:         ; screen instruction
   DIC 0
   DIC 128                   ; set enable
   DIC 0
+  RET
+
+; Local: print null-terminated string at .arg1 (no newline)
+print_z:
+  LDA .arg1
+  PHA
+  LAS
+  CPI 0
+  JPZ pz_done
+  STA .char
+  JSR @write_char
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  JMP print_z
+pz_done:
   RET
