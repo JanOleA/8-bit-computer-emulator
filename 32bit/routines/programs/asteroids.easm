@@ -178,23 +178,41 @@ write_asteroid_wrapper:
   JMP screen_loop
 
 write_asteroid:
-  LDA .bss + 1              ; store position in tmp
-  STA .bss + 4
+  LDI 0
+  STA .bss + 4              ; use tmp as pointer
 write_asteroid_loop:
   LDA .bss + 1
-  CPI 0
-  JPZ write_asteroid_end
-  JSR advance_cursor
-  LDA .bss + 1
-  SUI 1
-  STA .bss + 1
-  JMP write_asteroid_loop
-write_asteroid_end:
+  CMP .bss + 4
+  JPZ write_asteroid_character
+  JMP check_bullet
+write_asteroid_character:
   LDA .asteroid_symbol
   STA .char
   JSR @write_char
+  JMP skip_advance
+check_bullet:
+  LDA .bss + 6
+  CPI 0                     ; if bullet fired is zero
+  JPZ advance_asteroid_line ; skip
+  LDA .bss + 5
+  CMP .bss + 4
+  JPZ write_bullet_character
+  JMP advance_asteroid_line
+write_bullet_character:
+  LDA .bullet_symbol
+  STA .char
+  JSR @write_char
+  JMP skip_advance
+advance_asteroid_line:
+  JSR advance_cursor
+skip_advance:
   LDA .bss + 4
-  STA .bss + 1              ; get position back from tmp
+  ADI 1
+  CPI .screen_width
+  JPC write_asteroid_end
+  STA .bss + 4
+  JMP write_asteroid_loop
+write_asteroid_end:
   RET
 
 write_turret:
