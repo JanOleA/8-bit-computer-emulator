@@ -1,0 +1,100 @@
+;! name: ADDSQ64
+;! entry: add_square64
+;! deps:
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; Add p^2 into a 64-bit sum stored at [sum_lo_addr],[sum_hi_addr]
+; Inputs:
+;   .arg1 = p
+;   .arg2 = sum_lo_addr
+;   .res1 = sum_hi_addr
+; Returns: none (A undefined). Updates memory at given addresses.
+; Locals:
+;   .bss     = multiplicand (p << k)
+;   .bss + 1 = multiplier (p >> k)
+;   .bss + 2 = prod_lo
+;   .bss + 3 = prod_hi
+;   .bss + 4 = tmp_lo
+;   .bss + 5 = tmp_hi
+
+add_square64:
+  ; Setup multiplicand and multiplier
+  LDA .arg1
+  STA .bss           ; multiplicand = p
+  LDA .arg1
+  STA .bss + 1       ; multiplier = p
+  LDI 0
+  STA .bss + 2       ; prod_lo = 0
+  STA .bss + 3       ; prod_hi = 0
+
+asq_loop:
+  ; if multiplier == 0 -> done
+  LDA .bss + 1
+  CPI 0
+  JPZ asq_add_to_sum
+  ; Test LSB of multiplier: odd if ((x>>1)<<1) != x
+  STA .char
+  RSA
+  LSA
+  CMP .char
+  JPZ asq_even
+  ; odd -> prod += multiplicand (64-bit)
+  LDA .bss + 2
+  ADD .bss
+  STA .bss + 2
+  JPC asq_carry
+  JMP asq_after_add
+asq_carry:
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+asq_after_add:
+asq_even:
+  ; multiplicand <<= 1 ; multiplier >>= 1
+  LDA .bss
+  LSA
+  STA .bss
+  LDA .bss + 1
+  RSA
+  STA .bss + 1
+  JMP asq_loop
+
+asq_add_to_sum:
+  ; Load current sum_lo into tmp_lo
+  LDA .arg2
+  PHA
+  LAS
+  STA .bss + 4
+  ; Load sum_hi into tmp_hi
+  LDA .res1
+  PHA
+  LAS
+  STA .bss + 5
+  ; tmp_lo += prod_lo
+  LDA .bss + 4
+  ADD .bss + 2
+  STA .bss + 4
+  JPC asq_inc_hi
+  JMP asq_add_hi
+asq_inc_hi:
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+asq_add_hi:
+  ; tmp_hi += prod_hi
+  LDA .bss + 5
+  ADD .bss + 3
+  STA .bss + 5
+  ; Store back
+  LDA .arg2
+  PHA
+  LDA .bss + 4
+  SAS
+  LDA .res1
+  PHA
+  LDA .bss + 5
+  SAS
+  RET
+

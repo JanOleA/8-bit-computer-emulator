@@ -1,0 +1,63 @@
+;! name: REM64
+;! entry: rem64
+;! deps: divide, modmul, pow2_32_mod
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; Compute (hi * 2^32 + lo) mod mod, where
+;   .arg1 = lo
+;   .arg2 = hi
+;   .res1 = mod
+; Returns A = remainder
+; Locals:
+;   .bss     = mod
+;   .bss + 1 = lo_mod
+;   .bss + 2 = hi_mod
+;   .bss + 3 = pow (2^32 % mod)
+;   .bss + 4 = hi_term
+
+rem64:
+  ; save mod
+  LDA .res1
+  STA .bss
+  ; lo_mod = lo % mod
+  LDA .arg1
+  STA .arg1
+  LDA .bss
+  STA .arg2
+  JSR @divide
+  LDA .res2
+  STA .bss + 1
+  ; hi_mod = hi % mod
+  LDA .arg2
+  STA .arg1
+  LDA .bss
+  STA .arg2
+  JSR @divide
+  LDA .res2
+  STA .bss + 2
+  ; pow = 2^32 % mod
+  LDA .bss
+  STA .arg1
+  JSR @pow2_32_mod
+  STA .bss + 3
+  ; hi_term = (hi_mod * pow) % mod
+  LDA .bss + 2
+  STA .arg1
+  LDA .bss + 3
+  STA .arg2
+  LDA .bss
+  STA .res1
+  JSR @modmul
+  STA .bss + 4
+  ; r = (hi_term + lo_mod) % mod
+  ADD .bss + 1
+  ; if r >= mod, subtract
+  CMP .bss
+  JPC r_sub
+  RET
+r_sub:
+  SUB .bss
+  RET
+

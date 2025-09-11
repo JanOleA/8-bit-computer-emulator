@@ -1,0 +1,71 @@
+;! name: MODMUL
+;! entry: modmul
+;! deps:
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; Compute (arg1 * arg2) mod mod, where mod is in .res1.
+; Returns A = result.
+; Locals:
+;   .bss     = res
+;   .bss + 1 = x
+;   .bss + 2 = y
+;   .bss + 3 = mod
+
+modmul:
+  ; Load inputs
+  LDA .arg1
+  STA .bss + 1      ; x
+  LDA .arg2
+  STA .bss + 2      ; y
+  LDA .res1
+  STA .bss + 3      ; mod
+  LDI 0
+  STA .bss          ; res = 0
+
+mm_loop:
+  ; if y == 0 -> done
+  LDA .bss + 2
+  CPI 0
+  JPZ mm_done
+  ; Test LSB of y: even if ((y>>1)<<1) == y
+  STA .char         ; tmp = y
+  RSA               ; y>>1
+  LSA               ; (y>>1)<<1
+  CMP .char
+  JPZ mm_even
+  ; odd -> res = (res + x) mod mod
+  LDA .bss
+  ADD .bss + 1
+  STA .bss
+  ; if res >= mod, subtract mod
+  CMP .bss + 3
+  JPC mm_sub_mod
+  JMP mm_after_add
+mm_sub_mod:
+  SUB .bss + 3
+  STA .bss
+mm_after_add:
+mm_even:
+  ; x = (x + x) mod mod
+  LDA .bss + 1
+  ADD .bss + 1
+  STA .bss + 1
+  CMP .bss + 3
+  JPC mm_x_sub
+  JMP mm_x_done
+mm_x_sub:
+  SUB .bss + 3
+  STA .bss + 1
+mm_x_done:
+  ; y >>= 1
+  LDA .bss + 2
+  RSA
+  STA .bss + 2
+  JMP mm_loop
+
+mm_done:
+  LDA .bss
+  RET
+
