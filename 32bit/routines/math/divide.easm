@@ -5,12 +5,11 @@
 ;! bss: auto
 ;! align: 20
 
-divide:             ; documented divide using BSS locals
+divide:             ; optimized binary long division with fast paths
   ; Locals layout:
   ;   .bss       = dividend (mutable)
   ;   .bss + 1   = divisor (mutable)
   ;   .bss + 2   = pow2 (scaling factor)
-  ;   .bss + 3   = quotient
 
   ; Copy inputs into locals
   LDA .arg1
@@ -18,16 +17,56 @@ divide:             ; documented divide using BSS locals
   LDA .arg2
   STA .bss + 1      ; divisor
 
-  ; Initialize
-  LDI 0
-  STA .bss + 3      ; quotient = 0
-  LDI 1
-  STA .bss + 2      ; pow2 = 1
-
-  ; Handle divisor == 0 → quotient=0, remainder=dividend
+  ; Fast paths
+  ; a == 0 → q=0, r=0
+  LDA .bss
+  CPI 0
+  JPZ div_a_zero
+  ; b == 0 → q=0, r=a
   LDA .bss + 1
   CPI 0
   JPZ div_zero
+  ; a ? b
+  LDA .bss
+  CMP .bss + 1
+  JPZ div_equal     ; a == b → q=1, r=0
+  JPC div_a_gt_b    ; carry set → a > b
+  ; a < b → q=0, r=a
+  LDA .bss
+  STA .res2
+  LDI 0
+  RET
+
+div_equal:
+  LDI 0
+  STA .res2
+  LDI 1
+  RET
+
+div_a_zero:
+  LDI 0
+  STA .res2
+  LDI 0
+  RET
+
+div_a_gt_b:
+  ; b == 1 → q=a, r=0
+  LDA .bss + 1
+  CPI 1
+  JPZ div_b_one
+
+  ; Initialize
+  LDI 0
+  STA .res1          ; quotient = 0
+  LDI 1
+  STA .bss + 2       ; pow2 = 1
+  JMP inc_b
+
+div_b_one:
+  LDI 0
+  STA .res2
+  LDA .bss
+  RET
 
 inc_b:
   ; Double divisor until it would exceed dividend
@@ -35,13 +74,14 @@ inc_b:
   LSA               ; A = divisor * 2
   JPC div_loop      ; overflow → stop increasing
   CMP .bss          ; compare with dividend
-  JPZ pass          ; if equal, still accept doubling once
+  JPZ pass          ; if equal, accept this doubling then proceed
   JPC div_loop      ; if > dividend, stop increasing
 pass:
   STA .bss + 1      ; divisor = divisor * 2
   LDA .bss + 2
   LSA
   STA .bss + 2      ; pow2 *= 2
+  ; Continue aligning until next doubling would exceed dividend
   JMP inc_b
 
 div_loop:
@@ -55,12 +95,15 @@ div_loop:
   JPC a_geq_b
   JMP continue
 a_geq_b:
-  LDA .bss + 3
+  LDA .res1
   ADD .bss + 2
-  STA .bss + 3      ; quotient += pow2
+  STA .res1         ; quotient += pow2
   LDA .bss
   SUB .bss + 1
   STA .bss          ; dividend -= divisor
+  ; if dividend becomes 0, we can finish early
+  CPI 0
+  JPZ div_end
 continue:
   ; Shift down and continue
   LDA .bss + 1
@@ -75,7 +118,7 @@ div_end:
   ; remainder in dividend, quotient in A
   LDA .bss
   STA .res2
-  LDA .bss + 3
+  LDA .res1
   RET
 
 div_zero:
