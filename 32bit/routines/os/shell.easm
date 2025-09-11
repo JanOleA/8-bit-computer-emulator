@@ -99,6 +99,13 @@ no_input:
   JMP main_loop
 
 check_input:
+  LDA .inc_random_seed
+  CPI 0
+  JPZ pass_increase
+  LDA .random_seed
+  ADI 1
+  STA .random_seed
+pass_increase:
   KEI
   PHA
   RSA
@@ -121,6 +128,8 @@ input_entered:
   STA .bss
   LDI 1
   STA .bss + 1
+  LDI 0
+  STA .inc_random_seed
   RET
 
 handle_hist_up:

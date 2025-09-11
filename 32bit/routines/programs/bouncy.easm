@@ -1,0 +1,31 @@
+;! name: BOUNCY
+;! entry: main
+;! deps:
+;! abi: os
+;! bss: auto
+;! align: 20
+
+
+
+
+main:
+  DIS 8                 ; disable cursor and cursor blink
+  JSR screen_instruction
+
+end:
+  DIS 6             ; 0000 0110 - Set entry mode, cursor direction to increment
+  JSR screen_instruction 
+  DIS 15            ; set on, display cursor, cursor blink
+  JSR screen_instruction
+  RET
+
+clear_display:
+  DIS 1             ; 0000 0001 - clear display
+  JSR screen_instruction
+  RET
+
+screen_instruction:         ; screen instruction
+  DIC 0
+  DIC 128                   ; set enable
+  DIC 0
+  RET

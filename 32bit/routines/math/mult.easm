@@ -2,41 +2,58 @@
 ;! entry: multiply
 ;! deps:
 ;! abi: os
-;! bss: none
+;! bss: auto
 ;! align: 20
 
+; --- Multiply .arg1 and .arg2, store the result in .res1 and the A register
+
+; Inputs: .arg1, .arg2
+; Output: .res1 and A
+; Temps:  .bss, .bss + 1, .bss + 2
+
 multiply:
-  LDA .arg1
-  CPI 0
-  JPZ mult_zero
-  LDA .arg2
-  CPI 0
-  JPZ mult_zero
-  LDA .arg1
-  CMP .arg2
-  JPC mult_begin
-  PHA
-  LDA .arg2
-  STA .arg1
-  PLA
-  STA .arg2
-  LDA .arg1
-mult_begin:
-  STA .res1
-mult_loop:
-  LDA .arg2
-  SUI 1
-  JPZ mult_end
-  STA .arg2
-  LDA .res1
-  ADD .arg1
-  STA .res1
-  JMP mult_loop
-mult_end:
-  LDA .res1
-  RET
-mult_zero:
+  ; res = 0
   LDI 0
   STA .res1
+
+  ; m1 = arg1, m2 = arg2
+  LDA .arg1
+  STA .bss
+  LDA .arg2
+  STA .bss + 1
+
+mult_loop:
+  ; if m2 == 0 -> done  (need to set ZF!)
+  LDA .bss + 1
+  CPI 0
+  JPZ mult_done
+
+  ; test odd: ((m2>>1)<<1) == m2 ? even : odd
+  ; tmp = m2
+  STA .bss + 2          
+  RSA               ; A = m2 >> 1
+  LSA               ; A = (m2 >> 1) << 1
+  ; sets ZF
+  CMP .bss + 2          
+  JPZ m2_even       ; equal => even
+
+  ; odd -> res += m1
+  LDA .res1
+  ADD .bss
+  STA .res1
+
+m2_even:
+  ; m1 <<= 1; m2 >>= 1
+  LDA .bss
+  LSA
+  STA .bss
+
+  LDA .bss + 1
+  RSA
+  STA .bss + 1
+
+  JMP mult_loop
+
+mult_done:
   LDA .res1
   RET

@@ -13,7 +13,7 @@
 ; bss + 5   : read pointer
 ; bss + 6   : pointer to input string
 
-; --- Compare the string pointed to by .arg1 to assembly mnemonics and return the corresponding instruction value, if it exists ---
+; --- Compare the string pointed to by .arg1 to assembly mnemonics and return the corresponding instruction value, if it exists (otherwise null) ---
 
 get_mnemonic:
   LDA .arg1           ; .arg1 holds the pointer to the input string

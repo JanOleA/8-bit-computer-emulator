@@ -1,0 +1,32 @@
+;! name: RANDINT
+;! entry: randint
+;! deps: parse_number, multiply, divide, display_number, newline
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; --- 16 bit pseudo-randint in the range [0, .arg1) ---
+
+; bss + 0 : upper limit of the range
+
+randint:
+  LDA .arg1
+  STA .bss
+calculate:
+  LDA .random_seed
+  STA .arg1
+  LDI 25173
+  STA .arg2
+  JSR @multiply
+  LDA .res1
+  ADI 13849
+  STA .arg1
+  STA .random_seed
+  LDA .bss
+  STA .arg2
+  JSR @divide
+  LDA .res2           ; get remainder
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  RET

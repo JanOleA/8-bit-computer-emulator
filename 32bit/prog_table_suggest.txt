@@ -27,8 +27,8 @@ Entries (NAME → BASE):
   PRINTRS  → 8280
   PRSNUM   → 8300
   PUZZLE   → 8360
-  SHELL    → 8520
-  SQRT     → 9580
-  STRCMP   → 9640
-  TESTGM   → 9700
-  WRTCHAR  → 9740
+  RANDINT  → 8520
+  SHELL    → 8560
+  SQRT     → 9640
+  STRCMP   → 9700
+  WRTCHAR  → 9760

@@ -14,7 +14,7 @@
 7228,7240,12 ; between hexdump and list
 7351,7360,9 ; between list and memedit
 7810,7820,10 ; between memedit and mult
-7876,7880,4 ; between mult and newline
+7867,7880,13 ; between mult and newline
 7889,7900,11 ; between newline and off
 7917,7920,3 ; between off and peek
 7992,8000,8 ; between peek and poke
@@ -23,12 +23,12 @@
 8278,8280,2 ; between primes and printrs
 8289,8300,11 ; between printrs and prsnum
 8344,8360,16 ; between prsnum and puzzle
-8511,8520,9 ; between puzzle and shell
-9579,9580,1 ; between shell and sqrt
-9627,9640,13 ; between sqrt and strcmp
-9684,9700,16 ; between strcmp and testgm
-9728,9740,12 ; between testgm and wrtchar
-9751,25008,15257 ; between wrtchar and emu_data
+8511,8520,9 ; between puzzle and randint
+8557,8560,3 ; between randint and shell
+9635,9640,5 ; between shell and sqrt
+9687,9700,13 ; between sqrt and strcmp
+9744,9760,16 ; between strcmp and wrtchar
+9771,25008,15237 ; between wrtchar and emu_data
 25569,25600,31 ; between emu_data and getmnen_data
 25791,25808,17 ; between getmnen_data and help_data
 26354,26384,30 ; between help_data and hexdump_data

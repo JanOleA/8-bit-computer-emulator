@@ -8,6 +8,14 @@ pow2 = 2006                 ; special variable for divide routine
 num_digits = 2007           ; number of digits to print in the display_number routine
 ascii_start = 2008          ; location where ascii map starts
 no_input = 2009             ; whether or not input has been reset
+; Work registers for tokenizer
+work1 = 2010
+work2 = 2011
+work3 = 2012
+work4 = 2013                ; preserved entry base for handler lookup
+
+random_seed = 2600
+inc_random_seed = 2601
 
 text = 2020     ; 16 bytes
 text2 = 2036    ; 16 bytes
@@ -34,22 +42,21 @@ input_buf = 2122            ; start of input buffer (80 bytes reserved)
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
 CALL_STUB = 12800
 12800 = 16
-12801 = 8520
+12801 = 8560
 12802 = 17
 
 ; ----- argv/argv buffer reservation -----
 argv_base = 2400            ; argv block base (argc + argv pointers)
 argv_buf  = 2500            ; buffer where argument strings are copied
-; Work registers for tokenizer
-work1 = 2010
-work2 = 2011
-work3 = 2012
-work4 = 2013         ; preserved entry base for handler lookup
 
 ; Program dispatch table (name[0..7], addr[8], reserved[9]) repeated; sentinel when name[0]==0
 prog_table = 3000
 
 start:
+  LDI 42
+  STA .random_seed
+  LDI 1
+  STA .inc_random_seed
   ; store call stub initial entry in 12803
   LDA 12801
   STA 12803
