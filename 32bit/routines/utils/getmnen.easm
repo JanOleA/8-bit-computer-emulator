@@ -45,9 +45,11 @@ match:
   LDI .bss
   STA .arg1
   JSR @parse_number
+  LDA .res1
   RET
 end_no_match:
   LDI 0
+  STA .res1
   RET
 
 buffer_to_separator:  ; fill the buffer from current read pointer position in ".mnemonics" until first occurence of the separator

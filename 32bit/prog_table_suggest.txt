@@ -30,6 +30,6 @@ Entries (NAME → BASE):
   PUZZLE   → 9060
   RANDINT  → 9220
   SHELL    → 9260
-  SQRT     → 10340
-  STRCMP   → 10400
-  WRTCHAR  → 10460
+  SQRT     → 10380
+  STRCMP   → 10440
+  WRTCHAR  → 10500
