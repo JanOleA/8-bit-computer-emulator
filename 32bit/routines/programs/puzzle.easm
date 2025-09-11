@@ -5,14 +5,14 @@
 ;! bss: auto
 ;! align: 20
 
-bss        = 120020 ; check_value
-bss + 1    = 120021 ; loop_index
-bss + 2    = 120022 ; half_check
-bss + 3    = 120023 ; square_val
-bss + 4    = 120024 ; square_result
-bss + 5    = 120025 ; square_sum
-bss + 6    = 120026 ; num_primes
-bss + 7    = 120027 ; finds
+bss         ; check_value
+bss + 1     ; loop_index
+bss + 2     ; half_check
+bss + 3     ; square_val
+bss + 4     ; square_result
+bss + 5     ; square_sum
+bss + 6     ; num_primes
+bss + 7     ; finds
 
 main:
   LDI 4
