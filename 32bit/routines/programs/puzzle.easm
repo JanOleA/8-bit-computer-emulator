@@ -65,7 +65,7 @@ found_one:
 next_val:
   LDA .bss
   ADI 2
-  CPI 500
+  CPI 50000
   JPC done
   STA .bss    
   JMP main_loop
