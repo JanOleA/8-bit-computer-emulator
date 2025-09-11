@@ -602,6 +602,7 @@ class Game:
     def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
                  draw_mem = False, draw_ops = False, progload = "program.txt",
                  LCD_display = False, json_images = None):
+        self._keyboard_mode = False
         self._running = True
         self._screen = None
         self._width = 1600
@@ -804,7 +805,7 @@ class Game:
         self.memory_title = self._font_exobold.render("Memory:", True, self.TEXTGREY)
         self.microins_title = self._font_exobold.render("Current instruction:", True, self.TEXTGREY)
 
-        self.helptext_1 = "Press 'D' for debug mode.   Press 'C' to end debug mode.   Press 'M' to show/hide memory.   Press 'N' to show/hide microinstruction list.   Press 'R' for reset (won't clear RAM)."
+        self.helptext_1 = "Press 'D' for debug mode.   Press 'C' to end debug mode.   Press 'M' to show/hide memory.   Press 'N' to show/hide microinstruction list.   Press 'R' for reset (won't clear RAM).   Press K to enter keyboard mode.   Press L to exit keyboard mode."
         self.helptext_rendered = self._font_exobold_small.render(self.helptext_1, True, self.TEXTGREY)
         self._bg.blit(self.helptext_rendered, (300, self._height - 50))
         self.helptext_2 = "Press the spacebar to stop automatic execution.   Press the enter key to cycle the clock manually when automatic execution is stopped.   Press the numbers on your numpad to change the HZ target."
@@ -1057,69 +1058,77 @@ class Game:
         self.keys_pressed = list(pygame.key.get_pressed())
 
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
-                self.computer.reset()
-            if event.key == pygame.K_m:
-                if self.draw_mem:
-                    self.draw_mem = False
-                else:
+            if event.key == pygame.K_l:
+                if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    self._keyboard_mode = False
+        
+        if not self._keyboard_mode:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    self.computer.reset()
+                if event.key == pygame.K_m:
+                    if self.draw_mem:
+                        self.draw_mem = False
+                    else:
+                        self.draw_mem = True
+                if event.key == pygame.K_n:
+                    if self.draw_ops:
+                        self.draw_ops = False
+                    else:
+                        self.draw_ops = True
+                if event.key == pygame.K_d:
+                    # debug mode
                     self.draw_mem = True
-            if event.key == pygame.K_n:
-                if self.draw_ops:
-                    self.draw_ops = False
-                else:
                     self.draw_ops = True
-            if event.key == pygame.K_d:
-                # debug mode
-                self.draw_mem = True
-                self.draw_ops = True
-            if event.key == pygame.K_c:
-                # clean mode (no debug)
-                self.draw_mem = False
-                self.draw_ops = False
+                if event.key == pygame.K_c:
+                    # clean mode (no debug)
+                    self.draw_mem = False
+                    self.draw_ops = False
 
-            if event.key == pygame.K_KP_PLUS:
-                self.target_HZ = int(self.target_HZ*2)
-            if event.key == pygame.K_KP_MINUS:
-                self.target_HZ = max(int(self.target_HZ/2), 1)
-            if event.key == pygame.K_KP1:
-                self.target_HZ = int(self.target_FPS/5)
-            elif event.key == pygame.K_KP2:
-                self.target_HZ = int(self.target_FPS/4)
-            elif event.key == pygame.K_KP3:
-                self.target_HZ = int(self.target_FPS/3)
-            elif event.key == pygame.K_KP4:
-                self.target_HZ = int(self.target_FPS/2)
-            elif event.key == pygame.K_KP5:
-                self.target_HZ = int(self.target_FPS)
-            elif event.key == pygame.K_KP6:
-                self.target_HZ = int(self.target_FPS*2)
-            elif event.key == pygame.K_KP7:
-                self.target_HZ = int(self.target_FPS*4)
-            elif event.key == pygame.K_KP8:
-                self.target_HZ = int(self.target_FPS*10)
-            elif event.key == pygame.K_KP9:
-                self.target_HZ = int(self.target_FPS*100)
-            elif event.key == pygame.K_KP0:
-                self.target_HZ = int(self.target_FPS*100000)
+                if event.key == pygame.K_KP_PLUS:
+                    self.target_HZ = int(self.target_HZ*2)
+                if event.key == pygame.K_KP_MINUS:
+                    self.target_HZ = max(int(self.target_HZ/2), 1)
+                if event.key == pygame.K_KP1:
+                    self.target_HZ = int(self.target_FPS/5)
+                elif event.key == pygame.K_KP2:
+                    self.target_HZ = int(self.target_FPS/4)
+                elif event.key == pygame.K_KP3:
+                    self.target_HZ = int(self.target_FPS/3)
+                elif event.key == pygame.K_KP4:
+                    self.target_HZ = int(self.target_FPS/2)
+                elif event.key == pygame.K_KP5:
+                    self.target_HZ = int(self.target_FPS)
+                elif event.key == pygame.K_KP6:
+                    self.target_HZ = int(self.target_FPS*2)
+                elif event.key == pygame.K_KP7:
+                    self.target_HZ = int(self.target_FPS*4)
+                elif event.key == pygame.K_KP8:
+                    self.target_HZ = int(self.target_FPS*10)
+                elif event.key == pygame.K_KP9:
+                    self.target_HZ = int(self.target_FPS*100)
+                elif event.key == pygame.K_KP0:
+                    self.target_HZ = int(self.target_FPS*100000)
 
-            if not self.autorun:
-                if event.key == pygame.K_RETURN:
+                if not self.autorun:
+                    if event.key == pygame.K_RETURN:
+                        self.computer.update()
+                        self.computer.clock_high()
+                        if self.use_LCD_display: self.update_LCD_display()
+
+                    if event.key == pygame.K_SPACE:
+                        self.autorun = True
+                else:
+                    if event.key == pygame.K_SPACE:
+                        self.autorun = False
+
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_k:
+                    self._keyboard_mode = True
+                if event.key == pygame.K_RETURN and not self.autorun:
+                    self.computer.clock_low()
                     self.computer.update()
-                    self.computer.clock_high()
                     if self.use_LCD_display: self.update_LCD_display()
-
-                if event.key == pygame.K_SPACE:
-                    self.autorun = True
-            else:
-                if event.key == pygame.K_SPACE:
-                    self.autorun = False
-
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_RETURN and not self.autorun:
-                self.computer.clock_low()
-                self.computer.update()
-                if self.use_LCD_display: self.update_LCD_display()
 
     def loop(self):
         self.mouse_pos = np.array(pygame.mouse.get_pos())
@@ -1190,7 +1199,7 @@ class Game:
             self.clockrate = self._font.render(f"{int(self.fps*HZ_multiplier):d} Hz", True, self.TEXTGREY)
         self.fpstext = self._font.render(f"{int(self.fps):d} FPS", True, self.TEXTGREY)
 
-        print(f"Start of: ProgCount={self.computer.prog_count:>10d} | Mem={self.computer.memory[self.computer.prog_count]:>8d} | OpTimestep={self.computer.op_timestep:>8d} | Bus={self.computer.bus:8d} | random_seed={self.computer.memory[2600]:6d} | increasing={self.computer.memory[2601]}       ", end="\r")
+        #print(f"Start of: ProgCount={self.computer.prog_count:>10d} | Mem={self.computer.memory[self.computer.prog_count]:>8d} | OpTimestep={self.computer.op_timestep:>8d} | Bus={self.computer.bus:8d} | random_seed={self.computer.memory[2600]:6d} | increasing={self.computer.memory[2601]}       ", end="\r")
 
     def draw_memory(self):
         memwidth = self.memcolumn.get_width()

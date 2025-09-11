@@ -1,0 +1,364 @@
+;! name: ASTER
+;! entry: main
+;! deps: randint, write_char, newline, display_number, echon
+;! abi: os
+;! bss: auto
+;! align: 20
+
+screen_width = 40
+screen_height = 20
+
+.score_text = "SCORE: "
+.game_over_text = "Game over! Your final score: "
+.asteroid_symbol = "O"
+.turret_symbol = "A"
+.bullet_symbol = "I"
+
+; bss + 0     : turret position
+; bss + 1     : asteroid X
+; bss + 2     : asteroid Y
+; bss + 3     : current line
+; bss + 4     : X tmp
+; bss + 5     : bullet X
+; bss + 6     : bullet fired
+; bss + 7     : input entered
+; bss + 8     : entered value
+; bss + 9     : score
+
+main:
+  DIS 8                 ; disable cursor and cursor blink
+  JSR screen_instruction
+  JSR clear_display
+  LDI .screen_width
+  STA .arg1
+  JSR @randint
+  LDA .res1             ; get random value in [0,40)
+  STA .bss              ; turret position
+  LDI 1
+  STA .bss + 3          ; current line we are drawing
+  LDI 0
+  STA .bss + 9          ; score
+
+new_asteroid:
+  LDI .screen_width
+  STA .arg1
+  JSR @randint
+  LDA .res1             ; get random value in [0,40)
+  STA .bss + 1          ; asteroid X position
+  LDI 0
+  STA .bss + 2          ; asteroid Y position
+game_loop:
+  LDI 0
+  STA .bss + 6          ; bullet fired
+  JSR update_display
+  JSR wait_3200
+  LDA .bss + 9
+  CPI 50
+  JPC skip_waits
+  JSR update_display
+  JSR wait_3200
+  LDA .bss + 9
+  CPI 25
+  JPC skip_waits
+  JSR update_display
+  JSR wait_3200
+  LDA .bss + 9
+  CPI 10
+  JPC skip_waits
+  JSR update_display
+  JSR wait_3200
+skip_waits:
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2
+  CPI .screen_height
+  JPC end
+  LDA .bss + 6        ; = bullet fired
+  CPI 0
+  JPZ game_loop 
+  JSR update_display
+  JSR wait_3200
+  LDA .bss + 5
+  CMP .bss + 1
+  JPZ hit
+  JMP game_loop
+hit:
+  LDA .bss + 9
+  ADI 1
+  STA .bss + 9
+  JMP new_asteroid
+
+update_display:
+  JSR clear_display
+  LDA .score_text + 0
+  STA .char
+  JSR @write_char
+  LDA .score_text + 1
+  STA .char
+  JSR @write_char
+  LDA .score_text + 2
+  STA .char
+  JSR @write_char
+  LDA .score_text + 3
+  STA .char
+  JSR @write_char
+  LDA .score_text + 4
+  STA .char
+  JSR @write_char
+  LDA .score_text + 5
+  STA .char
+  JSR @write_char
+  LDA .score_text + 6
+  STA .char
+  JSR @write_char
+  LDA .bss + 9
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI 1
+  STA .bss + 3
+screen_loop:
+  LDA .bss + 3                  ; current line we are drawing
+  CMP .bss + 2
+  JPZ write_asteroid_wrapper
+  JSR write_bullet
+  JSR @newline
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+  CPI .screen_height
+  JPC write_turret_wrapper
+  JMP screen_loop
+write_turret_wrapper:
+  JSR write_turret
+  RET
+
+write_bullet:
+  LDA .bss + 6
+  CPI 0
+  JPZ ret_immediate         ; return immediately if bullet is not fired
+  LDA .bss + 2
+  ADI 1
+  CMP .bss + 3
+  JPZ ret_immediate         ; return immediately if we're on the same line as the asteroid
+  LDA .bss + 5
+  CMP .bss + 1
+  JPZ test_bullet_y
+  JMP begin_write_bullet
+test_bullet_y:
+  LDA .bss + 2
+  CMP .bss + 3
+  JPC ret_immediate
+begin_write_bullet:
+  LDA .bss + 5              ; store position in tmp
+  STA .bss + 4
+write_bullet_loop:
+  LDA .bss + 5
+  CPI 0
+  JPZ write_bullet_end
+  JSR advance_cursor
+  LDA .bss + 5
+  SUI 1
+  STA .bss + 5
+  JMP write_bullet_loop
+write_bullet_end:
+  LDA .bullet_symbol
+  STA .char
+  JSR @write_char
+  LDA .bss + 4
+  STA .bss + 5              ; get position back from tmp
+ret_immediate:
+  RET
+
+write_asteroid_wrapper:
+  JSR write_asteroid
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+  JMP screen_loop
+
+write_asteroid:
+  LDA .bss + 1              ; store position in tmp
+  STA .bss + 4
+write_asteroid_loop:
+  LDA .bss + 1
+  CPI 0
+  JPZ write_asteroid_end
+  JSR advance_cursor
+  LDA .bss + 1
+  SUI 1
+  STA .bss + 1
+  JMP write_asteroid_loop
+write_asteroid_end:
+  LDA .asteroid_symbol
+  STA .char
+  JSR @write_char
+  LDA .bss + 4
+  STA .bss + 1              ; get position back from tmp
+  RET
+
+write_turret:
+  LDA .bss                  ; store position in tmp
+  STA .bss + 4
+write_turret_loop:
+  LDA .bss
+  CPI 0
+  JPZ write_turret_end
+  JSR advance_cursor
+  LDA .bss
+  SUI 1
+  STA .bss
+  JMP write_turret_loop
+write_turret_end:
+  LDA .turret_symbol
+  STA .char
+  JSR @write_char
+  LDA .bss + 4
+  STA .bss                  ; get position back from tmp
+  RET
+
+wait_3200:
+  JSR wait_1600
+  JSR wait_1600
+  RET
+
+wait_1600:
+  JSR wait_800
+  JSR wait_800
+  RET
+
+wait_800:
+  JSR wait_400
+  JSR wait_400
+  RET
+
+wait_400:
+  JSR wait_200
+  JSR wait_200
+  RET
+
+wait_200:
+  JSR wait_100
+  JSR wait_100
+  RET
+
+wait_100:
+  JSR check_input
+  LDA .bss + 7
+  CPI 0
+  JPZ set_no_input
+  LDA .no_input
+  CPI 1
+  JPZ after_input_handling
+  LDI 1
+  STA .no_input
+  LDA .bss + 8
+  OUT
+  CPI 52
+  JPZ handle_left
+  CPI 54
+  JPZ handle_right
+  CPI 47
+  JPZ handle_shoot
+  CPI 48
+  JPZ handle_shoot
+  CPI 49
+  JPZ handle_shoot
+after_input_handling:
+  LDI 100
+wait_100_loop:
+  SUI 1
+  CPI 0
+  JPZ wait_100_return
+  JMP wait_100_loop
+wait_100_return:
+  RET
+
+handle_shoot:
+  LDA .bss + 6
+  CPI 1
+  JPZ after_input_handling    ; return immediately if bullet is already fired
+  LDI 1
+  STA .bss + 6
+  LDA .bss
+  STA .bss + 5
+  JMP after_input_handling
+
+handle_left:
+  LDA .bss
+  CPI 0
+  JPZ after_input_handling    ; return immediately if position is 0
+  SUI 1
+  STA .bss
+  JMP after_input_handling
+
+handle_right:
+  LDA .bss
+  CPI .screen_width
+  JPZ after_input_handling    ; return immediately if position is screen_width
+  ADI 1
+  STA .bss
+  JMP after_input_handling
+
+check_input:
+  KEI
+  PHA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 1
+  JPZ input_entered
+  PLA
+  LDI 0
+  STA .bss + 7
+  RET
+input_entered:
+  PLA
+  SUI 128
+  STA .bss + 8
+  LDI 1
+  STA .bss + 7
+  RET
+
+set_no_input:
+  LDI 0
+  STA .no_input
+  JMP after_input_handling
+
+advance_cursor:
+  LDI 32
+  STA .char
+  JSR @write_char
+  RET
+
+end:
+  DIS 6             ; 0000 0110 - Set entry mode, cursor direction to increment
+  JSR screen_instruction 
+  DIS 15            ; set on, display cursor, cursor blink
+  JSR screen_instruction
+  JSR @newline
+  LDI 0
+  STA .num_digits
+  LDI .game_over_text
+  STA .arg1
+  JSR @echon
+  LDA .bss + 9
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  RET
+
+clear_display:
+  DIS 1             ; 0000 0001 - clear display
+  JSR screen_instruction
+  RET
+
+screen_instruction:         ; screen instruction
+  DIC 0
+  DIC 128                   ; set enable
+  DIC 0
+  RET

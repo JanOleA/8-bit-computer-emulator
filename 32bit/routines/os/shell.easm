@@ -10,7 +10,6 @@ input_buf   = 2122
 input_ptr   = 2202
 cmd_len     = 2203
 cmd_ready   = 2204
-no_input    = 2009
 hist_head   = 2014
 hist_count  = 2015
 hist_pos    = 2016

@@ -27,6 +27,5 @@ calculate:
   JSR @divide
   LDA .res2           ; get remainder
   STA .arg1
-  JSR @display_number
-  JSR @newline
+  STA .res1
   RET

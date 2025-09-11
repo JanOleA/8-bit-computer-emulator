@@ -42,7 +42,7 @@ input_buf = 2122            ; start of input buffer (80 bytes reserved)
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
 CALL_STUB = 12800
 12800 = 16
-12801 = 8560
+12801 = 9100
 12802 = 17
 
 ; ----- argv/argv buffer reservation -----
@@ -99,7 +99,7 @@ initialize_display: ; initializes the display
 print:              ; 
   LDA .textloc
   STA .arg1
-  JSR #5920        ; must be switched to ECHON location if it changes
+  JSR #6460        ; must be switched to ECHON location if it changes
   RET
 
 newline:            ; print newline on the screen

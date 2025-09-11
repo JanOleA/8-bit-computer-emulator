@@ -281,6 +281,15 @@ class Game_32(Game):
                             "A", "S", "D", "F", "G", "H", "J", "K", "L", "Ent", "Ent",
                             "Z", "X", "C", "V", "B", "N", "M", ",", ".", "^", "<-",
                             "Ctr", "Alt", "Sh", "_", "_", "_", "+", "-", "<", "v", ">",]
+        
+        self._pygame_keyboard_mapping = [
+            39, 30, 31, 32, 33, 34, 35, 36, 37, 38, 84,
+            20, 26, 8, 21, 23, 28, 24, 12, 18, 19, 85,
+            4, 22, 7, 9, 10, 11, 13, 14, 15, 40, 40,
+            29, 27, 6, 25, 5, 17, 16, 54, 55, 82, 42,
+            224, 226, 225, 44, 44, 44, 45, 56, 80, 81, 79
+        ]
+        
 
         self.kbrow = 0
         self.kbcol = 0        
@@ -321,8 +330,13 @@ class Game_32(Game):
             self._screen.blit(self.memrows[i], (x - 32, y))
             y += 15
 
-    def loop(self):
+    def loop(self):        
         kb_input = (self.kbrow-1)*11 + self.kbcol
+        if self._keyboard_mode:
+            for i, key_id in enumerate(self._pygame_keyboard_mapping):
+                if self.keys_pressed[key_id]:
+                    kb_input = i
+                    break
         if kb_input != -11:
             self.computer.input_regi = kb_input + 128
         else:
