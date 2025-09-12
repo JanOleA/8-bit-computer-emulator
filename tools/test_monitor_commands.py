@@ -119,6 +119,80 @@ def capture_monitor_text(game, rows=10):
     return out
 
 
+# ----- Module image verification helpers -----
+
+def _load_module_from_json(json_path, name):
+    import json
+    with open(json_path, 'r') as f:
+        data = json.load(f)
+    mod = None
+    for k, v in data.items():
+        if isinstance(v, dict) and k.lower() == name.lower():
+            mod = v
+            break
+    if mod is None:
+        # fallback search by entry label
+        for k, v in data.items():
+            if not isinstance(v, dict):
+                continue
+            if str(v.get('entry', '')).strip().lower() == name.lower():
+                mod = v
+                break
+    if not isinstance(mod, dict) or 'base' not in mod or 'length' not in mod or 'words' not in mod:
+        raise AssertionError(f"Module '{name}' not found or incomplete in JSON: {json_path}")
+    return int(mod['base']), int(mod['length']), [int(x) for x in mod['words']], mod
+
+
+def verify_module_image(game, json_path, name, extra_checks=None):
+    """Verify that the emulator memory contains exactly the words from the JSON image.
+
+    - Compares memory slice [base:base+len) to JSON words.
+    - Optionally applies extra_checks(words) for signature assertions.
+    """
+    base, length, words, _ = _load_module_from_json(json_path, name)
+    mem = game.computer.memory
+    limit = getattr(game.computer, 'overflow_limit', 256)
+    mask = int(limit - 1)
+    got = [int(mem[base + i]) & mask for i in range(length)]
+    if got != words:
+        # Summarize first few diffs for debugging
+        diffs = []
+        for i, (a, b) in enumerate(zip(got, words)):
+            if a != b:
+                diffs.append((i, a, b))
+            if len(diffs) >= 8:
+                break
+        msg = [f"Memory image for '{name}' does not match JSON at base={base} len={length}."]
+        if diffs:
+            msg.append("First diffs (idx, got, exp): " + ", ".join(f"({i},{ga},{ex})" for i, ga, ex in diffs))
+        raise AssertionError(" ".join(msg))
+    if callable(extra_checks):
+        extra_checks(words)
+
+
+def _assert_modmul_signature(words):
+    """Lightweight signature check that modmul is the expected algorithm.
+
+    Asserts the leading opcode pattern and that the odd/even test uses RSA;LSA;CMP .char.
+    This guards against stale images that only reduce at the end.
+    """
+    # Assert initial opcodes: LDA, STA, LDA, STA, LDA, STA, LDI, STA
+    # (operands vary by BSS assignment, so only check opcodes)
+    leading_opcodes = [words[i] for i in (0, 2, 4, 6, 8, 10, 12, 14)]
+    expected = [1, 4, 1, 4, 1, 4, 5, 4]
+    if leading_opcodes != expected:
+        raise AssertionError(f"modmul: unexpected leading opcode pattern {leading_opcodes}, expected {expected}")
+
+    # Search for RSA (22), LSA (23), CMP .char (12, 2000) subsequence
+    found = False
+    for i in range(0, len(words) - 3):
+        if words[i] == 22 and words[i+1] == 23 and words[i+2] == 12 and words[i+3] == 2000:
+            found = True
+            break
+    if not found:
+        raise AssertionError("modmul: signature 'RSA, LSA, CMP .char' not found; image may be stale/mismatched.")
+
+
 # ----- Subroutine call helpers (OS ABI: arg1=2002, arg2=2003, res1=2004, res2=2005) -----
 
 def reboot_os(game, boot_cycles=30000, reenter_keyboard=True):
@@ -158,14 +232,29 @@ def _load_routine_base(name: str, json_path: str) -> int:
     import json
     with open(json_path, 'r') as f:
         data = json.load(f)
-    mod = data.get(name)
+    # Try direct key (module name), case-insensitive
+    mod = None
+    for k, v in data.items():
+        if isinstance(v, dict) and k.lower() == name.lower():
+            mod = v
+            break
+    # Fallback: search by entry label
+    if mod is None:
+        target = name.strip().lower()
+        for k, v in data.items():
+            if not isinstance(v, dict):
+                continue
+            entry = str(v.get('entry', '')).strip().lower()
+            if entry == target:
+                mod = v
+                break
     if not isinstance(mod, dict) or 'base' not in mod:
         raise ValueError(f"Routine '{name}' not found in {json_path}")
     return int(mod['base'])
 
 
 def call_subroutine(game, target, arg1=None, arg2=None, trampoline_base=15000, json_path=None,
-                    max_cycles=200000, reset_after=True, boot_cycles=30000):
+                    max_cycles=200000, reset_after=True, boot_cycles=30000, clear_outputs=True):
     """Inject .arg1/.arg2, JSR to target, run until HLT, return A, .res1, .res2.
 
     - target: int absolute address or str routine name (requires json_path).
@@ -189,14 +278,20 @@ def call_subroutine(game, target, arg1=None, arg2=None, trampoline_base=15000, j
         mem[2002] = int(arg1) & mask
     if arg2 is not None:
         mem[2003] = int(arg2) & mask
-    # Clear outputs
-    mem[2004] = 0
-    mem[2005] = 0
+    # Clear outputs, unless caller provided a needed value (e.g. modulus in .res1)
+    if clear_outputs:
+        mem[2004] = 0
+        mem[2005] = 0
 
     # Build trampoline: JSR #addr; HLT
     mem[trampoline_base + 0] = 16   # JSR
     mem[trampoline_base + 1] = int(addr) & mask
     mem[trampoline_base + 2] = 255  # HLT
+
+    s = ""
+    for l, name in enumerate(["arg1", "arg2", "res1", "res2"]):
+        s += f"{name}={mem[l+2002]:<10d}  "
+    print(s)
 
     # Set PC to trampoline and run until HLT
     comp.prog_count = trampoline_base
@@ -227,6 +322,52 @@ def call_subroutine(game, target, arg1=None, arg2=None, trampoline_base=15000, j
     return result
 
 
+def diagnose_modmul(game, json_path, arg1, arg2, mod):
+    """Run modmul and dump BSS locals and consistency checks for debugging."""
+    res = call_subroutine(game, 'modmul', arg1=arg1, arg2=arg2, json_path=json_path, reset_after=False, clear_outputs=False)
+    # Locate BSS for modmul
+    _, _, _, meta = _load_module_from_json(json_path, 'modmul')
+    bss = meta.get('bss', {}) if isinstance(meta, dict) else {}
+    bbase = int(bss.get('base', 0))
+    mem = game.computer.memory
+    mask = _mask_for(game)
+    vals = {
+        'res': int(mem[bbase + 0]) & mask,
+        'x': int(mem[bbase + 1]) & mask,
+        'y': int(mem[bbase + 2]) & mask,
+        'mod_copy': int(mem[bbase + 3]) & mask,
+    }
+    print(f"modmul diag: A={res['A']} res_mem={vals['res']} x={vals['x']} y={vals['y']} mod_copy={vals['mod_copy']}")
+    # Basic invariants
+    if vals['mod_copy'] != (int(mod) & mask):
+        print(f"WARNING: mod_copy mismatch: {vals['mod_copy']} vs expected {mod}")
+    if res['A'] != vals['res']:
+        print(f"WARNING: A != res_mem: A={res['A']} res_mem={vals['res']}")
+    return res
+
+
+def diagnose_rem64(game, json_path, lo, hi, mod):
+    """Run rem64 and dump intermediate locals for debugging."""
+    res = call_subroutine(game, 'rem64', arg1=lo, arg2=hi, json_path=json_path, reset_after=False, clear_outputs=False)
+    # BSS layout per source: mod, lo_mod, hi_mod, pow, hi_term
+    _, _, _, meta = _load_module_from_json(json_path, 'rem64')
+    bss = meta.get('bss', {}) if isinstance(meta, dict) else {}
+    bbase = int(bss.get('base', 0))
+    mem = game.computer.memory
+    mask = _mask_for(game)
+    vals = {
+        'mod_copy': int(mem[bbase + 0]) & mask,
+        'lo_mod': int(mem[bbase + 1]) & mask,
+        'hi_mod': int(mem[bbase + 2]) & mask,
+        'pow': int(mem[bbase + 3]) & mask,
+        'hi_term': int(mem[bbase + 4]) & mask,
+    }
+    print(f"rem64 diag: A={res['A']} lo_mod={vals['lo_mod']} hi_mod={vals['hi_mod']} pow={vals['pow']} hi_term={vals['hi_term']} mod_copy={vals['mod_copy']}")
+    if vals['mod_copy'] != (int(mod) & mask):
+        print(f"WARNING: mod_copy mismatch: {vals['mod_copy']} vs expected {mod}")
+    return res
+
+
 def main():
     # Import the 32-bit monitor variant
     import importlib.util as _il
@@ -250,6 +391,11 @@ def main():
     # Initialize pygame display and emulator
     game.init_game()
 
+    # Verify critical routine images are the expected ones from JSON
+    if os.path.exists(json_img):
+        verify_module_image(game, json_img, 'modmul', extra_checks=_assert_modmul_signature)
+        verify_module_image(game, json_img, 'rem64')
+
     # Let it boot quickly (CPU cycles, not frame-bound)
     run_cycles(game, cycles=30000)
     # Enter keyboard mode: on KEYUP(K) and process events
@@ -272,13 +418,7 @@ def main():
 
     # Demonstrate direct subroutine call: DIVIDE (A=res1=quotient, res2=remainder)
     try:
-        json_img_path = json_img if os.path.exists(json_img) else None
-        # Fresh instance to avoid halting state from trampoline
-        game2 = Game_32(autorun=True, target_FPS=30, target_HZ=15, progload=prog, LCD_display=False, cpubits=32, stackbits=8, json_images=[json_img] if json_img_path else [])
-        game2.init_game()
-        # Run a small boot to ensure machine initialized
-        run_cycles(game2, cycles=1000)
-        r = call_subroutine(game2, 'divide', arg1=42, arg2=5, json_path=json_img)
+        r = call_subroutine(game, 'divide', arg1=42, arg2=5, json_path=json_img)
         print("--- Subroutine: DIVIDE 42/5 ---")
         print(f"A={r['A']} res1={r['res1']} res2={r['res2']} cycles={r['cycles']} halted={r['halted']}")
         type_string(game, "LIST")
@@ -292,6 +432,85 @@ def main():
             print(ln)
     except Exception as e:
         print(f"Subroutine test failed: {e}")
+
+    # ----- Routine unit tests -----
+    try:
+        print("\n=== Running routine self-tests (cpubits=32) ===")
+        mask32 = (1 << 32) - 1
+        total = 0
+        failed = 0
+
+        def check(ok, msg):
+            nonlocal total, failed
+            total += 1
+            if ok:
+                print("PASS:", msg)
+            else:
+                failed += 1
+                print("FAIL:", msg)
+            print("")
+
+        # divide: 42/5 -> A=8, res2=2
+        r = call_subroutine(game, 'divide', arg1=42, arg2=5, json_path=json_img, reset_after=False)
+        check(r['A'] == 8 and r['res2'] == 2, f"divide 42/5 A={r['A']} res2={r['res2']}")
+
+        # gcd: gcd(48,18) -> 6
+        r = call_subroutine(game, 'gcd', arg1=48, arg2=18, json_path=json_img, reset_after=False)
+        check(r['A'] == 6 and r['res1'] == 6, f"gcd 48,18 A={r['A']} res1={r['res1']}")
+
+        # mult: 7*9 -> 63
+        r = call_subroutine(game, 'mult', arg1=7, arg2=9, json_path=json_img, reset_after=False)
+        check(r['A'] == 63 and r['res1'] == 63, f"mult 7*9 A={r['A']} res1={r['res1']}")
+
+        # pow: 3^5 -> 243
+        r = call_subroutine(game, 'pow', arg1=3, arg2=5, json_path=json_img, reset_after=False)
+        exp = (3 ** 5) & mask32
+        check(r['A'] == exp and r['res1'] == exp, f"pow 3^5 A={r['A']} res1={r['res1']}")
+
+        # sqrt: floor sqrt(81) -> 9
+        r = call_subroutine(game, 'sqrt', arg1=81, json_path=json_img, reset_after=False)
+        check(r['A'] == 9 and r['res1'] == 9, f"sqrt 81 A={r['A']} res1={r['res1']}")
+
+        # modmul: (123*45) % 97, modulus in .res1
+        game.computer.memory[2004] = 97
+        r = diagnose_modmul(game, json_img, arg1=123, arg2=45, mod=97)
+        exp = (123 * 45) % 97
+        check(r['A'] == exp, f"modmul 123*45 %97 A={r['A']} exp={exp}")
+
+        # pow2_32_mod: 2^32 % 97 (arg1=mod)
+        r = call_subroutine(game, 'pow2_32_mod', arg1=97, json_path=json_img, reset_after=False)
+        exp = pow(2, 32, 97)
+        check(r['A'] == exp, f"pow2_32_mod mod=97 A={r['A']} exp={exp}")
+
+        # rem64: (hi<<32 + lo) % mod; .arg1=lo, .arg2=hi, .res1=mod
+        lo = 0xABCD1234 & mask32
+        hi = 0x12345678 & mask32
+        modv = 97
+        game.computer.memory[2004] = modv
+        r = diagnose_rem64(game, json_img, lo=lo, hi=hi, mod=modv)
+        exp = ((hi << 32) + lo) % modv
+        check(r['A'] == exp, f"rem64 (({hi}<<32)+{lo})%{modv} A={r['A']} exp={exp}")
+
+        # addsq64: add p^2 into 64-bit sum stored in two 32-bit words
+        pval = 300
+        sum_lo_addr = 60000
+        sum_hi_addr = 60001
+        mem = game.computer.memory
+        mem[sum_lo_addr] = 0
+        mem[sum_hi_addr] = 0
+        # Contract: .arg1=p, .arg2=sum_lo_addr, .res1=sum_hi_addr
+        mem[2004] = sum_hi_addr
+        r = call_subroutine(game, 'addsq64', arg1=pval, arg2=sum_lo_addr, json_path=json_img, reset_after=True, clear_outputs=False)
+        total64 = (pval * pval) & ((1 << 64) - 1)
+        exp_lo = total64 & mask32
+        exp_hi = (total64 >> 32) & mask32
+        got_lo = int(mem[sum_lo_addr]) & mask32
+        got_hi = int(mem[sum_hi_addr]) & mask32
+        check(got_lo == exp_lo and got_hi == exp_hi, f"addsq64 p={pval} got_lo={got_lo} got_hi={got_hi} exp_lo={exp_lo} exp_hi={exp_hi}")
+
+        print(f"\nSelf-tests: {total - failed} passed, {failed} failed, {total} total.")
+    except Exception as e:
+        print(f"Routine self-tests failed: {e}")
 
     # Cleanly quit
     pygame.quit()
