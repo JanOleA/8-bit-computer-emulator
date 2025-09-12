@@ -805,10 +805,10 @@ class Game:
         self.memory_title = self._font_exobold.render("Memory:", True, self.TEXTGREY)
         self.microins_title = self._font_exobold.render("Current instruction:", True, self.TEXTGREY)
 
-        self.helptext_1 = "Press 'D' for debug mode.   Press 'C' to end debug mode.   Press 'M' to show/hide memory.   Press 'N' to show/hide microinstruction list.   Press 'R' for reset (won't clear RAM).   Press K to enter keyboard mode.   Press L to exit keyboard mode."
+        self.helptext_1 = "Press 'D' for debug mode.   Press 'C' to end debug mode.   Press 'M' to show/hide memory.   Press 'N' to show/hide microinstruction list.   Press 'R' for reset (won't clear RAM).   Press K to enter keyboard mode."
         self.helptext_rendered = self._font_exobold_small.render(self.helptext_1, True, self.TEXTGREY)
         self._bg.blit(self.helptext_rendered, (300, self._height - 50))
-        self.helptext_2 = "Press the spacebar to stop automatic execution.   Press the enter key to cycle the clock manually when automatic execution is stopped.   Press the numbers on your numpad to change the HZ target."
+        self.helptext_2 = "Press the spacebar to stop automatic execution.   Press the enter key to cycle the clock manually when automatic execution is stopped.   Press Ctrl+L to exit keyboard mode."
         self.helptext_rendered = self._font_exobold_small.render(self.helptext_2, True, self.TEXTGREY)
         self._bg.blit(self.helptext_rendered, (300, self._height - 30))
 

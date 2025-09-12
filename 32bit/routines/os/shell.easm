@@ -435,13 +435,13 @@ dp_match:
   PHA
   LAS
   STA .bss + 1
-  LDI 12801
+  LDI 19997
   PHA
   LDA .bss + 1
   SAS
-  JSR #12800
-  LDA 12803
-  STA 12801 ; reset the call stub entry to the initial (shell)
+  JSR #19996
+  LDA 19999
+  STA 19997 ; reset the call stub entry to the initial (shell)
   LDI 1
   STA .bss
   RET

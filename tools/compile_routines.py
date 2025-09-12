@@ -430,6 +430,18 @@ def main(apply_table: bool = False):
     bss_auto_start = 20000
     data_auto_start = 25000
     modules_to_patch: List[Tuple[str, Dict]] = []
+    # Reserve OS call stub so modules don't overlap it
+    try:
+        os_path = Path(__file__).parent.parent / "32bit" / "emulator_os.txt"
+        if os_path.exists():
+            for ln in os_path.read_text().splitlines():
+                s = ln.strip().replace(" ", "")
+                if s.startswith('CALL_STUB='):
+                    csb = int(s.split('=', 1)[1])
+                    used_ranges.append((csb, csb + 3))
+                    break
+    except Exception:
+        pass
     if os.path.exists(routines_dir):
         # First pass: assemble modules, assign bases, collect extern sites
         # Support new .easm extension (preferred), while keeping .txt during transition

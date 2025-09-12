@@ -40,10 +40,10 @@ input_buf = 2122            ; start of input buffer (80 bytes reserved)
 
 ; ----- Call stub for returning external commands -----
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
-CALL_STUB = 12800
-12800 = 16
-12801 = 9620
-12802 = 17
+CALL_STUB = 19996
+19996 = 16
+19997 = 9620
+19998 = 17
 
 ; ----- argv/argv buffer reservation -----
 argv_base = 2400            ; argv block base (argc + argv pointers)
@@ -57,9 +57,9 @@ start:
   STA .random_seed
   LDI 1
   STA .inc_random_seed
-  ; store call stub initial entry in 12803
-  LDA 12801
-  STA 12803
+  ; store call stub initial entry in 19999
+  LDA 19997
+  STA 19999
   JSR initialize_display
   LDI 2052
   STA .textloc
@@ -85,7 +85,7 @@ start:
   STA .num_digits
   JSR print
   JSR newline
-  JSR #12800
+  JSR #19996
 
 initialize_display: ; initializes the display
   DIS 1             ; 0000 0001 - clear display
