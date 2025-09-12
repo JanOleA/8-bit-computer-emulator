@@ -36,4 +36,5 @@ Entries (NAME → BASE):
   SHELL    → 9620
   SQRT     → 10700
   STRCMP   → 10760
-  WRTCHAR  → 10820
+  TESTLSA  → 10820
+  WRTCHAR  → 10840

@@ -1,0 +1,16 @@
+;! name: TESTLSA
+;! entry: test_lsa
+;! deps:
+;! abi: none
+;! bss: none
+;! align: 20
+
+test_lsa:
+  LDI 3
+loop:
+  LSA
+  OUT
+  JPC end
+  JMP loop
+end:
+  RET

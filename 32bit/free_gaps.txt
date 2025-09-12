@@ -32,8 +32,9 @@
 9606,9620,14 ; between rem64 and shell
 10695,10700,5 ; between shell and sqrt
 10747,10760,13 ; between sqrt and strcmp
-10804,10820,16 ; between strcmp and wrtchar
-10831,25008,14177 ; between wrtchar and aster_data
+10804,10820,16 ; between strcmp and testlsa
+10829,10840,11 ; between testlsa and wrtchar
+10851,25008,14157 ; between wrtchar and aster_data
 25052,25072,20 ; between aster_data and emu_data
 25633,25664,31 ; between emu_data and getmnen_data
 25855,25872,17 ; between getmnen_data and help_data
