@@ -18,13 +18,15 @@ hist_entry_len = 40   ; max characters per history entry and input line
 hist_max    = 40      ; max number of history entries
 
 .linechar = "-"
-.version = "EShell (ESH) 25.9.0a"
+.version = "EShell (ESH) 25.9.1a"
 .bits_avail_text_1 =       "AReg size:        "
 .bits_avail_text_2 = " bits"
 .memory_available_text =   "Memory available: "
 .memory_available_text_2 = " k words"
 .memory_available_text_3 = "                  ("
 .memory_available_text_4 = " bits/word)"
+.cmd_error_message = "Unknown command: "
+.cmd_error_message_2 = "Type HELP for a list of commands"
 
 start:
   ; print startup info
@@ -59,6 +61,9 @@ start:
   STA .arg1
   JSR @display_number
   LDI .memory_available_text_4
+  JSR print_newline
+  JSR @wait_1600
+  LDI .cmd_error_message_2
   JSR print_newline
   JSR write_40_dash
   JSR @wait_1600
@@ -508,6 +513,12 @@ dp_match:
   STA .bss
   RET
 dp_nomatch:
+  LDI .cmd_error_message
+  JSR print_no_newline
+  LDI .input_buf
+  JSR print_newline
+  LDI .cmd_error_message_2
+  JSR print_newline
   LDI 0
   STA .bss
   RET
