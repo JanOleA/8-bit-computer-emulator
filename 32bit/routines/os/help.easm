@@ -1,91 +1,104 @@
 ;! name: HELP
 ;! entry: help
-;! deps: echon, parse_number, newline, write_char
+;! deps: echon, parse_number, newline, write_char, buffer_to_separator, divide, display_number
 ;! abi: os
 ;! bss: auto
 ;! align: 20
 
-; Text blocks (embedded as module-local data)
-.txt_help     = "HELP page: show this help at page"
-.txt_echo     = "ECHO arg: print argument to terminal"
-.txt_list     = "LIST: show all installed commands"
-.txt_cls      = "CLS: clear the screen"
-.txt_peek     = "PEEK addr: print mem[addr]"
-.txt_poke     = "POKE addr val: store val at addr"
-.txt_primes   = "PRIMES: print primes up to 300"
-.txt_puzzle   = "PUZZLE: Matt Parker 19 puzzle"
-.txt_shell    = "ESH: simple command prompt"
-.txt_dump     = "DUMP addr len: print decimal words"
-.txt_hexdump  = "HEXDUMP addr len: print hex words"
-.txt_calc     = "CALC a op b: compute result"
-.txt_memedit  = "MEMEDIT addr: begin editing mem@addr"
-.txt_fillmem  = "FILLMEM start num val: fill memory"
-.txt_cpymem   = "CPYMEM src dst len: copy memory"
-.txt_cpymem2  = "   mem[src:src+len] > mem[dst:dst+len]"
-.txt_fibo     = "FIBO: print fibonacci values"
+; Items, separated by backslash ("\\"). Kept in a single auto-data string.
+.separator = "\\"
+.help_items = "LIST: show all installed commands\\HELP page: show this help at page\\ECHO arg: print argument to terminal\\CLS: clear the screen\\PEEK addr: print mem[addr]\\POKE addr val: store val at addr\\PRIMES: print primes up to 300\\PUZZLE: Matt Parker 19 puzzle\\ESH: simple command prompt\\DUMP addr len: print decimal words\\HEXDUMP addr len: print hex words\\CALC a op b: compute result\\MEMEDIT addr: begin editing mem@addr\\FILLMEM start num val: fill memory\\CPYMEM src dst len: copy memory\\   mem[src:src+len] > mem[dst:dst+len]\\FIBO: print fibonacci values"
 
 ; BSS locals
 per_page = .bss
 
 help:
-  ; Determine total items and per-page
-  LDI 16
-  STA .res2           ; total_items = 16
+  ; Determine total items by scanning tokens separated by '\\'
   LDI 14
-  STA .per_page       ; per_page
-
-  ; Compute total_pages into .char using loop: pages=1; while total_items > per_page: pages++, total_items -= per_page
-  LDI 1
-  STA .char           ; pages = 1
-  ; if items <= per_page -> done
+  STA .per_page       ; per-page
+  LDI .help_items
+  STA .bss + 4        ; scan_ptr
+  LDI 0
+  STA .bss + 5        ; total_items = 0
+hp_cnt_lp:
+  ; Tokenize at current pointer
+  LDA .separator
+  STA .arg2
+  LDA .bss + 4
+  STA .arg1
+  JSR @buffer_to_separator
+  ; len -> bss+6
   LDA .res2
-  CMP .per_page       ; C=1 if items >= per_page
-  JPZ hp_pages_done   ; items == per_page -> done
-  JPC hp_pages_enter  ; items > per_page -> loop
-  JMP hp_pages_done   ; items < per_page -> done
-hp_pages_enter:
-hp_pages_loop:
-  ; total_items -= per_page, pages++
-  LDA .res2
-  SUB .per_page
-  STA .res2
-  LDA .char
+  STA .bss + 6
+  ; Advance pointer by len
+  LDA .bss + 4
+  ADD .bss + 6
+  STA .bss + 4
+  ; If length > 0, count item
+  LDA .bss + 6
+  CPI 0
+  JPZ hp_cnt_check_end
+  LDA .bss + 5
   ADI 1
-  STA .char
-  ; continue while total_items > per_page
+  STA .bss + 5
+hp_cnt_check_end:
+  ; Probe current char (separator or 0)
+  LDA .bss + 4
+  PHA
+  LAS
+  CMP .separator
+  JPZ hp_cnt_skipsep
+  CPI 0
+  JPZ hp_cnt_done
+  ; Unexpected non-sep char (shouldn't happen), continue
+  JMP hp_cnt_lp
+hp_cnt_skipsep:
+  LDA .bss + 4
+  ADI 1
+  STA .bss + 4
+  JMP hp_cnt_lp
+hp_cnt_done:
+  ; Compute total_pages = ceil(total_items / per_page) with divide
+  ; store total_items temporarily in .bss+5
+  LDA .bss + 5
+  STA .arg1
+  LDA .per_page
+  STA .arg2
+  JSR @divide
+  STA .bss + 7        ; quotient
   LDA .res2
-  CMP .per_page
-  JPZ hp_pages_done
-  JPC hp_pages_loop
-  ; else items < per_page
-  ; fallthrough
-hp_pages_done:
-  ; .char = total_pages, .res2 holds remainder (unused)
+  CPI 0
+  JPZ hp_pages_noinc
+  LDA .bss + 7
+  ADI 1
+  STA .bss + 7
+hp_pages_noinc:
+  ; Ensure at least 1 page
+  LDA .bss + 7
+  CPI 1
+  JPC hp_pages_have
+  LDI 1
+  STA .bss + 7
+hp_pages_have:
 
   ; Default page = 1
   LDI 1
   STA .res1           ; page = 1
-  ; argv_base (preserve in bss+3)
-  LDA .arg1
-  STA .bss + 3
   ; argc = [argv_base]
-  LDA .bss + 3
+  LDI .argv_base
   PHA
   LAS
-  STA .num_digits
-  ; if argc == 0, keep default page = 1
-  LDA .num_digits
-  CPI 0
+  CPI 0                   ; if argc == 0, keep default page = 1
   JPZ hp_after_parse
   ; else parse first argument as page: arg_ptr = [argv_base+1]
-  LDA .bss + 3
+  LDI .argv_base
   ADI 1
   PHA
   LAS
   STA .arg1           ; arg1 = pointer to page string
   JSR @parse_number
 hp_after_parse:
-  ; clamp page to [1, pages(.char)]
+  ; clamp page to [1, pages(.bss + 7)]
   LDA .res1
   CPI 1
   JPC hp_have_min
@@ -93,33 +106,27 @@ hp_after_parse:
   STA .res1
 hp_have_min:
   ; if page > total_pages, set to total_pages
-  LDA .char
+  LDA .bss + 7
   CMP .res1           ; C=1 if total_pages >= page
   JPC hp_page_ok
-  LDA .char
+  LDA .bss + 7
   STA .res1
 hp_page_ok:
-  ; Print header directly: page, '/', total_pages
-  ; save total_pages (.char) to .res2
-  LDA .char
-  STA .res2
-  ; page digit
+  ; Print header: page/total_pages using display_number
   LDA .res1
-  ADI 48
-  STA .char
-  JSR @write_char
+  STA .arg1
+  JSR @display_number
   ; slash
   LDI 47
   STA .char
   JSR @write_char
-  ; total pages digit
-  LDA .res2
-  ADI 48
-  STA .char
-  JSR @write_char
+  ; total pages
+  LDA .bss + 7
+  STA .arg1
+  JSR @display_number
   JSR @newline
 
-  ; skip = (page-1)*per_page into .skipv
+  ; skip = (page-1)*per_page into .bss+1
   LDA .res1
   SUI 1
   STA .num_digits     ; reuse num_digits as loops remaining of pages-1
@@ -137,198 +144,77 @@ hp_skip_lp:
   STA .num_digits
   JMP hp_skip_lp
 hp_skip_done:
-  ; printed = 0 (store in bss+2)
+  ; printed = 0 (store in bss+2). Reset token scan pointer to start.
   LDI 0
   STA .bss + 2
-
-  ; iterate items, skipping first 'skip' and printing up to per_page
-  ; item 0: LIST
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk1
-  LDI .txt_list
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk1:
-  ; item 1: HELP
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk2
-  LDI .txt_help
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk2:
-  ; item 2: ECHO
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk3
-  LDI .txt_echo
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk3:
-  ; item 3: CLS
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk4
-  LDI .txt_cls
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk4:
-  ; item 4: PEEK
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk5
-  LDI .txt_peek
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk5:
-  ; item 5: POKE
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk6
-  LDI .txt_poke
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk6:
-  ; item 6: PRIMES
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk7
-  LDI .txt_primes
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk7:
-  ; item 7: PUZZLE
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk8
-  LDI .txt_puzzle
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk8:
-  ; item 8: SHELL
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk9
-  LDI .txt_shell
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk9:
-  ; item 9: DUMP
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk10
-  LDI .txt_dump
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk10:
-  ; item 10: HEXDUMP
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk11
-  LDI .txt_hexdump
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk11:
-  ; item 11: CALC
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk12
-  LDI .txt_calc
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk12:
-  ; item 12: MEMEDIT
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk13
-  LDI .txt_memedit
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk13:
-  ; item 13: FILLMEM
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk14
-  LDI .txt_fillmem
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk14:
-  ; item 14: CPYMEM
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk15
-  LDI .txt_cpymem
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk15:
-  ; item 15: CPYMEM2
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk16
-  LDI .txt_cpymem2
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk16:
-  ; item 16: FIBO
-  JSR hp_consider_print
-  CPI 0
-  JPZ hp_sk17
-  LDI .txt_fibo
-  STA .textloc
-  JSR print
-  JSR hp_after_print
-hp_sk17:
-  RET
-
-; print null-terminated string at .textloc
-print:              ; print null-terminated string at .textloc via ECHON (auto length)
-  LDA .textloc
-  STA .arg1
-  LDI 0
-  STA .num_digits     ; signal auto-length
-  JSR @ECHON
-  RET
-
-; Consider printing next item based on skip and printed counters
-hp_consider_print:
-  ; if skip > 0, skip-- and return 0
-  LDA .bss + 1
-  CPI 0
-  JPZ hp_cp_noskip
-  SUI 1
-  STA .bss + 1
-  LDI 0
-  RET
-hp_cp_noskip:
-  ; if printed >= per_page, return 0
+  LDI .help_items
+  STA .bss + 4
+  ; Iterate tokens; skip first 'skip', print up to 'per_page'
+hp_iter:
+  ; Stop if printed >= per_page
   LDA .bss + 2
   CMP .per_page
-  JPC hp_cp_full
-  LDI 1
-  RET
-hp_cp_full:
+  JPC hp_done
+  ; Tokenize current
+  LDA .separator
+  STA .arg2
+  LDA .bss + 4
+  STA .arg1
+  JSR @buffer_to_separator
+  ; len -> bss+6
+  LDA .res2
+  STA .bss + 6
+  ; If end-of-string and len==0 -> done
+  LDA .bss + 6
+  CPI 0
+  JPZ hp_check_end
+  ; If still skipping, decrement and advance without printing
+  LDA .bss + 1
+  CPI 0
+  JPZ hp_print
+  SUI 1
+  STA .bss + 1
+  JMP hp_advance
+hp_print:
+  ; Print buffered token
+  LDA .res1
+  STA .arg1
   LDI 0
-  RET
-
-hp_after_print:
+  STA .num_digits
+  LDI 0
+  STA .arg2
+  JSR @echon
+  ; printed++
   LDA .bss + 2
   ADI 1
   STA .bss + 2
+hp_advance:
+  ; Advance scan pointer by len and optional separator
+  LDA .bss + 4
+  ADD .bss + 6
+  STA .bss + 4
+  LDA .bss + 4
+  PHA
+  LAS
+  CMP .separator
+  JPZ hp_skipsep2
+  CPI 0
+  JPZ hp_done
+  JMP hp_iter
+hp_skipsep2:
+  LDA .bss + 4
+  ADI 1
+  STA .bss + 4
+  JMP hp_iter
+hp_check_end:
+  ; len==0; if at end (null), stop; else if separator (empty token), skip sep and continue
+  LDA .bss + 4
+  PHA
+  LAS
+  CPI 0
+  JPZ hp_done
+  CMP .separator
+  JPZ hp_skipsep2
+  JMP hp_done
+hp_done:
   RET

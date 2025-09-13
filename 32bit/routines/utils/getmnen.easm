@@ -1,6 +1,6 @@
 ;! name: GETMNEN
 ;! entry: get_mnemonic
-;! deps: string_compare, parse_number, buffer_to_separator, echon, write_char, display_number
+;! deps: string_compare, parse_number, buffer_to_separator
 ;! abi: os
 ;! bss: auto
 ;! align: 20
