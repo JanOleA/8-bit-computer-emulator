@@ -8,6 +8,7 @@
 ; Prints exactly N characters from pointer .arg1, then newline.
 ; Inputs:
 ;   .arg1 = pointer to first character
+;   .arg2 = if 1, skip newline. Else print it.
 ;   .num_digits = count (N)
 
 echon:
@@ -57,9 +58,13 @@ lp:
   LDA .num_digits
   SUI 1
   STA .num_digits
-  JPZ end_nl
+  JPZ end
   JMP lp
 
-end_nl:
+end:
+  LDA .arg2
+  CPI 1
+  JPZ return
   JSR @newline
+return:
   RET

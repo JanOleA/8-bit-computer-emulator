@@ -1,0 +1,16 @@
+;! name: WAIT100
+;! entry: wait_100
+;! deps: 
+;! abi:
+;! bss: none
+;! align: 20
+
+wait_100:
+  LDI 100
+wait_100_loop:
+  SUI 1
+  CPI 0
+  JPZ wait_100_return
+  JMP wait_100_loop
+wait_100_return:
+  RET

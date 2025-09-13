@@ -174,6 +174,7 @@ def assemble_dynamic_module(src_path: str,
             "argv_buf  = 2500",
             "random_seed = 2600",
             "inc_random_seed = 2601",
+            "bits_avail = 2602",
             "prog_table = 3000",
         ]
 
@@ -360,12 +361,12 @@ def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> boo
             except Exception:
                 pass
             break
-    # Patch CALL_STUB operand (CALL_STUB+1) to SHELL base, if present
-    # Prefer an explicit module named 'shell'. Do NOT heuristically use entry=='start',
+    # Patch CALL_STUB operand (CALL_STUB+1) to ESH base, if present
+    # Prefer an explicit module named 'esh'. Do NOT heuristically use entry=='start',
     # because many modules use 'start' and that can mispatch the boot target.
     shell_base = None
     for k, v in data.items():
-        if k.lower() == 'shell':
+        if k.lower() == 'esh':
             shell_base = int(v.get('base', 0))
             break
     if shell_base is not None and call_stub_base is not None:
@@ -442,6 +443,8 @@ def main(apply_table: bool = False):
                     break
     except Exception:
         pass
+
+    have_skips = False
     if os.path.exists(routines_dir):
         # First pass: assemble modules, assign bases, collect extern sites
         # Support new .easm extension (preferred), while keeping .txt during transition
@@ -481,6 +484,7 @@ def main(apply_table: bool = False):
                     modules_to_patch.append((k, v))
             except Exception as e:
                 print(f"Skipping {src}: {e}")
+                have_skips = True
 
         # Second pass: resolve externs now that all bases are known
         for name, mod in modules_to_patch:
@@ -664,11 +668,11 @@ def main(apply_table: bool = False):
     except Exception as e:
         print(f"Warning: failed to patch ECHON call: {e}")
 
-    # Always patch CALL_STUB operand to SHELL base in emulator_os.txt
+    # Always patch CALL_STUB operand to ESH base in emulator_os.txt
     try:
         shell_base = None
         for k, v in data.items():
-            if isinstance(v, dict) and k.lower() == 'shell' and 'base' in v:
+            if isinstance(v, dict) and k.lower() == 'esh' and 'base' in v:
                 shell_base = int(v['base'])
                 break
         if shell_base is not None:
@@ -712,11 +716,11 @@ def main(apply_table: bool = False):
                                 break
                 if did:
                     os_path.write_text("\n".join(lines) + "\n")
-                    print(f"Patched CALL_STUB operand in {os_path} to SHELL base {shell_base}")
+                    print(f"Patched CALL_STUB operand in {os_path} to ESH base {shell_base}")
                 else:
                     print("CALL_STUB operand not found for patching (skipped)")
     except Exception as e:
-        print(f"Warning: failed to patch CALL_STUB to SHELL: {e}")
+        print(f"Warning: failed to patch CALL_STUB to ESH: {e}")
 
     if apply_table:
         # Legacy: still allow patching OS file on request (kept for compatibility)
@@ -730,6 +734,9 @@ def main(apply_table: bool = False):
             table_lines.append(f".prog_table + {off+9} = 0")
         table_lines.append(f".prog_table + {len(entries)*10} = 0    ; sentinel")
         apply_prog_table_to_os(table_lines, data)
+
+    if have_skips:
+        print(f"There were compile errors, check logs.")
 
 
 if __name__ == "__main__":

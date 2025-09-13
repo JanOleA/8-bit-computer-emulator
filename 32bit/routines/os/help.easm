@@ -14,7 +14,7 @@
 .txt_poke     = "POKE addr val: store val at addr"
 .txt_primes   = "PRIMES: print primes up to 300"
 .txt_puzzle   = "PUZZLE: Matt Parker 19 puzzle"
-.txt_shell    = "SHELL: simple command prompt"
+.txt_shell    = "ESH: simple command prompt"
 .txt_dump     = "DUMP addr len: print decimal words"
 .txt_hexdump  = "HEXDUMP addr len: print hex words"
 .txt_calc     = "CALC a op b: compute result"

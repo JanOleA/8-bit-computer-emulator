@@ -508,6 +508,94 @@ def main():
         got_hi = int(mem[sum_hi_addr]) & mask32
         check(got_lo == exp_lo and got_hi == exp_hi, f"addsq64 p={pval} got_lo={got_lo} got_hi={got_hi} exp_lo={exp_lo} exp_hi={exp_hi}")
 
+        # ---- Extended tests ----
+        # modmul: more cases
+        def test_modmul_case(a, b, m):
+            mem[2004] = m & mask32
+            res = diagnose_modmul(game, json_path=json_img, arg1=a & mask32, arg2=b & mask32, mod=m)
+            expv = (int(a) * int(b)) % int(m)
+            check(res['A'] == expv, f"modmul {a}*{b} % {m} A={res['A']} exp={expv}")
+
+        for a, b, m in [
+            (0, 12345, 97),
+            (12345, 0, 97),
+            (1, 987654321, 97),
+            (987654321, 1, 65521),
+            (0xFFFFFFFF, 0xDEADBEEF, 97),
+            (0xDEADC0DE, 0xBEEFCAFE, 4294967291),  # max 32-bit prime
+            (123456789, 987654321, 1000003),
+        ]:
+            test_modmul_case(a, b, m)
+
+        # rem64: more cases
+        def test_rem64_case(lo_, hi_, m):
+            mem[2004] = int(m) & mask32
+            res = diagnose_rem64(game, json_path=json_img, lo=lo_ & mask32, hi=hi_ & mask32, mod=m)
+            expv = ((int(hi_) << 32) + int(lo_)) % int(m)
+            check(res['A'] == expv, f"rem64 (({hi_}<<32)+{lo_})%{m} A={res['A']} exp={expv}")
+
+        for lo2, hi2, m2 in [
+            (0, 0, 97),
+            (123, 0, 97),
+            (0, 1, 97),
+            (0xFFFFFFFF, 1, 257),
+            (0xCAFEBABE, 0xDEADBEEF, 65521),
+            (0x01234567, 0x89ABCDEF, 1000003),
+        ]:
+            test_rem64_case(lo2, hi2, m2)
+
+        # pow2_32_mod: more moduli
+        for modv in [2, 3, 5, 17, 97, 257, 65521, 1000003]:
+            r = call_subroutine(game, 'pow2_32_mod', arg1=modv, json_path=json_img, reset_after=False)
+            exp = pow(2, 32, modv)
+            check(r['A'] == exp, f"pow2_32_mod mod={modv} A={r['A']} exp={exp}")
+
+        # strcmp: equal and non-equal strings
+        def write_c_string(base, s):
+            for i, ch in enumerate(s.encode('ascii')):
+                mem[base + i] = int(ch) & mask32
+            mem[base + len(s)] = 0
+
+        s1_addr = 61000
+        s2_addr = 61064
+        write_c_string(s1_addr, "HELLO")
+        write_c_string(s2_addr, "HELLO")
+        r = call_subroutine(game, 'string_compare', arg1=s1_addr, arg2=s2_addr, json_path=json_img, reset_after=False)
+        check(r['res1'] == 1, f"strcmp HELLO==HELLO res1={r['res1']}")
+        write_c_string(s2_addr, "WORLD")
+        r = call_subroutine(game, 'string_compare', arg1=s1_addr, arg2=s2_addr, json_path=json_img, reset_after=False)
+        check(r['res1'] == 0, f"strcmp HELLO!=WORLD res1={r['res1']}")
+
+        # get_mnemonic: lookups
+        def test_getmnen(text, expect):
+            base = 61128
+            write_c_string(base, text)
+            r = call_subroutine(game, 'get_mnemonic', arg1=base, json_path=json_img, reset_after=False)
+            if expect is None:
+                check(r['res1'] == 0, f"get_mnemonic('{text}') -> 0 res1={r['res1']}")
+            else:
+                check(r['A'] == expect and r['res1'] == expect, f"get_mnemonic('{text}') -> {expect} A={r['A']} res1={r['res1']}")
+
+        test_getmnen('LDA', 1)
+        test_getmnen('JSR', 16)
+        test_getmnen('HLT', 255)
+        test_getmnen('FOO', None)
+
+        # addsq64: accumulate multiple terms
+        sum_lo_addr2 = 60010
+        sum_hi_addr2 = 60011
+        mem[sum_lo_addr2] = 0
+        mem[sum_hi_addr2] = 0
+        mem[2004] = sum_hi_addr2
+        for p in [1, 2, 3, 65535, 70000]:
+            call_subroutine(game, 'addsq64', arg1=p, arg2=sum_lo_addr2, json_path=json_img, reset_after=False, clear_outputs=False)
+        total_s = sum((int(p) * int(p)) for p in [1, 2, 3, 65535, 70000]) & ((1 << 64) - 1)
+        got_lo = int(mem[sum_lo_addr2]) & mask32
+        got_hi = int(mem[sum_hi_addr2]) & mask32
+        exp_lo = total_s & mask32
+        exp_hi = (total_s >> 32) & mask32
+        check(got_lo == exp_lo and got_hi == exp_hi, f"addsq64 multi p=[1,2,3,65535,70000] got_lo={got_lo} got_hi={got_hi} exp_lo={exp_lo} exp_hi={exp_hi}")
+
         print(f"\nSelf-tests: {total - failed} passed, {failed} failed, {total} total.")
     except Exception as e:
         print(f"Routine self-tests failed: {e}")

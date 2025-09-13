@@ -12,22 +12,24 @@
 ;   .res1 = sum_hi_addr
 ; Returns: none (A undefined). Updates memory at given addresses.
 ; Locals:
-;   .bss     = multiplicand (p << k)
+;   .bss     = multiplicand_lo (p << k)
 ;   .bss + 1 = multiplier (p >> k)
 ;   .bss + 2 = prod_lo
 ;   .bss + 3 = prod_hi
 ;   .bss + 4 = tmp_lo
 ;   .bss + 5 = tmp_hi
+;   .bss + 6 = multiplicand_hi
 
 add_square64:
   ; Setup multiplicand and multiplier
   LDA .arg1
-  STA .bss           ; multiplicand = p
+  STA .bss           ; multiplicand_lo = p
   LDA .arg1
   STA .bss + 1       ; multiplier = p
   LDI 0
   STA .bss + 2       ; prod_lo = 0
   STA .bss + 3       ; prod_hi = 0
+  STA .bss + 6       ; multiplicand_hi = 0
 
 asq_loop:
   ; if multiplier == 0 -> done
@@ -40,22 +42,39 @@ asq_loop:
   LSA
   CMP .char
   JPZ asq_even
-  ; odd -> prod += multiplicand (64-bit)
+  ; odd -> prod += multiplicand (64-bit):
+  ; prod_lo += mul_lo
   LDA .bss + 2
   ADD .bss
   STA .bss + 2
-  JPC asq_carry
-  JMP asq_after_add
-asq_carry:
+  JPC asq_carry_lo
+  JMP asq_add_hi_only
+asq_carry_lo:
   LDA .bss + 3
   ADI 1
   STA .bss + 3
-asq_after_add:
+asq_add_hi_only:
+  ; prod_hi += mul_hi
+  LDA .bss + 3
+  ADD .bss + 6
+  STA .bss + 3
 asq_even:
-  ; multiplicand <<= 1 ; multiplier >>= 1
+  ; multiplicand <<= 1 (64-bit) ; multiplier >>= 1
+  ; shift hi first
+  LDA .bss + 6
+  LSA
+  STA .bss + 6
+  ; shift lo and propagate bit into hi if overflowed
   LDA .bss
   LSA
   STA .bss
+  JPC asq_set_hi_bit
+  JMP asq_shift_done
+asq_set_hi_bit:
+  LDA .bss + 6
+  ADI 1
+  STA .bss + 6
+asq_shift_done:
   LDA .bss + 1
   RSA
   STA .bss + 1
@@ -97,4 +116,3 @@ asq_add_hi:
   LDA .bss + 5
   SAS
   RET
-

@@ -1,6 +1,6 @@
 ;! name: CALC
 ;! entry: calc
-;! deps: display_number, divide, mult, parse_number, newline, write_char
+;! deps: display_number, divide, mult, parse_number, newline, write_char, pow, sqrt
 ;! abi: os
 ;! bss: none
 ;! align: 20
@@ -10,12 +10,12 @@
 ; Prints the result in decimal using display_number
 
 calc:
-  ; require at least 3 args
+  ; require at least 2 args
   LDI .argv_base
   PHA
   LAS
-  CPI 3
-  JPZ cl_go
+  CPI 2
+  JPC cl_go
   RET
 
 cl_go:
@@ -40,6 +40,15 @@ cl_go:
   LAS
   STA .char
 
+  ; check if we have three arguments
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 3
+  JPZ get_second_num
+  LDA .char
+  JMP check_sqrt        ; if we don't have three numbers, immediately if we're trying to do a square root, skip other operators
+get_second_num:
   ; parse second number -> work2
   LDI .argv_base
   ADI 3
@@ -60,6 +69,11 @@ cl_go:
   JPZ do_mul
   CPI 47              ; '/'
   JPZ do_div
+  CPI 80              ; 'P'
+  JPZ do_pow
+check_sqrt:
+  CPI 83              ; 'S'
+  JPZ do_sqrt
   ; unknown op -> return
   RET
 
@@ -71,6 +85,24 @@ do_add:
 do_sub:
   LDA .work1
   SUB .work2
+  JMP do_print
+
+do_sqrt:
+  LDA .work1
+  STA .arg1
+  JSR @sqrt
+  LDA .res1
+  JMP do_print
+
+do_pow:
+  LDI 42
+  OUT
+  LDA .work1
+  STA .arg1
+  LDA .work2
+  STA .arg2
+  JSR @pow
+  LDA .res1
   JMP do_print
 
 do_mul:

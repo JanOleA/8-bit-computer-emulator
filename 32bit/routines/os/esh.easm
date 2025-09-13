@@ -1,6 +1,6 @@
-;! name: SHELL
+;! name: ESH
 ;! entry: start
-;! deps: newline, write_char
+;! deps: newline, write_char, echon, display_number, wait_3200, divide
 ;! abi: os
 ;! bss: auto
 ;! align: 20
@@ -19,7 +19,51 @@ hist_base   = 57000
 hist_entry_len = 80   ; max characters per history entry and input line
 hist_max    = 100     ; max number of history entries
 
+.version = "EShell (ESH) 25.9.0a"
+.bits_avail_text_1 = "AReg size: "
+.bits_avail_text_2 = " bits"
+.memory_available_text = "Memory available: "
+.memory_available_text_2 = " k words"
+.memory_available_text_3 = "("
+.memory_available_text_4 = "bits/word)"
+
 start:
+  ; print startup info
+  LDI .version
+  JSR print_newline
+  JSR @wait_1600
+  LDI .bits_avail_text_1
+  JSR print_no_newline
+  LDA .bits_avail
+  STA .arg1
+  JSR @display_number
+  LDI .bits_avail_text_2
+  JSR print_newline
+  JSR @wait_1600
+  LDI .memory_available_text
+  JSR print_no_newline
+  LDI 0
+  SUI 1
+  STA .arg1
+  LDI 1000
+  STA .arg2
+  JSR @divide
+  LDA .res1
+  STA .arg1
+  JSR @display_number
+  LDI .memory_available_text_2
+  JSR print_newline
+  LDI .memory_available_text_3
+  JSR print_no_newline
+  LDA .bits_avail
+  STA .arg1
+  JSR @display_number
+  LDI .memory_available_text_4
+  JSR print_newline
+  JSR @wait_1600
+  JSR @newline
+
+
   ; initialize shell state
   LDI 0
   STA .cmd_len
@@ -196,6 +240,24 @@ handle_enter:
   JMP main_loop
 
 ; --- UI helpers ---
+
+; -- print helpers, null temrinated. Pointer to text must be in A register --
+print_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  STA .arg2
+  JSR @echon
+  RET
+
+print_no_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  LDI 1
+  STA .arg2
+  JSR @echon
+  RET
 
 ret_home:
   JSR @newline

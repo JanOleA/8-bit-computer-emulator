@@ -1,0 +1,11 @@
+;! name: WAIT3K
+;! entry: wait_3200
+;! deps: wait_1600
+;! abi:
+;! bss: none
+;! align: 20
+
+wait_3200:
+  JSR @wait_1600
+  JSR @wait_1600
+  RET

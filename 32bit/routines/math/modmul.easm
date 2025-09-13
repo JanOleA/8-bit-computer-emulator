@@ -1,6 +1,6 @@
 ;! name: MODMUL
 ;! entry: modmul
-;! deps:
+;! deps: divide
 ;! abi: os
 ;! bss: auto
 ;! align: 20
@@ -24,6 +24,16 @@ modmul:
   LDI 0
   STA .bss          ; res = 0
 
+  ; Reduce x modulo mod to ensure doubling step needs at most one subtraction
+  ; x = x % mod
+  LDA .bss + 1
+  STA .arg1
+  LDA .bss + 3
+  STA .arg2
+  JSR @divide
+  LDA .res2
+  STA .bss + 1
+
 mm_loop:
   ; if y == 0 -> done
   LDA .bss + 2
@@ -39,11 +49,13 @@ mm_loop:
   LDA .bss
   ADD .bss + 1
   STA .bss
-  ; if res >= mod, subtract mod
+  ; if add overflowed (carry) OR res >= mod, subtract mod
+  JPC mm_sub_mod_carry
   CMP .bss + 3
-  JPC mm_sub_mod
+  JPC mm_sub_mod_carry
   JMP mm_after_add
-mm_sub_mod:
+mm_sub_mod_carry:
+  LDA .bss
   SUB .bss + 3
   STA .bss
 mm_after_add:
@@ -52,10 +64,13 @@ mm_even:
   LDA .bss + 1
   ADD .bss + 1
   STA .bss + 1
+  ; if add overflowed (carry) OR x >= mod, subtract mod
+  JPC mm_x_sub_carry
   CMP .bss + 3
-  JPC mm_x_sub
+  JPC mm_x_sub_carry
   JMP mm_x_done
-mm_x_sub:
+mm_x_sub_carry:
+  LDA .bss + 1
   SUB .bss + 3
   STA .bss + 1
 mm_x_done:
@@ -68,4 +83,3 @@ mm_x_done:
 mm_done:
   LDA .bss
   RET
-

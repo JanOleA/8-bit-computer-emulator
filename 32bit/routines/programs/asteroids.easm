@@ -1,6 +1,6 @@
 ;! name: ASTER
 ;! entry: main
-;! deps: randint, write_char, newline, display_number, echon
+;! deps: randint, write_char, newline, display_number, echon, wait_100
 ;! abi: os
 ;! bss: auto
 ;! align: 20
@@ -338,13 +338,7 @@ after_repeat_gate:
   CPI 49
   JPZ handle_shoot
 after_input_handling:
-  LDI 100
-wait_100_loop:
-  SUI 1
-  CPI 0
-  JPZ wait_100_return
-  JMP wait_100_loop
-wait_100_return:
+  JSR @wait_100
   RET
 
 handle_shoot:
@@ -420,6 +414,7 @@ end:
   JSR @newline
   LDI 0
   STA .num_digits
+  STA .arg2
   LDI .game_over_text
   STA .arg1
   JSR @echon
@@ -442,16 +437,11 @@ screen_instruction:         ; screen instruction
 
 ; Local: print null-terminated string at .arg1 (no newline)
 print_z:
+  LDI 1
+  STA .arg2
+  LDI 0
+  STA .num_digits
   LDA .arg1
-  PHA
-  LAS
-  CPI 0
-  JPZ pz_done
-  STA .char
-  JSR @write_char
-  LDA .arg1
-  ADI 1
-  STA .arg1
-  JMP print_z
+  JSR @echon
 pz_done:
   RET

@@ -16,6 +16,8 @@ work4 = 2013                ; preserved entry base for handler lookup
 
 random_seed = 2600
 inc_random_seed = 2601
+bits_avail = 2602           ; on startup, boot process will calculate the number of bits available in the A register
+bits_checker = 2599
 
 text = 2020     ; 16 bytes
 text2 = 2036    ; 16 bytes
@@ -25,7 +27,7 @@ ascii_map = 2066 ; 56 bytes
 
 input_buf = 2122            ; start of input buffer (80 bytes reserved)
 
-.text     = "  EmuOS alpha  "
+.text     = "     EmuOS     "
 .text2    = "    Welcome!   "
 .text_su  = "Starting..."
 .space    = " "
@@ -42,7 +44,7 @@ input_buf = 2122            ; start of input buffer (80 bytes reserved)
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
 CALL_STUB = 19996
 19996 = 16
-19997 = 9620
+19997 = 7040
 19998 = 17
 
 ; ----- argv/argv buffer reservation -----
@@ -57,7 +59,20 @@ start:
   STA .random_seed
   LDI 1
   STA .inc_random_seed
-  ; store call stub initial entry in 19999
+check_bits:
+  LDI 1
+  STA .bits_checker
+  STA .bits_avail
+cb_loop:
+  LDA .bits_checker
+  LSA
+  JPC call_stub_setup
+  STA .bits_checker
+  LDA .bits_avail
+  ADI 1
+  STA .bits_avail
+  JMP cb_loop
+call_stub_setup:          ; store call stub initial entry in 19999
   LDA 19997
   STA 19999
   JSR initialize_display
@@ -66,7 +81,7 @@ start:
   LDI 12
   STA .num_digits
   JSR print
-  LDI 0           ; set variables to zero
+  LDI 0                   ; set variables to zero
   STA .char
   STA .arg1
   STA .arg2
@@ -99,7 +114,7 @@ initialize_display: ; initializes the display
 print:              ; 
   LDA .textloc
   STA .arg1
-  JSR #6740        ; must be switched to ECHON location if it changes
+  JSR #6800        ; must be switched to ECHON location if it changes
   RET
 
 newline:            ; print newline on the screen
