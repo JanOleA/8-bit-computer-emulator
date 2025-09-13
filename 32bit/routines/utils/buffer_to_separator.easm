@@ -1,0 +1,62 @@
+;! name: BUFSEP
+;! entry: buffer_to_separator
+;! deps: 
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; --- Loop through the string pointed to by .arg1 until reaching the character stored in .arg2, fill buffer from .bss + 0, up to 160 characters ---
+; -- memory address to buffer returned in .res1, number of characters in .res2 --
+
+; .bss + 0 .. 159     : buffer
+; .bss + 160          : null terminator
+; .bss + 162          : write pointer
+; .bss + 163          : counter
+
+buffer_to_separator:  ; fill the buffer from current read pointer until first occurence of the separator
+  LDI 0
+  STA .bss + 163
+  LDI .bss            ; set write pointer to start of buffer
+  STA .bss + 162
+buf_loop:
+  ; get character at read_pointer
+  LDA .arg1
+  PHA
+  LAS
+  CMP .arg2
+  JPZ buf_end         ; if we reach the separator, jump to buf_end
+  CPI 0
+  JPZ buf_end         ; if we reach null, return
+  STA .char           ; store character at read pointer in .char for now
+  
+  LDA .bss + 162      ; get write pointer
+  PHA                 ; push write pointer to stack
+  LDA .char           ; get the character again
+  SAS                 ; use pointer to write the character to the buffer
+
+  LDA .bss + 163
+  ADI 1               ; add 1 to counter
+  STA .bss + 163
+  CPI 160
+  JPZ buf_end
+
+  LDA .bss + 162
+  ADI 1               ; add 1 to write pointer
+  STA .bss + 162
+
+  LDA .arg1
+  ADI 1               ; add 1 to read pointer
+  STA .arg1
+
+  JMP buf_loop
+buf_end:
+  LDA .bss + 163
+  STA .res2
+  LDI .bss
+  STA .res1
+  ADD .bss + 163
+  PHA
+  LDI 0
+  SAS
+  RET
+  
