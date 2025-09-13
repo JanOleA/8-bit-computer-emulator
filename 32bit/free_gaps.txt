@@ -44,5 +44,5 @@
 25633,25664,31 ; between emu_data and esh_data
 25744,25760,16 ; between esh_data and getmnen_data
 25951,25968,17 ; between getmnen_data and help_data
-26531,26560,29 ; between help_data and hexdump_data
-26577,26608,31 ; between hexdump_data and testmem_data
+26710,26736,26 ; between help_data and hexdump_data
+26753,26784,31 ; between hexdump_data and testmem_data
