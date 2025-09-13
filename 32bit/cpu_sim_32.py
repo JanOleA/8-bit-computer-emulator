@@ -19,7 +19,7 @@ class Computer_32(Computer):
                  stackpointer_start = None):
         self.bits = bits
         self.bits_stackpointer = bits_stackpointer
-        self.memory = np.zeros(2**bits, dtype = np.uint64)
+        self.memory = np.zeros(2**bits, dtype = np.uint32)
         self.get_mem_strings()
         self.overflow_limit = 2**bits
 

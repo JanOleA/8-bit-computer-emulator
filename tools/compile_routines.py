@@ -149,7 +149,7 @@ def assemble_dynamic_module(src_path: str,
     deps = [d.strip().lower() for d in headers.get("deps", "").split(",") if d.strip()]
     abi = headers.get("abi", "os").lower()
     bss = headers.get("bss", "auto").lower()
-    bss_align = int(headers.get("bss_align", "16"))
+    bss_align = int(headers.get("bss_align", "1"))
     base = headers.get("base")
 
     # Inject OS ABI if requested
@@ -218,7 +218,7 @@ def assemble_dynamic_module(src_path: str,
         return max_off + 1
 
     bss_required = _scan_bss_required(raw_lines)
-    default_bss_size = 4
+    default_bss_size = 1
     if bss == "auto":
         bss_base = ((bss_auto_start + bss_align - 1) // bss_align) * bss_align
         bss_size = max(default_bss_size, bss_required)

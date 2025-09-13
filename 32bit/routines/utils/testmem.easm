@@ -1,0 +1,167 @@
+;! name: TESTMEM
+;! entry: testmem
+;! deps: display_number, echon, newline, write_char
+;! abi: os
+;! bss: auto
+;! align: 20
+
+; --- Print a list of memory regions with 100 or more contiguous nulls, as well as the memory region with the largest contiguous block of nulls --
+
+; bss + 0 : current address
+; bss + 1 : current test site start
+; bss + 2 : current test site size
+; bss + 3 : largest test site start
+; bss + 4 : largest test site size
+; bss + 5 : in zero region
+
+.largest_text = "Largest memory region with nulls:"
+.largest_text_2 = "["
+.largest_text_3 = ", "
+.largest_text_4 = ") Size: "
+
+testmem:
+  LDI 0
+  STA .bss
+  STA .bss + 1
+  STA .bss + 2
+  STA .bss + 3
+  STA .bss + 4
+  STA .bss + 5
+  JMP check_zero
+
+is_zero:
+  LDA .bss + 5          ; if in_zero_region is 1, skip setting start of site
+  CPI 1
+  JPZ skip_startsite
+  LDA .bss
+  STA .bss + 1          ; set the start of current site to memory address
+  LDI 1
+  STA .bss + 5          ; set flag for being in zero region
+skip_startsite:
+  LDA .bss
+  ADI 1
+  JPC end               ; increment memory address, if carry, end
+  STA .bss
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2
+check_zero:
+  LDA .bss
+  PHA
+  LAS
+  CPI 0
+  JPZ is_zero
+not_zero:               ; if it's not zero
+  LDA .bss              ; first increment memory address
+  ADI 1
+  JPC end               ; increment memory address, if carry, end
+  STA .bss
+  LDA .bss + 5          ; see if we previously were in a zero region
+  CPI 1
+  JPZ end_zero_region
+  JMP check_zero        ; we were not, so go back to check_zero
+end_zero_region:
+  LDI 0
+  STA .bss + 5
+  LDI 100
+  CMP .bss + 2          ; compare size of this region with 100, if 100 is GEQ A, skip printing
+  JPC skip_print
+print_current:          ; print the start and size of the current region
+  JSR display_current
+skip_print:
+  LDA .bss + 2
+  CMP .bss + 4
+  JPC update_largest    ; if the current region is GEQ than the previous largest
+  LDI 0
+  STA .bss + 2
+  JMP check_zero
+update_largest:
+  LDA .bss + 1
+  STA .bss + 3
+  LDA .bss + 2
+  STA .bss + 4
+  LDI 0
+  STA .bss + 2
+  JMP check_zero
+end:
+  LDA .bss + 5
+  CPI 1
+  JPZ end_on_zero_region
+  JMP print_largest
+
+end_on_zero_region:
+  JSR display_current
+  LDA .bss + 4
+  CMP .bss + 2
+  JPC print_largest    ; if the largest region is GEQ than the current, skip to end
+  LDA .bss + 1
+  STA .bss + 3
+  LDA .bss + 2
+  STA .bss + 4
+print_largest:
+  LDI .largest_text
+  JSR print_newline
+  LDI .largest_text_2
+  JSR print_no_newline
+
+  LDA .bss + 3
+  STA .arg1
+  JSR @display_number
+
+  LDI .largest_text_3
+  JSR print_no_newline
+
+  LDA .bss + 3
+  ADD .bss + 4
+  STA .arg1
+  JSR @display_number
+  LDI .largest_text_4
+  JSR print_no_newline
+  LDA .bss + 4
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  RET
+
+
+; -- print helpers, null temrinated. Pointer to text must be in A register --
+print_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  STA .arg2
+  JSR @echon
+  RET
+
+print_no_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  LDI 1
+  STA .arg2
+  JSR @echon
+  RET
+
+display_current:
+  LDA .bss + 1
+  STA .arg1
+  JSR @display_number
+  LDI 32
+  STA .char
+  JSR @write_char
+  JSR @write_char
+  JSR @write_char
+  LDA .bss + 1
+  ADD .bss + 2
+  STA .arg1
+  JSR @display_number
+  LDI 32
+  STA .char
+  JSR @write_char
+  JSR @write_char
+  JSR @write_char
+  LDA .bss + 2
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  RET
