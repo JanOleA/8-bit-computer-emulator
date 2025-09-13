@@ -11,8 +11,7 @@
 ; them to memory at the current write pointer. Empty line exits. Write pointer
 ; advances after each value.
 
-line_len = 80
-no_input = 2009
+line_len = 40
 
 ; BSS locals layout (use .bss offsets directly)
 ;   .bss      = starting write address (write_base)

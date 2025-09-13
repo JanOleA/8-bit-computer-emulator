@@ -170,6 +170,10 @@ def assemble_dynamic_module(src_path: str,
             "work2 = 2011",
             "work3 = 2012",
             "work4 = 2013",
+            "input_buf   = 2122",            # start of input buffer (80 bytes reserved)
+            "input_ptr   = 2202",
+            "cmd_len     = 2203",
+            "cmd_ready   = 2204",
             "argv_base = 2400",
             "argv_buf  = 2500",
             "random_seed = 2600",
@@ -214,7 +218,7 @@ def assemble_dynamic_module(src_path: str,
         return max_off + 1
 
     bss_required = _scan_bss_required(raw_lines)
-    default_bss_size = 16
+    default_bss_size = 4
     if bss == "auto":
         bss_base = ((bss_auto_start + bss_align - 1) // bss_align) * bss_align
         bss_size = max(default_bss_size, bss_required)

@@ -2,12 +2,12 @@
 ;! entry: main
 ;! deps: divide, display_number, newline
 ;! abi: os
-;! bss: none
+;! bss: auto
 ;! align: 20
 
-check_value = 120010
-loop_index  = 120011
-half_check  = 120012
+; bss + 0 = check_value
+; bss + 1 = loop_index
+; bss + 2 = half_check
 
 main:
   ; print 2
@@ -17,48 +17,48 @@ main:
   JSR @newline
   ; start from 3
   LDI 3
-  STA .check_value
+  STA .bss
 main_loop:
-  LDA .check_value
+  LDA .bss
   CPI 301
   JPC done
   JSR check_prime_os
-  LDA .check_value
+  LDA .bss
   ADI 2
-  STA .check_value
+  STA .bss
   JMP main_loop
 done:
   RET
 
-; check if .check_value is prime; prints it if it is
+; check if .bss is prime; prints it if it is
 check_prime_os:
-  LDA .check_value
+  LDA .bss
   RSA
-  STA .half_check
+  STA .bss + 2
   LDI 3
-  STA .loop_index
+  STA .bss + 1
 prime_loop_os:
-  LDA .loop_index
-  CMP .half_check
+  LDA .bss + 1
+  CMP .bss + 2
   JPC prime_os
   ; divide check_value by loop_index
-  LDA .check_value
+  LDA .bss
   STA .arg1
-  LDA .loop_index
+  LDA .bss + 1
   STA .arg2
   JSR @divide
   LDA .res2
   CPI 0
   JPZ not_prime_os
-  LDA .loop_index
+  LDA .bss + 1
   ADI 2
-  STA .loop_index
+  STA .bss + 1
   JMP prime_loop_os
 not_prime_os:
   RET
 prime_os:
   ; print the prime then newline
-  LDA .check_value
+  LDA .bss
   STA .arg1
   JSR @display_number
   JSR @newline

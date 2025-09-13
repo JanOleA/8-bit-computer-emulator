@@ -1,14 +1,14 @@
 ; Free gaps between modules (start,end,words)
 5126,5140,14 ; between addsq64 and aster
 5764,5780,16 ; between aster and calc
-5977,5980,3 ; between calc and cls
+5974,5980,6 ; between calc and cls
 5989,6000,11 ; between cls and cpymem
 6408,6420,12 ; between divide and dump
 6678,6680,2 ; between dump and echo
 6791,6800,9 ; between echo and echon
 6869,6880,11 ; between echon and emu
 7038,7040,2 ; between emu and esh
-8205,8220,15 ; between esh and fibo
+8207,8220,13 ; between esh and fibo
 8267,8280,13 ; between fibo and fillmem
 8372,8380,8 ; between fillmem and gcd
 8421,8440,19 ; between gcd and getmnen

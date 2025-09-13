@@ -5,8 +5,6 @@
 ;! bss: none
 ;! align: 20
 
-argv_base = 2400
-
 poke:
   ; argc >= 2?
   LDI .argv_base

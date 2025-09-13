@@ -25,7 +25,10 @@ text_su = 2052  ; 12 bytes
 space = 2064    ; 2 bytes
 ascii_map = 2066 ; 56 bytes
 
-input_buf = 2122            ; start of input buffer (80 bytes reserved)
+input_buf   = 2122            ; start of input buffer (80 bytes reserved)
+input_ptr   = 2202
+cmd_len     = 2203
+cmd_ready   = 2204
 
 .text     = "     EmuOS     "
 .text2    = "    Welcome!   "
@@ -46,6 +49,8 @@ CALL_STUB = 19996
 19996 = 16
 19997 = 7040
 19998 = 17
+
+call_stub_initial = 19999   ; the initial address for the call stub is stored here on boot in order to reset it after a program call
 
 ; ----- argv/argv buffer reservation -----
 argv_base = 2400            ; argv block base (argc + argv pointers)
@@ -74,7 +79,7 @@ cb_loop:
   JMP cb_loop
 call_stub_setup:          ; store call stub initial entry in 19999
   LDA 19997
-  STA 19999
+  STA .call_stub_initial
   JSR initialize_display
   LDI 2052
   STA .textloc

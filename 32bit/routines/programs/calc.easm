@@ -95,8 +95,6 @@ do_sqrt:
   JMP do_print
 
 do_pow:
-  LDI 42
-  OUT
   LDA .work1
   STA .arg1
   LDA .work2

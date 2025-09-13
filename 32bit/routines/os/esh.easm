@@ -1,23 +1,20 @@
 ;! name: ESH
 ;! entry: start
-;! deps: newline, write_char, echon, display_number, wait_3200, divide
+;! deps: newline, write_char, echon, display_number, wait_1600, divide
 ;! abi: os
 ;! bss: auto
 ;! align: 20
 
 ; Input buffering and history
-input_buf   = 2122
-input_ptr   = 2202
-cmd_len     = 2203
-cmd_ready   = 2204
-hist_head   = 2014
-hist_count  = 2015
-hist_pos    = 2016
-hist_tmp1   = 2017
-hist_tmp2   = 2018
-hist_base   = 57000
-hist_entry_len = 80   ; max characters per history entry and input line
-hist_max    = 100     ; max number of history entries
+; bss + 2 = hist_head
+; bss + 3 = hist_count
+; bss + 4 = hist_pos
+; bss + 5 = hist_tmp1
+; bss + 6 = hist_tmp2
+; bss + 7 = hist_start
+; bss + 7 + len*max = bss + 1607 = hist_base
+hist_entry_len = 40   ; max characters per history entry and input line
+hist_max    = 40      ; max number of history entries
 
 .version = "EShell (ESH) 25.9.0a"
 .bits_avail_text_1 = "AReg size: "
@@ -68,9 +65,9 @@ start:
   LDI 0
   STA .cmd_len
   STA .cmd_ready
-  STA .hist_head
-  STA .hist_count
-  STA .hist_pos
+  STA .bss + 2
+  STA .bss + 3
+  STA .bss + 4
   LDI .input_buf
   STA .input_ptr
   JSR print_prompt
@@ -599,24 +596,24 @@ save_history:
   CPI 0
   JPZ sh_done
   ; compute dest = hist_base + hist_head*80
-  LDA .hist_head
-  STA .hist_tmp1
-  LDA .hist_tmp1
+  LDA .bss + 2
+  STA .bss + 5
+  LDA .bss + 5
   LSA
   LSA
   LSA
   LSA
-  STA .hist_tmp2
-  LDA .hist_tmp1
+  STA .bss + 6
+  LDA .bss + 5
   LSA
   LSA
   LSA
   LSA
   LSA
   LSA
-  ADD .hist_tmp2
+  ADD .bss + 6
   STA .bss + 1
-  LDI .hist_base
+  LDI .bss + 7
   ADD .bss + 1
   STA .arg2
   LDI .input_buf
@@ -660,28 +657,28 @@ sh_pad:
   STA .num_digits
   JMP sh_copy
 sh_pad_done:
-  LDA .hist_head
+  LDA .bss + 2
   ADI 1
   CPI .hist_max
   JPZ sh_head_wrap
-  STA .hist_head
+  STA .bss + 2
   JMP sh_head_set
 sh_head_wrap:
   LDI 0
-  STA .hist_head
+  STA .bss + 2
 sh_head_set:
-  LDA .hist_count
+  LDA .bss + 3
   ADI 1
   CPI .hist_max
   JPZ sh_cnt_cap
-  STA .hist_count
+  STA .bss + 3
   JMP sh_cnt_done
 sh_cnt_cap:
   LDI .hist_max
-  STA .hist_count
+  STA .bss + 3
 sh_cnt_done:
   LDI 0
-  STA .hist_pos
+  STA .bss + 4
 sh_done:
   RET
 
@@ -691,20 +688,20 @@ history_load_current:
   STA .input_ptr
   LDI 0
   STA .cmd_len
-  LDA .hist_pos
+  LDA .bss + 4
   CPI 0
   JPZ hlc_blank
-  LDA .hist_head
-  CMP .hist_pos
+  LDA .bss + 2
+  CMP .bss + 4
   JPC hlc_nowrap
-  LDA .hist_head
+  LDA .bss + 2
   ADI .hist_max
-  SUB .hist_pos
+  SUB .bss + 4
   STA .bss
   JMP hlc_idx_ready
 hlc_nowrap:
-  LDA .hist_head
-  SUB .hist_pos
+  LDA .bss + 2
+  SUB .bss + 4
   STA .bss
 hlc_idx_ready:
   LDA .bss
@@ -712,7 +709,7 @@ hlc_idx_ready:
   LSA
   LSA
   LSA
-  STA .hist_tmp1
+  STA .bss + 5
   LDA .bss
   LSA
   LSA
@@ -720,9 +717,9 @@ hlc_idx_ready:
   LSA
   LSA
   LSA
-  ADD .hist_tmp1
+  ADD .bss + 5
   STA .bss + 1
-  LDI .hist_base
+  LDI .bss + 7
   ADD .bss + 1
   STA .arg1
   LDI 0
@@ -769,27 +766,30 @@ hlc_blank:
   RET
 
 history_up:
-  LDA .hist_count
+  LDA .bss + 3
   CPI 0
   JPZ hup_done
-  LDA .hist_pos
-  CMP .hist_count
+  LDA .bss + 4
+  CMP .bss + 3
   JPC hup_load
-  LDA .hist_pos
+  LDA .bss + 4
   ADI 1
-  STA .hist_pos
+  STA .bss + 4
 hup_load:
   JSR history_load_current
 hup_done:
   RET
 
 history_down:
-  LDA .hist_pos
+  LDA .bss + 4
   CPI 0
   JPZ hdn_load
-  LDA .hist_pos
+  LDA .bss + 4
   SUI 1
-  STA .hist_pos
+  STA .bss + 4
 hdn_load:
   JSR history_load_current
   RET
+
+res_bss:          ; for telling the compiler we need to reserve up to this point in bss
+  LDA .bss + 1607

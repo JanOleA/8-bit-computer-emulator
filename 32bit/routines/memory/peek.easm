@@ -5,8 +5,6 @@
 ;! bss: none
 ;! align: 20
 
-argv_base = 2400
-
 peek:
   ; argc at [argv_base]
   LDI .argv_base
