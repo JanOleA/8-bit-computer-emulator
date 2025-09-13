@@ -1,18 +1,29 @@
 ;! name: RANDINT
 ;! entry: randint
-;! deps: parse_number, multiply, divide, display_number, newline
+;! deps: multiply, divide
 ;! abi: os
 ;! bss: auto
 ;! align: 20
 
-; --- 16 bit pseudo-randint in the range [0, .arg1) ---
+; --- 16/32 bit pseudo-randint in the range [0, .arg1) ---
+; Uses a small LCG. For <32-bit A-regs uses (a=25173, c=13849).
+; For 32-bit or larger, uses (a=1664525, c=1013904223).
 
 ; bss + 0 : upper limit of the range
 
 randint:
+  ; Guard: if range == 0, return 0
   LDA .arg1
+  CPI 0
+  JPZ ri_zero
   STA .bss
-calculate:
+  ; Branch on available bits
+  LDA .bits_avail
+  CPI 32
+  JPC ri_32
+
+; --- 16-bit style LCG path ---
+ri_16:
   LDA .random_seed
   STA .arg1
   LDI 25173
@@ -25,7 +36,32 @@ calculate:
   LDA .bss
   STA .arg2
   JSR @divide
-  LDA .res2           ; get remainder
+  LDA .res2
   STA .arg1
   STA .res1
+  RET
+
+; --- 32-bit LCG path (A-reg >= 32 bits) ---
+ri_32:
+  LDA .random_seed
+  STA .arg1
+  LDI 1664525
+  STA .arg2
+  JSR @multiply
+  LDA .res1
+  ADI 1013904223
+  STA .arg1
+  STA .random_seed
+  LDA .bss
+  STA .arg2
+  JSR @divide
+  LDA .res2
+  STA .arg1
+  STA .res1
+  RET
+
+ri_zero:
+  LDI 0
+  STA .res1
+  STA .arg1
   RET
