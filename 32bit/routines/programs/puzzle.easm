@@ -37,6 +37,8 @@ its_prime:
   ADI 1
   STA .bss + 6
   OUT
+  CPI 600
+  JPC done
   ; add n^2 into 64-bit sum at (sum_lo,sum_hi)
   LDA .bss
   STA .arg1              ; p

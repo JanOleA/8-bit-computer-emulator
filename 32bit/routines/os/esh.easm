@@ -13,19 +13,22 @@
 ; bss + 6 = hist_tmp2
 ; bss + 7 = hist_start
 ; bss + 7 + len*max = bss + 1607 = hist_base
+; bss + 1608 = counter
 hist_entry_len = 40   ; max characters per history entry and input line
 hist_max    = 40      ; max number of history entries
 
+.linechar = "-"
 .version = "EShell (ESH) 25.9.0a"
-.bits_avail_text_1 = "AReg size: "
+.bits_avail_text_1 =       "AReg size:        "
 .bits_avail_text_2 = " bits"
-.memory_available_text = "Memory available: "
+.memory_available_text =   "Memory available: "
 .memory_available_text_2 = " k words"
-.memory_available_text_3 = "("
-.memory_available_text_4 = "bits/word)"
+.memory_available_text_3 = "                  ("
+.memory_available_text_4 = " bits/word)"
 
 start:
   ; print startup info
+  JSR write_40_dash
   LDI .version
   JSR print_newline
   JSR @wait_1600
@@ -57,9 +60,9 @@ start:
   JSR @display_number
   LDI .memory_available_text_4
   JSR print_newline
+  JSR write_40_dash
   JSR @wait_1600
   JSR @newline
-
 
   ; initialize shell state
   LDI 0
@@ -791,5 +794,19 @@ hdn_load:
   JSR history_load_current
   RET
 
-res_bss:          ; for telling the compiler we need to reserve up to this point in bss
-  LDA .bss + 1607
+write_40_dash:
+  LDA .linechar
+  STA .char
+  LDI 0
+  STA .bss + 1608
+write_char_loop:
+  JSR @write_char
+  LDA .bss + 1608
+  ADI 1
+  STA .bss + 1608
+  CPI 40
+  JPC end_wc_loop
+  JMP write_char_loop
+end_wc_loop:
+  JSR @newline
+  RET

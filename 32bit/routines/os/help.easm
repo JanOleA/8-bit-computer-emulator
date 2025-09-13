@@ -7,7 +7,7 @@
 
 ; Items, separated by backslash ("\\"). Kept in a single auto-data string.
 .separator = "\\"
-.help_items = "LIST: show all installed commands\\HELP page: show this help at page\\ECHO arg: print argument to terminal\\CLS: clear the screen\\PEEK addr: print mem[addr]\\POKE addr val: store val at addr\\PRIMES: print primes up to 300\\PUZZLE: Matt Parker 19 puzzle\\ESH: simple command prompt\\DUMP addr len: print decimal words\\HEXDUMP addr len: print hex words\\CALC a op b: compute result\\   op={+,-,*,/,P(power),S(sqrt)}\\MEMEDIT addr: begin editing mem@addr\\FILLMEM start num val: fill memory\\CPYMEM src dst len: copy memory\\   mem[src:src+len] > mem[dst:dst+len]\\FIBO: print fibonacci values\\ASTER: play asteroids\\TESTMEM: List start/stop/size of\\   every memory block with 100+\\   contiguous nulls\\OFF: disable screen and halt CPU"
+.help_items = "LIST: show all installed commands\\HELP page: show this help at page\\ECHO arg: print argument to terminal\\CLS: clear the screen\\PEEK addr: print mem[addr]\\POKE addr val: store val at addr\\PRIMES: print primes up to 300\\PUZZLE: Matt Parker 19 puzzle\\ESH: simple command prompt\\DUMP addr len: print decimal words\\HEXDUMP addr len: print hex words\\CALC a op b: compute result\\   op={+,-,*,/,P(power),S(sqrt)}\\MEMEDIT addr: begin editing mem@addr\\FILLMEM start num val: fill memory\\CPYMEM src dst len: copy memory\\   mem[src:src+len] > mem[dst:dst+len]\\FIBO: print fibonacci values\\EMU: shows some art\\ASTER: play asteroids\\TESTMEM: List start/stop/size of\\   every memory block with 100+\\   contiguous nulls\\OFF: disable screen and halt CPU"
 
 ; BSS locals
 per_page = .bss
