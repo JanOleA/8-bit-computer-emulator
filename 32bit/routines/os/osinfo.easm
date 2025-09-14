@@ -6,9 +6,9 @@
 ;! align: 4
 
 .linechar = "-"
-.version = "EShell (ESH) 25.9.2a"
-.bits_avail_text_1 =       "AReg size:        "
-.bits_avail_text_2 = " bits"
+.version =                 "EShell (ESH) 25.9.2a"
+.bits_avail_text_1 =       "AReg size       : "
+.bits_avail_text_2 =       " bits"
 .memory_available_text =   "Memory available: "
 .memory_available_text_2 = " k words"
 .memory_available_text_3 = "                  ("
