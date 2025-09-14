@@ -3,7 +3,7 @@
 ;! deps: display_number, divide, mult, parse_number, newline, write_char, pow, sqrt
 ;! abi: os
 ;! bss: none
-;! align: 20
+;! align: 4
 
 ; CALC <num1> <op> <num2>
 ; Computes num1 <op> num2 where op is one of + - * /

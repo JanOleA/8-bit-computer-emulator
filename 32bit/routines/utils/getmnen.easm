@@ -1,9 +1,9 @@
-;! name: GETMNEN
+;! name: GETMNEMONICN
 ;! entry: get_mnemonic
 ;! deps: string_compare, parse_number, buffer_to_separator
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 .separator = ","
 .mnemonics = "LDA,1,ADD,2,SUB,3,STA,4,LDI,5,JMP,6,JPC,7,JPZ,8,KEI,9,ADI,10,SUI,11,CMP,12,PHA,13,PLA,14,LDS,15,JSR,16,RET,17,SAS,18,LAS,19,LDB,20,CPI,21,RSA,22,LSA,23,DIS,24,DIC,25,LDD,26,OUT,254,HLT,255"

@@ -1,9 +1,9 @@
-;! name: STRCMP
+;! name: STRCOMPARE
 ;! entry: string_compare
 ;! deps:
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; compare strings
 ; str1 pointer in .arg1, null-terminated

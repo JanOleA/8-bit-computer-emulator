@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; Integer floor square root using subtraction of odd numbers.
 ; Inputs: .arg1 = n

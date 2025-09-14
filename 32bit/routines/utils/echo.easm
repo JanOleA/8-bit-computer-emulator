@@ -1,95 +1,52 @@
 ;! name: ECHO
 ;! entry: start
-;! deps: newline, write_char
+;! deps: echon, newline, write_char
 ;! abi: os
 ;! bss: auto
-;! align: 20
-
-; OS ABI-provided pointers/temps:
-;  - .arg1 = argv_base (argc at [0], pointers at [1..])
-;  - .arg2 = argv_buf  (buffer with null-terminated tokens)
-;  - .res1/.res2/.pow2/.num_digits/.char are scratch
+;! align: 4
 
 start:
   ; argc = [argv_base]
-  LDA .arg1
+  LDI .argv_base
   PHA
   LAS
-  STA .res1
-  ; if argc == 0 → no args: just newline
-  LDA .res1
+  STA .work1           ; remaining args = argc
+  ; if argc == 0 → just newline
   CPI 0
   JPZ end_with_nl
 
-  ; slot_ptr = argv_base + 1  (points to argv[1] slot)
-  LDA .arg1
+  ; slot_ptr = argv_base + 1 (points to argv[1] slot)
+  LDI .argv_base
   ADI 1
   STA .res2
+
+; loop over arguments
+echo_arg:
   ; arg_ptr = *slot_ptr
-  LDA .res2
   PHA
   LAS
-  STA .pow2
-
-; print first token
-pf_loop:
-  LDA .pow2
-  PHA
-  LAS
-  STA .char
-  CPI 0
-  JPZ pf_done
-  JSR @write_char
-  LDA .pow2
-  ADI 1
-  STA .pow2
-  JMP pf_loop
-pf_done:
-  ; remaining = argc - 1 (number of args after the first)
-  LDA .res1
-  SUI 1
+  STA .arg1
+  ; print token using ECHON (auto length, no newline)
+  LDI 0
   STA .num_digits
-  ; slot_ptr = argv_base + 2 (next argv slot)
-  LDA .arg1
-  ADI 2
-  STA .res2
-
-rem_loop_check:
-  LDA .num_digits
+  LDI 1
+  STA .arg2
+  JSR @echon
+  ; remaining--
+  LDA .work1
+  SUI 1
+  STA .work1
+  ; if no more, finish with newline
   CPI 0
   JPZ end_with_nl
-  ; print a space between tokens
+  ; otherwise print a space and advance to next slot
   LDI 32
   STA .char
   JSR @write_char
-  ; load next arg pointer
-  LDA .res2
-  PHA
-  LAS
-  STA .pow2
-
-; print token
-pl_loop:
-  LDA .pow2
-  PHA
-  LAS
-  STA .char
-  CPI 0
-  JPZ pl_done
-  JSR @write_char
-  LDA .pow2
-  ADI 1
-  STA .pow2
-  JMP pl_loop
-pl_done:
-  ; advance slot_ptr and decrement remaining
   LDA .res2
   ADI 1
   STA .res2
-  LDA .num_digits
-  SUI 1
-  STA .num_digits
-  JMP rem_loop_check
+  JMP echo_arg
 
 end_with_nl:
   JSR @newline

@@ -1,0 +1,128 @@
+;! name: OSINFO
+;! entry: osinfo
+;! deps: newline, echon, display_number, divide, write_char
+;! abi: os
+;! bss: auto
+;! align: 4
+
+.linechar = "-"
+.version = "EShell (ESH) 25.9.2a"
+.bits_avail_text_1 =       "AReg size:        "
+.bits_avail_text_2 = " bits"
+.memory_available_text =   "Memory available: "
+.memory_available_text_2 = " k words"
+.memory_available_text_3 = "                  ("
+.memory_available_text_4 = " bits/word)"
+.installed_progs_text =    "Installed routines/programs: "
+
+.help_text = "Type HELP for a list of commands"
+.list_text = "Type LIST for a list of all installed"
+.list_text_2 = "                  routines/programs"
+
+osinfo:
+  ; print OS info
+  JSR write_40_dash
+  LDI .version
+  JSR print_newline
+  LDI .bits_avail_text_1
+  JSR print_no_newline
+  LDA .bits_avail
+  STA .arg1
+  JSR @display_number
+  LDI .bits_avail_text_2
+  JSR print_newline
+  LDI .memory_available_text
+  JSR print_no_newline
+  LDI 0
+  SUI 1
+  STA .arg1
+  LDI 1000
+  STA .arg2
+  JSR @divide
+  LDA .res1
+  STA .arg1
+  JSR @display_number
+  LDI .memory_available_text_2
+  JSR print_newline
+  LDI .memory_available_text_3
+  JSR print_no_newline
+  LDA .bits_avail
+  STA .arg1
+  JSR @display_number
+  LDI .memory_available_text_4
+  JSR print_newline
+  JSR get_num_progs
+  LDI .installed_progs_text
+  JSR print_no_newline
+  LDA .bss + 2
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI .help_text
+  JSR print_newline
+  LDI .list_text
+  JSR print_newline
+  LDI .list_text_2
+  JSR print_newline
+  JSR write_40_dash
+  JSR @newline
+  RET
+
+get_num_progs:
+  LDI 0
+  STA .bss + 1  ; word step from .prog_table
+  STA .bss + 2  ; program count
+  STA .bss + 3  ; words used for programs
+  STA .bss + 4  ; words used for BSS
+  STA .bss + 5  ; words used for data
+check_prog_loop:
+  LDI .prog_table
+  ADD .bss + 1
+  PHA
+  LAS                 ; get the first word of the name, if it's not null, continue
+  CPI 0
+  JPZ get_n_progs_end ; if it is null, end
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2        ; increment program count by 1
+  LDA .bss + 1
+  ADI 22
+  STA .bss + 1
+  JMP check_prog_loop
+get_n_progs_end:
+  RET
+
+; -- print helpers, null terminated. Pointer to text must be in A register --
+write_40_dash:
+  LDA .linechar
+  STA .char
+  LDI 0
+  STA .bss
+write_char_loop:
+  JSR @write_char
+  LDA .bss
+  ADI 1
+  STA .bss
+  CPI 40
+  JPC end_wc_loop
+  JMP write_char_loop
+end_wc_loop:
+  JSR @newline
+  RET
+
+print_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  STA .arg2
+  JSR @echon
+  RET
+
+print_no_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  LDI 1
+  STA .arg2
+  JSR @echon
+  RET

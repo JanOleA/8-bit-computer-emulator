@@ -3,7 +3,7 @@
 ;! deps: mult
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; Compute pow(arg1, arg2) = (base ^ exp)
 ; Inputs: .arg1 = base, .arg2 = exp

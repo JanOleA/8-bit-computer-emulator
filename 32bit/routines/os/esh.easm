@@ -1,9 +1,9 @@
 ;! name: ESH
 ;! entry: start
-;! deps: newline, write_char, echon, display_number, wait_1600, divide
+;! deps: osinfo, newline, write_char, echon
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; Input buffering and history
 ; bss + 2 = hist_head
@@ -12,63 +12,15 @@
 ; bss + 5 = hist_tmp1
 ; bss + 6 = hist_tmp2
 ; bss + 7 = hist_start
-; bss + 7 + len*max = bss + 1607 = hist_base
-; bss + 1608 = counter
+; bss + 7 .. bss + 1607 = hist_buffer
 hist_entry_len = 40   ; max characters per history entry and input line
 hist_max    = 40      ; max number of history entries
 
-.linechar = "-"
-.version = "EShell (ESH) 25.9.1a"
-.bits_avail_text_1 =       "AReg size:        "
-.bits_avail_text_2 = " bits"
-.memory_available_text =   "Memory available: "
-.memory_available_text_2 = " k words"
-.memory_available_text_3 = "                  ("
-.memory_available_text_4 = " bits/word)"
 .cmd_error_message = "Unknown command: "
 .cmd_error_message_2 = "Type HELP for a list of commands"
 
 start:
-  ; print startup info
-  JSR write_40_dash
-  LDI .version
-  JSR print_newline
-  JSR @wait_1600
-  LDI .bits_avail_text_1
-  JSR print_no_newline
-  LDA .bits_avail
-  STA .arg1
-  JSR @display_number
-  LDI .bits_avail_text_2
-  JSR print_newline
-  JSR @wait_1600
-  LDI .memory_available_text
-  JSR print_no_newline
-  LDI 0
-  SUI 1
-  STA .arg1
-  LDI 1000
-  STA .arg2
-  JSR @divide
-  LDA .res1
-  STA .arg1
-  JSR @display_number
-  LDI .memory_available_text_2
-  JSR print_newline
-  LDI .memory_available_text_3
-  JSR print_no_newline
-  LDA .bits_avail
-  STA .arg1
-  JSR @display_number
-  LDI .memory_available_text_4
-  JSR print_newline
-  JSR @wait_1600
-  LDI .cmd_error_message_2
-  JSR print_newline
-  JSR write_40_dash
-  JSR @wait_1600
-  JSR @newline
-
+  JSR @osinfo
   ; initialize shell state
   LDI 0
   STA .cmd_len
@@ -246,7 +198,7 @@ handle_enter:
 
 ; --- UI helpers ---
 
-; -- print helpers, null temrinated. Pointer to text must be in A register --
+; -- print helpers, null terminated. Pointer to text must be in A register --
 print_newline:
   STA .arg1
   LDI 0
@@ -323,41 +275,6 @@ run_command:
   STA .arg1
   JSR skip_spaces
   JSR dispatch_program
-  LDA .bss
-  CPI 1
-  JPZ rc_done
-  ; Fallback: RUN <addr>
-  LDA .arg1
-  PHA
-  LAS
-  CPI 82
-  JPZ rc_ch1
-  RET
-rc_ch1:
-  LDA .arg1
-  ADI 1
-  PHA
-  LAS
-  CPI 85
-  JPZ rc_ch2
-  RET
-rc_ch2:
-  LDA .arg1
-  ADI 2
-  PHA
-  LAS
-  CPI 78
-  JPZ rc_delim
-  RET
-rc_delim:
-  LDA .arg1
-  ADI 3
-  STA .arg1
-  JSR parse_number
-  LDA .bss
-  PHA
-  RET
-rc_done:
   RET
 
 skip_spaces:
@@ -372,39 +289,6 @@ sksp_inc:
   ADI 1
   STA .arg1
   JMP skip_spaces
-
-parse_number:
-  LDI 0
-  STA .bss
-  JSR skip_spaces
-pn_loop:
-  LDA .arg1
-  PHA
-  LAS
-  CPI 48
-  JPC pn_check_hi
-  JMP pn_done
-pn_check_hi:
-  CPI 58
-  JPC pn_done
-  SUI 48
-  STA .char
-  LDA .bss
-  LSA
-  STA .pow2
-  LSA
-  LSA
-  ADD .pow2
-  STA .bss
-  LDA .bss
-  ADD .char
-  STA .bss
-  LDA .arg1
-  ADI 1
-  STA .arg1
-  JMP pn_loop
-pn_done:
-  RET
 
 dispatch_program:
   LDI 0
@@ -423,7 +307,7 @@ dp_entry:
   STA .bss + 1
   LDA .textloc
   STA .pow2
-  LDI 8
+  LDI 16
   STA .num_digits
 dp_cmp_loop:
   LDA .pow2
@@ -463,9 +347,9 @@ dp_equal:
   LDA .num_digits
   SUI 1
   STA .num_digits
-  JPZ dp_post8
+  JPZ dp_post16
   JMP dp_cmp_loop
-dp_post8:
+dp_post16:
   LDA .bss + 1
   PHA
   LAS
@@ -483,7 +367,7 @@ dp_ct_zero2:
   JMP dp_cmp_mismatch
 dp_cmp_mismatch:
   LDA .arg2
-  ADI 10
+  ADI 22
   STA .arg2
   JMP dp_entry
 dp_match:
@@ -498,7 +382,7 @@ dp_match:
   LDI .argv_buf
   STA .arg2
   LDA .work4
-  ADI 8
+  ADI 16
   PHA
   LAS
   STA .bss + 1
@@ -513,10 +397,14 @@ dp_match:
   STA .bss
   RET
 dp_nomatch:
+  LDA .cmd_len
+  CPI 0
+  JPZ err_help
   LDI .cmd_error_message
   JSR print_no_newline
   LDI .input_buf
   JSR print_newline
+err_help:
   LDI .cmd_error_message_2
   JSR print_newline
   LDI 0
@@ -805,19 +693,6 @@ hdn_load:
   JSR history_load_current
   RET
 
-write_40_dash:
-  LDA .linechar
-  STA .char
+res_bss:
   LDI 0
-  STA .bss + 1608
-write_char_loop:
-  JSR @write_char
-  LDA .bss + 1608
-  ADI 1
-  STA .bss + 1608
-  CPI 40
-  JPC end_wc_loop
-  JMP write_char_loop
-end_wc_loop:
-  JSR @newline
-  RET
+  STA .bss + 1607

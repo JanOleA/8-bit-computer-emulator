@@ -3,7 +3,7 @@
 ;! deps: divide, newline, write_char
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; HEXDUMP <addr> <nwords>
 ; Prints 32-bit words in hexadecimal, four columns per row,

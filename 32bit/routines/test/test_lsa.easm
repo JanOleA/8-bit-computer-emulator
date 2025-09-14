@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: none
 ;! bss: none
-;! align: 20
+;! align: 4
 
 test_lsa:
   LDI 3

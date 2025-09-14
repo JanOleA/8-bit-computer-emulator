@@ -1,0 +1,45 @@
+;! name: RUN
+;! entry: run
+;! deps: parse_number
+;! abi: os
+;! bss: auto
+;! align: 4
+
+; bss + 0 : saved call stub operand
+
+; --- RUN: call an absolute address via OS call stub ---
+; Usage: RUN <addr>
+
+run:
+  ; argc must be >= 1
+  LDI .argv_base
+  PHA
+  LAS
+  CPI 1
+  JPC rn_have_arg
+  RET
+
+rn_have_arg:
+  ; parse argv[1] into .res1
+  LDI .argv_base
+  ADI 1
+  PHA
+  LAS
+  STA .arg1
+  JSR @parse_number
+
+  ; save current CALL_STUB operand (19997)
+  LDA 19997
+  STA .bss
+
+  ; write new target into CALL_STUB+1
+  LDA .res1
+  STA 19997
+
+  ; call trampoline at 19996
+  JSR #19996
+
+  ; restore previous operand
+  LDA .bss
+  STA 19997
+  RET

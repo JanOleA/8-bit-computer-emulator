@@ -2,14 +2,16 @@
 ;! entry: list_commands
 ;! deps: write_char, newline
 ;! abi: os
-;! bss: none
-;! align: 20
+;! bss: auto
+;! align: 4
 
 list_commands:
   LDI .prog_table
   STA .arg2
   LDI 0
   STA .res1
+  LDI 0
+  STA .bss
 lc_next:
   LDA .arg2
   PHA
@@ -22,7 +24,7 @@ lc_next:
   STA .num_digits
 lc_printchar:
   LDA .num_digits
-  CPI 8
+  CPI 16
   JPZ lc_pad
   LDA .res2
   PHA
@@ -40,7 +42,7 @@ lc_printchar:
   JMP lc_printchar
 lc_pad:
   LDA .num_digits
-  CPI 10
+  CPI 18
   JPZ lc_aftercol
   LDI 32
   STA .char
@@ -53,16 +55,78 @@ lc_aftercol:
   LDA .res1
   ADI 1
   STA .res1
-  CPI 4
+  CPI 2
   JPZ lc_newline
   JMP lc_advance
 lc_newline:
   JSR @newline
+  LDA .bss
+  ADI 1
+  STA .bss
+  CPI 19
+  JPZ lc_more
+  LDI 0
+  STA .res1
+  JMP lc_advance
+lc_more:
+  ; print "--- more ---"
+  LDI 45
+  STA .char
+  JSR @write_char
+  STA .char
+  JSR @write_char
+  STA .char
+  JSR @write_char
+  LDI 32
+  STA .char
+  JSR @write_char
+  LDI 109
+  STA .char
+  JSR @write_char
+  LDI 111
+  STA .char
+  JSR @write_char
+  LDI 114
+  STA .char
+  JSR @write_char
+  LDI 101
+  STA .char
+  JSR @write_char
+  LDI 32
+  STA .char
+  JSR @write_char
+  LDI 45
+  STA .char
+  JSR @write_char
+  STA .char
+  JSR @write_char
+  STA .char
+  JSR @write_char
+  ; wait for any key
+lc_wait_key:
+  KEI
+  PHA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 1
+  JPZ lc_key_ok
+  PLA
+  JMP lc_wait_key
+lc_key_ok:
+  PLA
+  JSR @newline
+  LDI 0
+  STA .bss
   LDI 0
   STA .res1
 lc_advance:
   LDA .arg2
-  ADI 10
+  ADI 22
   STA .arg2
   JMP lc_next
 lc_end:

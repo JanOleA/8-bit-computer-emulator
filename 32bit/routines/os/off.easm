@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: none
 ;! bss: none
-;! align: 20
+;! align: 4
 
 ; Turn everything off: clear display, disable cursor/blink, then halt.
 ; Uses direct LCD control instructions (no OS ABI).

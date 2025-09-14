@@ -3,7 +3,7 @@
 ;! deps: display_number, parse_number
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; Copy memory safely handling overlap.
 ; Inputs (OS ABI):

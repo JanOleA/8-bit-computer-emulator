@@ -3,7 +3,7 @@
 ;! deps: divide, display_number, newline
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; bss + 0 = check_value
 ; bss + 1 = loop_index

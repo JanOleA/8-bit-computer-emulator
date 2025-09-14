@@ -1,9 +1,9 @@
-;! name: ASTER
+;! name: ASTEROIDS
 ;! entry: main
 ;! deps: randint, write_char, newline, display_number, echon, wait_100
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 screen_width = 39
 screen_height = 20

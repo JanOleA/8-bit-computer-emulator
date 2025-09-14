@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; --- Multiply .arg1 and .arg2, store the result in .res1 and the A register
 

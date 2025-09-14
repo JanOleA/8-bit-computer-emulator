@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; Fill memory range with a value.
 ; Inputs (OS ABI):

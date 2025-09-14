@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: os
 ;! bss: none
-;! align: 20
+;! align: 4
 
 poke:
   ; argc >= 2?

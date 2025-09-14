@@ -1,9 +1,9 @@
-;! name: BUFSEP
+;! name: BUFFTOSEP
 ;! entry: buffer_to_separator
 ;! deps: 
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; --- Loop through the string pointed to by .arg1 until reaching the character stored in .arg2, fill buffer from .bss + 0, up to 160 characters ---
 ; -- memory address to buffer returned in .res1, number of characters in .res2 --

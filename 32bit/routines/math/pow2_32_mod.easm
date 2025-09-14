@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; Compute 2^32 mod .arg1. Returns A.
 ; Locals:

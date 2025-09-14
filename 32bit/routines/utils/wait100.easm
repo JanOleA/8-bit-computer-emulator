@@ -3,7 +3,7 @@
 ;! deps: 
 ;! abi:
 ;! bss: none
-;! align: 20
+;! align: 4
 
 wait_100:
   LDI 100

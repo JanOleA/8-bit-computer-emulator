@@ -1,9 +1,9 @@
-;! name: WAIT3K
+;! name: WAIT3200
 ;! entry: wait_3200
 ;! deps: wait_1600
 ;! abi:
 ;! bss: none
-;! align: 20
+;! align: 4
 
 wait_3200:
   JSR @wait_1600

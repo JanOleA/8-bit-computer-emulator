@@ -548,8 +548,8 @@ def main(apply_table: bool = False):
             gaps_path = Path(__file__).parent.parent / "32bit" / "free_gaps.txt"
             gaps_path.write_text("\n".join(gap_lines) + "\n")
 
-    # Build and embed program table into JSON image
-    # Determine program table base: prefer reading from OS file, else default 3000
+    # Build and embed program table (extended format only) into JSON image
+    # Determine program table base from OS file, else default 3000
     pt_base = 3000
     try:
         os_text = (Path(__file__).parent.parent / "32bit" / "emulator_os.txt").read_text().splitlines()
@@ -561,19 +561,36 @@ def main(apply_table: bool = False):
     except Exception:
         pass
 
-    # Compose program table bytes: 10-byte entries: name[0..7], addr[8], reserved[9]
+    # Compose extended program table bytes per entry:
+    #   name[16], base, length, bss_base|0, bss_size|0, data_base|0, data_size|0
     entries = [kv for kv in sorted(data.items(), key=lambda kv: int(kv[1].get("base", 0))) if isinstance(kv[1], dict) and "base" in kv[1] and "entry" in kv[1]]
+    # Fast lookup for data modules (name_data)
+    data_mods = {k: v for k, v in data.items() if isinstance(v, dict) and k.lower().endswith("_data")}
+
     table_words: list[int] = []
     for name, mod in entries:
-        nm = str(name).upper()[:8]
-        # Name bytes (padded with zeros so the OS matcher sees terminators)
-        for i in range(8):
-            ch = ord(nm[i]) if i < len(nm) else 0
+        nm16 = str(name).upper()[:16]
+        for i in range(16):
+            ch = ord(nm16[i]) if i < len(nm16) else 0
             table_words.append(ch)
-        # Address
-        table_words.append(int(mod.get("base", 0)))
-        # Reserved
-        table_words.append(0)
+        base = int(mod.get("base", 0))
+        length = int(mod.get("length", 0))
+        bss = mod.get("bss") if isinstance(mod, dict) else None
+        if isinstance(bss, dict):
+            bbase = int(bss.get("base", 0))
+            bsize = int(bss.get("size", 0))
+        else:
+            bbase = 0
+            bsize = 0
+        dkey = f"{name}_data"
+        dv = data_mods.get(dkey)
+        if isinstance(dv, dict):
+            dbase = int(dv.get("base", 0))
+            dsize = int(dv.get("length", 0))
+        else:
+            dbase = 0
+            dsize = 0
+        table_words.extend([base, length, bbase, bsize, dbase, dsize])
     # Sentinel: a single zero at the next name[0]
     table_words.append(0)
     data["program_table"] = {"base": pt_base, "length": len(table_words), "words": table_words}
@@ -605,10 +622,21 @@ def main(apply_table: bool = False):
     # Emit a human-readable overview (optional legacy helper)
     overview_lines = [
         f"Program table base: {pt_base}",
-        "Entries (NAME → BASE):",
+        "Entries (NAME → BASE, SIZE, BSS, DATA):",
     ]
     for name, mod in entries:
-        overview_lines.append(f"  {str(name).upper():8} → {int(mod.get('base', 0))}")
+        b = int(mod.get('base', 0))
+        l = int(mod.get('length', 0))
+        bss = mod.get('bss') if isinstance(mod, dict) else None
+        bss_s = '—'
+        if isinstance(bss, dict):
+            bss_s = f"{int(bss.get('base',0))}+{int(bss.get('size',0))}"
+        dkey = f"{name}_data"
+        dv = data.get(dkey)
+        data_s = '—'
+        if isinstance(dv, dict):
+            data_s = f"{int(dv.get('base',0))}+{int(dv.get('length',0))}"
+        overview_lines.append(f"  {str(name).upper():16} → {b} (len {l})  BSS {bss_s}  DATA {data_s}")
     suggest_path = Path(__file__).parent.parent / "32bit" / "prog_table_suggest.txt"
     suggest_path.write_text("\n".join(overview_lines) + "\n")
     print("\nProgram table overview (written to 32bit/prog_table_suggest.txt):\n")
@@ -626,7 +654,7 @@ def main(apply_table: bool = False):
             bbase = int(bss.get("base", 0))
             bsize = int(bss.get("size", 0))
             bend = bbase + bsize
-            bss_lines.append(f"  {name.upper():8} BSS [{bbase},{bend}) size={bsize}")
+            bss_lines.append(f"  {name.upper():16} BSS [{bbase},{bend}) size={bsize}")
     if len(bss_lines) > 1:
         print("\n" + "\n".join(bss_lines))
         bss_path = Path(__file__).parent.parent / "32bit" / "bss_map.txt"
@@ -731,7 +759,7 @@ def main(apply_table: bool = False):
         table_lines = [f"prog_table = {pt_base}", "; Command/program table entries: name[0..7], addr[8], reserved[9]"]
         for i, (name, mod) in enumerate(entries):
             off = i * 10
-            nm = str(name).upper()[:8]
+            nm = str(name).upper()[:16]
             base = int(mod.get("base", 0))
             table_lines.append(f".prog_table + {off}  = \"{nm}\"")
             table_lines.append(f".prog_table + {off+8} = {base}")

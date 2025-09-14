@@ -3,7 +3,7 @@
 ;! deps: display_number, newline, write_char
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; DUMP <addr> <nwords>
 ; Prints decimal words from memory starting at <addr>,

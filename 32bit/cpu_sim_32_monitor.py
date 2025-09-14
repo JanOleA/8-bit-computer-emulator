@@ -396,8 +396,6 @@ class Game_32(Game):
             text_y = y - kp_text.get_height() / 2
             self._screen.blit(kp_text, (text_x, text_y))
 
-        
-
         """ Draw the output display """
         out_string = f"{self.computer.out_regist:>03d}"
         out_text = self._font_segmentdisplay.render(out_string, True, self.BRIGHTRED)

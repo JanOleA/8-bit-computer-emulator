@@ -3,7 +3,7 @@
 ;! deps: divide
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; Compute (arg1 * arg2) mod mod, where mod is in .res1.
 ; Returns A = result.

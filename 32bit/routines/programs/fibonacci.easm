@@ -1,9 +1,9 @@
-;! name: FIBO
+;! name: FIBONACCI
 ;! entry: start
 ;! deps: display_number, newline
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; .bss + 0: x
 ; .bss + 1: y

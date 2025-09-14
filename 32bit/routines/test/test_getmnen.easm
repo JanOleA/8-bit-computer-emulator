@@ -1,9 +1,9 @@
-;! name: TESTGM
+;! name: TGETMNEMONIC
 ;! entry: main
 ;! deps: get_mnemonic, display_number, newline
 ;! abi: os
 ;! bss: none
-;! align: 20
+;! align: 4
 
 main:
   ; require at least 1 argument

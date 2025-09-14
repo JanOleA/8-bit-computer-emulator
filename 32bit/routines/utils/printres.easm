@@ -1,9 +1,9 @@
-;! name: PRINTRS
+;! name: PRINTRES
 ;! entry: printres
 ;! deps: display_number, newline
 ;! abi: os
 ;! bss: none
-;! align: 20
+;! align: 4
 
 ; Print the value currently in .res1, followed by a newline.
 

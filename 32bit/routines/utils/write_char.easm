@@ -1,9 +1,9 @@
-;! name: WRTCHAR
+;! name: WRITECHAR
 ;! entry: write_char
 ;! deps: 
 ;! abi: os
 ;! bss: none
-;! align: 20
+;! align: 4
 
 write_char:
   LDD .char

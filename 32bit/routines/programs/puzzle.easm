@@ -3,7 +3,7 @@
 ;! deps: multiply, divide, sqrt, rem64, addsq64, display_number, newline
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 bss         ; check_value
 bss + 1     ; loop_index

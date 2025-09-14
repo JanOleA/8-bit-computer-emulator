@@ -386,7 +386,21 @@ class Computer:
             self.areg = self.bus
 
         if operation&self.RSA:
-            self.areg = self.areg // 2
+            # More realistic logical right shift:
+            # - shift A right by 1 (zero fills)
+            # - carry out the LSB that was shifted out
+            # - update Zero flag if result == 0
+            mask = self.overflow_limit - 1
+            lsb = int(self.areg) & 1
+            self.areg = (int(self.areg) >> 1) & mask
+            # Update flags to reflect the shift result (C=lsb, Z=(A==0))
+            self.flags = 0
+            if lsb:
+                self.flags |= 0b10
+            if self.areg == 0:
+                self.flags |= 0b01
+            # Latch into flag register here since RSA is a single-cycle op
+            self.flagreg = self.flags
 
         if operation&self.BI:
             self.breg = self.bus

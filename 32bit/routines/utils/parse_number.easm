@@ -1,11 +1,11 @@
-;! name: PRSNUM
+;! name: PARSENUM
 ;! entry: parse_number
 ;! deps: 
 ;! abi: os
 ;! bss: none
-;! align: 20
+;! align: 4
 
-; Parse a decimal number at .arg1 into .res1 (stops at first non-digit)
+; Parse a text decimal number at .arg1.. into integer in .res1 (stops at first non-digit)
 parse_number:
   LDI 0
   STA .res1

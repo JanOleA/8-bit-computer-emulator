@@ -3,11 +3,11 @@
 ;! deps: echon, parse_number, newline, write_char, buffer_to_separator, divide, display_number
 ;! abi: os
 ;! bss: auto
-;! align: 20
+;! align: 4
 
 ; Items, separated by backslash ("\\"). Kept in a single auto-data string.
 .separator = "\\"
-.help_items = "LIST          : show installed routines\\HELP <page>   : show this help at <page>\\ECHO <arg>    : print <arg> \\CLS           : clear the screen\\PEEK <addr>   : print mem[<addr>]\\POKE <addr> <val>: store <val> at <addr>\\PRIMES        : print primes up to 300\\PUZZLE        : Matt Parker 19 puzzle\\ESH           : simple command prompt\\DUMP <addr> <len>: print decimal words\\HEXDUMP <addr> <len>: print hex words\\CALC <a> <op> <b>: compute result\\   op={+,-,*,/,P(power),S(sqrt)}\\MEMEDIT <addr>: begin memedit @<addr>\\FILLMEM <start> <num> <val>: fill memory\\   From <start>, N=<num>  with <val>\\CPYMEM <src> <dst> <len>: copy memory\\   mem[src:src+len] > mem[dst:dst+len]\\FIBO          : print fibonacci values\\EMU           : shows some art\\ASTER         : play asteroids\\TESTMEM       : List start/stop/size of\\   every memory block with 100+\\   contiguous nulls\\OFF           : disable screen and halt"
+.help_items = "LIST          : show installed routines\\HELP <page>   : show this help at <page>\\ECHO <arg>    : print <arg> \\CLS           : clear the screen\\PEEK <addr>   : print mem[<addr>]\\POKE <addr> <val>: store <val> at <addr>\\PRIMES        : print primes up to 300\\PUZZLE        : Matt Parker 19 puzzle\\ESH           : simple command prompt\\DUMP <addr> <len>: print decimal words\\HEXDUMP <addr> <len>: print hex words\\CALC <a> <op> <b>: compute result\\      op={+,-,*,/,P(power),S(sqrt)}\\MEMEDIT <addr>: begin memedit @<addr>\\FILLMEM <start> <num> <val>: fill memory\\      From <start>, N=<num> with <val>\\CPYMEM <src> <dst> <len>: copy memory\\     mem[src:src+len] > mem[dst:dst+len]\\FIBONACCI     : print fibonacci values\\EMU           : shows some art\\ASTEROIDS     : play asteroids\\TESTMEM       : List start/stop/size of\\      every memory block with 100+\\      contiguous nulls\\OFF           : disable screen and halt"
 
 ; BSS locals
 per_page = .bss
