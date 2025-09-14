@@ -25,24 +25,24 @@ Entries (NAME → BASE, SIZE, BSS, DATA):
   MULT             → 9644 (len 47)  BSS 21843+3  DATA —
   NEWLINE          → 9692 (len 9)  BSS —  DATA —
   OFF              → 9704 (len 17)  BSS —  DATA —
-  OSINFO           → 9724 (len 177)  BSS 21846+6  DATA 26960+245
-  PARSENUM         → 9904 (len 44)  BSS —  DATA —
-  PEEK             → 9948 (len 72)  BSS —  DATA —
-  POKE             → 10020 (len 122)  BSS —  DATA —
-  POW              → 10144 (len 49)  BSS 21852+1  DATA —
-  POW232           → 10196 (len 45)  BSS 21853+2  DATA —
-  PRIMES           → 10244 (len 78)  BSS 21855+3  DATA —
-  PRINTRES         → 10324 (len 9)  BSS —  DATA —
-  PUZZLE           → 10336 (len 166)  BSS 21858+10  DATA —
-  RANDINT          → 10504 (len 83)  BSS 21868+1  DATA —
-  REM64            → 10588 (len 74)  BSS 21869+7  DATA —
-  RUN              → 10664 (len 34)  BSS 21876+1  DATA —
-  SQRT             → 10700 (len 47)  BSS 21877+3  DATA —
-  STRCOMPARE       → 10748 (len 44)  BSS 21880+1  DATA —
-  TGETMNEMONIC     → 10792 (len 28)  BSS —  DATA —
-  TESTLSA          → 10820 (len 9)  BSS —  DATA —
-  TESTMEM          → 10832 (len 236)  BSS 21881+6  DATA 27232+48
-  WAIT100          → 11068 (len 11)  BSS —  DATA —
-  WAIT1600         → 11080 (len 20)  BSS —  DATA —
-  WAIT3200         → 11100 (len 5)  BSS —  DATA —
-  WRITECHAR        → 11108 (len 11)  BSS —  DATA —
+  OSINFO           → 9724 (len 291)  BSS 21846+6  DATA 26960+335
+  PARSENUM         → 10016 (len 44)  BSS —  DATA —
+  PEEK             → 10060 (len 72)  BSS —  DATA —
+  POKE             → 10132 (len 122)  BSS —  DATA —
+  POW              → 10256 (len 49)  BSS 21852+1  DATA —
+  POW232           → 10308 (len 45)  BSS 21853+2  DATA —
+  PRIMES           → 10356 (len 78)  BSS 21855+3  DATA —
+  PRINTRES         → 10436 (len 9)  BSS —  DATA —
+  PUZZLE           → 10448 (len 166)  BSS 21858+10  DATA —
+  RANDINT          → 10616 (len 83)  BSS 21868+1  DATA —
+  REM64            → 10700 (len 74)  BSS 21869+7  DATA —
+  RUN              → 10776 (len 34)  BSS 21876+1  DATA —
+  SQRT             → 10812 (len 47)  BSS 21877+3  DATA —
+  STRCOMPARE       → 10860 (len 44)  BSS 21880+1  DATA —
+  TGETMNEMONIC     → 10904 (len 28)  BSS —  DATA —
+  TESTLSA          → 10932 (len 9)  BSS —  DATA —
+  TESTMEM          → 10944 (len 236)  BSS 21881+6  DATA 27312+48
+  WAIT100          → 11180 (len 11)  BSS —  DATA —
+  WAIT1600         → 11192 (len 20)  BSS —  DATA —
+  WAIT3200         → 11212 (len 5)  BSS —  DATA —
+  WRITECHAR        → 11220 (len 11)  BSS —  DATA —

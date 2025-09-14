@@ -14,6 +14,9 @@
 .memory_available_text_3 = "                  ("
 .memory_available_text_4 = " bits/word)"
 .installed_progs_text =    "Installed routines/programs: "
+.installed_progs_text_2 =  "Words used for programs (k): "
+.bss_text =                "Words reserved for BSS (k) : "
+.data_text =               "Words reserved for data (k): "
 
 .help_text = "Type HELP for a list of commands"
 .list_text = "Type LIST for a list of all installed"
@@ -58,6 +61,24 @@ osinfo:
   STA .arg1
   JSR @display_number
   JSR @newline
+  LDI .installed_progs_text_2
+  JSR print_no_newline
+  LDA .bss + 3
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI .bss_text
+  JSR print_no_newline
+  LDA .bss + 4
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI .data_text
+  JSR print_no_newline
+  LDA .bss + 5
+  STA .arg1
+  JSR @display_number
+  JSR @newline
   LDI .help_text
   JSR print_newline
   LDI .list_text
@@ -85,11 +106,61 @@ check_prog_loop:
   LDA .bss + 2
   ADI 1
   STA .bss + 2        ; increment program count by 1
+
   LDA .bss + 1
-  ADI 22
+  ADI 17              ; increment word step by 17
   STA .bss + 1
+  ADI .prog_table
+  PHA
+  LAS                 ; get words used for this program
+  ADD .bss + 3        ; add current sum
+  STA .bss + 3        ; store it again
+
+  LDA .bss + 1
+  ADI 2              ; increment word step by 2 (19 total)
+  STA .bss + 1
+  ADI .prog_table
+  PHA
+  LAS                 ; get BSS words reserved for this program
+  ADD .bss + 4        ; add current sum
+  STA .bss + 4        ; store it again
+
+  LDA .bss + 1
+  ADI 2              ; increment word step by 2 (21 total)
+  STA .bss + 1
+  ADI .prog_table
+  PHA
+  LAS                 ; get data words reserved for this program
+  ADD .bss + 5        ; add current sum
+  STA .bss + 5        ; store it again
+
+  LDA .bss + 1
+  ADI 1              ; increment word step by 1 (22 total)
+  STA .bss + 1
+
   JMP check_prog_loop
 get_n_progs_end:
+  LDA .bss + 3
+  STA .arg1
+  LDI 1000
+  STA .arg2
+  JSR @divide
+  STA .bss + 3        ; result from divide is stored in A reg
+
+  LDA .bss + 4
+  STA .arg1
+  LDI 1000
+  STA .arg2
+  JSR @divide 
+  STA .bss + 4        ; result from divide is stored in A reg
+
+  LDA .bss + 5
+  STA .arg1
+  LDI 1000
+  STA .arg2
+  JSR @divide
+  STA .bss + 5        ; result from divide is stored in A reg
+
   RET
 
 ; -- print helpers, null terminated. Pointer to text must be in A register --
