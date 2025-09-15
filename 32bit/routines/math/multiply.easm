@@ -1,4 +1,4 @@
-;! name: MULT
+;! name: MULTIPLY
 ;! entry: multiply
 ;! deps:
 ;! abi: os

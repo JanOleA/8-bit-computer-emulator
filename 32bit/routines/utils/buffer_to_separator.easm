@@ -6,7 +6,7 @@
 ;! align: 4
 
 ; --- Loop through the string pointed to by .arg1 until reaching the character stored in .arg2, fill buffer from .bss + 0, up to 160 characters ---
-; -- memory address to buffer returned in .res1, number of characters in .res2 --
+; -- memory address to buffer returned in .res1, number of characters in .res2, .res3=1 if we ended on null, else 0 --
 
 ; .bss + 0 .. 159     : buffer
 ; .bss + 160          : null terminator
@@ -15,9 +15,12 @@
 
 buffer_to_separator:  ; fill the buffer from current read pointer until first occurence of the separator
   LDI 0
+  STA .res3
+  STA .bss + 160
   STA .bss + 163
   LDI .bss            ; set write pointer to start of buffer
   STA .bss + 162
+  
 buf_loop:
   ; get character at read_pointer
   LDA .arg1
@@ -26,7 +29,7 @@ buf_loop:
   CMP .arg2
   JPZ buf_end         ; if we reach the separator, jump to buf_end
   CPI 0
-  JPZ buf_end         ; if we reach null, return
+  JPZ buf_end_null    ; if we reach null, return immediately
   STA .char           ; store character at read pointer in .char for now
   
   LDA .bss + 162      ; get write pointer
@@ -49,6 +52,9 @@ buf_loop:
   STA .arg1
 
   JMP buf_loop
+buf_end_null:
+  LDI 1
+  STA .res3
 buf_end:
   LDA .bss + 163
   STA .res2
@@ -56,7 +62,7 @@ buf_end:
   STA .res1
   ADD .bss + 163
   PHA
-  LDI 0
+  LDI 0               ; ensure buffer is null-terminated
   SAS
   RET
   

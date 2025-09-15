@@ -1,24 +1,25 @@
 ;! name: LIST
 ;! entry: list_commands
-;! deps: write_char, newline
+;! deps: write_char, newline, echon
 ;! abi: os
 ;! bss: auto
 ;! align: 4
 
+.more_text = "              --- more ---"
+
 list_commands:
   LDI .prog_table
-  STA .arg2
+  STA .bss + 1
   LDI 0
-  STA .res1
-  LDI 0
+  STA .bss + 2
   STA .bss
 lc_next:
-  LDA .arg2
+  LDA .bss + 1
   PHA
   LAS
   CPI 0
   JPZ lc_end
-  LDA .arg2
+  LDA .bss + 1
   STA .res2
   LDI 0
   STA .num_digits
@@ -52,9 +53,9 @@ lc_pad:
   STA .num_digits
   JMP lc_pad
 lc_aftercol:
-  LDA .res1
+  LDA .bss + 2
   ADI 1
-  STA .res1
+  STA .bss + 2
   CPI 2
   JPZ lc_newline
   JMP lc_advance
@@ -66,42 +67,17 @@ lc_newline:
   CPI 19
   JPZ lc_more
   LDI 0
-  STA .res1
+  STA .bss + 2
   JMP lc_advance
 lc_more:
   ; print "--- more ---"
-  LDI 45
-  STA .char
-  JSR @write_char
-  STA .char
-  JSR @write_char
-  STA .char
-  JSR @write_char
-  LDI 32
-  STA .char
-  JSR @write_char
-  LDI 109
-  STA .char
-  JSR @write_char
-  LDI 111
-  STA .char
-  JSR @write_char
-  LDI 114
-  STA .char
-  JSR @write_char
-  LDI 101
-  STA .char
-  JSR @write_char
-  LDI 32
-  STA .char
-  JSR @write_char
-  LDI 45
-  STA .char
-  JSR @write_char
-  STA .char
-  JSR @write_char
-  STA .char
-  JSR @write_char
+  LDI 0
+  STA .num_digits
+  LDI 1
+  STA .arg2
+  LDI .more_text
+  STA .arg1
+  JSR @echon
   ; wait for any key
 lc_wait_key:
   KEI
@@ -122,17 +98,11 @@ lc_key_ok:
   JSR @newline
   LDI 0
   STA .bss
-  LDI 0
-  STA .res1
+  STA .bss + 2
 lc_advance:
-  LDA .arg2
+  LDA .bss + 1
   ADI 22
-  STA .arg2
+  STA .bss + 1
   JMP lc_next
 lc_end:
-  LDA .res1
-  CPI 0
-  JPZ lc_done
-  JSR @newline
-lc_done:
   RET

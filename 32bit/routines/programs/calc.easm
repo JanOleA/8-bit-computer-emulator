@@ -1,6 +1,6 @@
 ;! name: CALC
 ;! entry: calc
-;! deps: display_number, divide, mult, parse_number, newline, write_char, pow, sqrt
+;! deps: display_number, divide, mult, parse_number, newline, write_char, pow, sqrt, echon
 ;! abi: os
 ;! bss: none
 ;! align: 4
@@ -8,6 +8,9 @@
 ; CALC <num1> <op> <num2>
 ; Computes num1 <op> num2 where op is one of + - * /
 ; Prints the result in decimal using display_number
+
+.residual_text = " Residual="
+.distance_text = "Distance to next square="
 
 calc:
   ; require at least 2 args
@@ -91,8 +94,31 @@ do_sqrt:
   LDA .work1
   STA .arg1
   JSR @sqrt
-  LDA .res1
-  JMP do_print
+  ; A holds result, .res2 holds residual, .work1 holds distance to next square, - print all
+  ; Save result, residual and distance before display_number overwrites .res2
+  STA .work2
+  LDA .res2
+  STA .work3
+  LDA .work1
+  STA .work4
+  LDA .work2
+  STA .arg1
+  JSR @display_number
+  LDI .residual_text
+  JSR print_no_newline
+  ; print residual
+  LDA .work3
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI .distance_text
+  JSR print_no_newline
+  ; print distance
+  LDA .work4
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  RET
 
 do_pow:
   LDA .work1
@@ -147,4 +173,22 @@ do_print:
   STA .arg1
   JSR @display_number
   JSR @newline
+  RET
+
+; -- print helpers, null terminated. Pointer to text must be in A register --
+print_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  STA .arg2
+  JSR @echon
+  RET
+
+print_no_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  LDI 1
+  STA .arg2
+  JSR @echon
   RET

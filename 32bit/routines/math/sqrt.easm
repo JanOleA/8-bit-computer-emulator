@@ -7,7 +7,7 @@
 
 ; Integer floor square root using subtraction of odd numbers.
 ; Inputs: .arg1 = n
-; Returns: .res1 = floor(sqrt(n)); A = result
+; Returns: .res1 = floor(sqrt(n)), .res2 = residual, .work1 = gap to next square, .res1 is also in A
 
 sqrt:
   ; m = n
@@ -42,8 +42,12 @@ sqrt_ge:
   JMP sqrt_loop
 
 sqrt_done:
+  LDA .bss
+  STA .res2
+  LDA .bss + 1
+  SUB .bss
+  STA .work1
   LDA .bss + 2
   STA .res1
-  LDA .res1
   RET
 
