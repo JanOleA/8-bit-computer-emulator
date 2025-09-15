@@ -7,7 +7,5 @@
 
 newline:
   DIS 32
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @toggle_display_enable
   RET

@@ -1,0 +1,14 @@
+;! name: TOGGLEDIS
+;! entry: toggle_display_enable
+;! deps:
+;! abi: none
+;! bss: none
+;! align: 4
+
+; toggle display enable bit
+toggle_display_enable:
+  DIC 0
+  DIC 128    ; toggle enable
+  DIC 0
+  RET
+

@@ -565,13 +565,13 @@ class Monitor:
                     self.shift_up()
             elif 0b00010000 & self.data:
                 """ Cursor control """
-                if 0b00000001 & self.data: # cursor right
+                if 0b00000001 & self.data: # cursor right (DIS 17) 
                     self.cursor_pos += (1, 0)
-                if 0b00000010 & self.data: # cursor left
+                if 0b00000010 & self.data: # cursor left  (DIS 18)
                     self.cursor_pos -= (1, 0)
-                if 0b00000100 & self.data: # cursor down
+                if 0b00000100 & self.data: # cursor down  (DIS 20)
                     self.cursor_pos += (0, 1)
-                if 0b00001000 & self.data: # cursor up
+                if 0b00001000 & self.data: # cursor up    (DIS 24)
                     self.cursor_pos -= (0, 1)
                 self.limit_cursor()
 

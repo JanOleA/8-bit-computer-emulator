@@ -1,6 +1,6 @@
 ;! name: OFF
 ;! entry: main
-;! deps:
+;! deps: toggle_display_enable
 ;! abi: none
 ;! bss: none
 ;! align: 4
@@ -11,16 +11,12 @@
 main:
   ; Clear display
   DIS 1
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @toggle_display_enable
 
   ; Disable cursor and blink (Display control: bit3 set; LSBs control cursor/blink)
   ; Value 8 (0b00001000) => display control with cursor=0, blink=0
   DIS 8
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @toggle_display_enable
 
   ; Halt the CPU
   HLT

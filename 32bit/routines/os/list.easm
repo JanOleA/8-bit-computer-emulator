@@ -105,4 +105,10 @@ lc_advance:
   STA .bss + 1
   JMP lc_next
 lc_end:
+  LDA .bss + 2
+  CPI 1
+  JPZ end_newline
+  RET
+end_newline:
+  JSR @newline
   RET

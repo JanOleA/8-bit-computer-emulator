@@ -1,6 +1,6 @@
 ;! name: ESH
 ;! entry: start
-;! deps: osinfo, newline, write_char, echon
+;! deps: osinfo, newline, write_char, echon, toggle_display_enable
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -219,15 +219,7 @@ print_no_newline:
 ret_home:
   JSR @newline
   DIS 24
-  DIC 0
-  DIC 128
-  DIC 0
-  RET
-
-instruction:
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @toggle_display_enable
   RET
 
 print_prompt:
@@ -241,13 +233,10 @@ print_prompt:
 
 cursor_left:
   DIS 18
-  DIC 0
-  DIC 128
-  DIC 0
+  JSR @toggle_display_enable
   RET
 
 enter:
-  JSR ret_home
   JSR @newline
   RET
 
