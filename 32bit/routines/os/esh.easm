@@ -1,6 +1,6 @@
 ;! name: ESH
 ;! entry: start
-;! deps: osinfo, newline, write_char, echon, toggle_display_enable
+;! deps: osinfo, newline, write_char, echon, toggle_display_enable, get_program_address, buffer_to_separator
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -13,6 +13,7 @@
 ; bss + 6 = hist_tmp2
 ; bss + 7 = hist_start
 ; bss + 7 .. bss + 1607 = hist_buffer
+; bss + 1608 = characters in command
 hist_entry_len = 40   ; max characters per history entry and input line
 hist_max    = 40      ; max number of history entries
 
@@ -53,6 +54,8 @@ main_loop:
   JPZ handle_hist_down
   CPI 43
   JPZ handle_backspace
+  CPI 52
+  JPZ handle_left
   LDA .ascii_start
   ADD .bss
   PHA
@@ -96,6 +99,13 @@ after_len:
 no_input:
   LDI 0
   STA .no_input
+  JMP main_loop
+
+handle_left:
+  LDI 1
+  STA .no_input
+  DIS 24
+  JSR @toggle_display_enable
   JMP main_loop
 
 check_input:
@@ -280,89 +290,24 @@ sksp_inc:
   JMP skip_spaces
 
 dispatch_program:
-  LDI 0
-  STA .bss
-  LDA .arg1
-  STA .textloc
-  LDI .prog_table
-  STA .arg2
-dp_entry:
-  LDA .arg2
-  PHA
-  LAS
+  LDI 32
+  STA .arg2                 ; buffer to first space
+  JSR @buffer_to_separator
+  LDA .res2
+  CPI 0
+  JPZ dp_nomatch            ; jump to no match if buffer returns empty string (0 length)
+  LDI .input_buf
+  ADD .res2                 ; add length of command to input buffer to get to start of arguments
+  STA .bss + 1608           ; store memory location for start of argument buffer
+  LDA .res1
+  STA .arg1
+  JSR @get_program_address
+  STA .work4                ; store address for program in work4
   CPI 0
   JPZ dp_nomatch
-  LDA .arg2
-  STA .bss + 1
-  LDA .textloc
-  STA .pow2
-  LDI 16
-  STA .num_digits
-dp_cmp_loop:
-  LDA .pow2
-  PHA
-  LAS
-  STA .char
-  LDA .bss + 1
-  PHA
-  LAS
-  STA .no_input
-  LDA .no_input
-  CPI 0
-  JPZ dp_ct_zero
-  LDA .char
-  CPI 0
-  JPZ dp_cmp_mismatch
-  CPI 32
-  JPZ dp_cmp_mismatch
-  LDA .char
-  SUB .no_input
-  JPZ dp_equal
-  JMP dp_cmp_mismatch
-dp_ct_zero:
-  LDA .char
-  CPI 0
-  JPZ dp_match
-  CPI 32
-  JPZ dp_match
-  JMP dp_cmp_mismatch
-dp_equal:
-  LDA .pow2
-  ADI 1
-  STA .pow2
-  LDA .bss + 1
-  ADI 1
-  STA .bss + 1
-  LDA .num_digits
-  SUI 1
-  STA .num_digits
-  JPZ dp_post16
-  JMP dp_cmp_loop
-dp_post16:
-  LDA .bss + 1
-  PHA
-  LAS
-  CPI 0
-  JPZ dp_ct_zero2
-  JMP dp_cmp_mismatch
-dp_ct_zero2:
-  LDA .pow2
-  PHA
-  LAS
-  CPI 0
-  JPZ dp_match
-  CPI 32
-  JPZ dp_match
-  JMP dp_cmp_mismatch
-dp_cmp_mismatch:
-  LDA .arg2
-  ADI 22
-  STA .arg2
-  JMP dp_entry
+  
 dp_match:
-  LDA .arg2
-  STA .work4
-  LDA .pow2
+  LDA .bss + 1608
   STA .arg1
   JSR skip_spaces
   JSR build_argv
@@ -371,14 +316,7 @@ dp_match:
   LDI .argv_buf
   STA .arg2
   LDA .work4
-  ADI 16
-  PHA
-  LAS
-  STA .bss + 1
-  LDI 19997
-  PHA
-  LDA .bss + 1
-  SAS
+  STA 19997
   JSR #19996
   LDA 19999
   STA 19997 ; reset the call stub entry to the initial (shell)

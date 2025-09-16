@@ -397,39 +397,36 @@ def main():
         verify_module_image(game, json_img, 'rem64')
 
     # Let it boot quickly (CPU cycles, not frame-bound)
-    run_cycles(game, cycles=30000)
+    run_cycles(game, cycles=100000)
     # Enter keyboard mode: on KEYUP(K) and process events
     press_key(game, pygame.K_k)
     run_frames(game, frames=4)
 
     # Try some commands and snapshot after each
-    for cmd in ["LIST", "HELP", "ECHO HELLO", "CLS"]:
+    for cmd in ["LIST", "HELP", "CLS", "ECHO HELLO"]:
         type_string(game, cmd)
         press_enter(game)
         # Process a few frames to consume events
         run_frames(game, frames=6)
         # Then run CPU hard to execute the command
-        run_cycles(game, cycles=80000)
+        if cmd in ["LIST", "HELP"]:
+            run_cycles(game, cycles=300000)
+            press_enter(game)                   # some of these require pressing twice
+            run_cycles(game, cycles=100000)
+        else:
+            run_cycles(game, cycles=80000)
         # Capture and print a few lines of the monitor text buffer for verification
         lines = capture_monitor_text(game, rows=20)
         print(f"--- After: {cmd} ---")
         for ln in lines:
             print(ln)
+        print("\n\n")
 
     # Demonstrate direct subroutine call: DIVIDE (A=res1=quotient, res2=remainder)
     try:
         r = call_subroutine(game, 'divide', arg1=42, arg2=5, json_path=json_img)
         print("--- Subroutine: DIVIDE 42/5 ---")
-        print(f"A={r['A']} res1={r['res1']} res2={r['res2']} cycles={r['cycles']} halted={r['halted']}")
-        type_string(game, "LIST")
-        press_enter(game)
-        # Process a few frames to consume events
-        run_frames(game, frames=6)
-        # Then run CPU hard to execute the command
-        run_cycles(game, cycles=80000)
-        lines = capture_monitor_text(game, rows=20)
-        for ln in lines:
-            print(ln)
+        print(f"A={r['A']} res1={r['res1']} res2={r['res2']}")
     except Exception as e:
         print(f"Subroutine test failed: {e}")
 
@@ -459,7 +456,7 @@ def main():
         check(r['A'] == 6 and r['res1'] == 6, f"gcd 48,18 A={r['A']} res1={r['res1']}")
 
         # mult: 7*9 -> 63
-        r = call_subroutine(game, 'mult', arg1=7, arg2=9, json_path=json_img, reset_after=False)
+        r = call_subroutine(game, 'multiply', arg1=7, arg2=9, json_path=json_img, reset_after=False)
         check(r['A'] == 63 and r['res1'] == 63, f"mult 7*9 A={r['A']} res1={r['res1']}")
 
         # pow: 3^5 -> 243
@@ -561,10 +558,10 @@ def main():
         write_c_string(s1_addr, "HELLO")
         write_c_string(s2_addr, "HELLO")
         r = call_subroutine(game, 'string_compare', arg1=s1_addr, arg2=s2_addr, json_path=json_img, reset_after=False)
-        check(r['res1'] == 1, f"strcmp HELLO==HELLO res1={r['res1']}")
+        check(r['res1'] == 1, f"strsing_compare HELLO==HELLO res1={r['res1']}")
         write_c_string(s2_addr, "WORLD")
         r = call_subroutine(game, 'string_compare', arg1=s1_addr, arg2=s2_addr, json_path=json_img, reset_after=False)
-        check(r['res1'] == 0, f"strcmp HELLO!=WORLD res1={r['res1']}")
+        check(r['res1'] == 0, f"string_compare HELLO!=WORLD res1={r['res1']}")
 
         # get_mnemonic: lookups
         def test_getmnen(text, expect):

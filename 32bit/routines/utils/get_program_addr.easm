@@ -1,0 +1,48 @@
+;! name: GETPROGADDR
+;! entry: get_program_address
+;! deps: string_compare
+;! abi: os
+;! bss: auto
+;! align: 4
+
+
+; --- Get the address of a program from the program table, based on its name ---
+; --- Pointer to name as input in .arg1, result is a number in .res1, null if not found ---
+
+
+get_program_address:
+  LDA .arg1
+  STA .bss
+  LDI 0
+  STA .bss + 1          ; current location in prog_table
+compare_loop:
+  LDI .prog_table
+  ADD .bss + 1
+  STA .arg1             ; store in arg1 to use in string_compare later
+  PHA                   ; push memory address to stack
+  LAS                   ; load value at memory address
+  CPI 0                 ; if the name starts with null, we reached the end of the program table
+  JPZ no_match
+  LDA .bss
+  STA .arg2             ; store input string in arg2
+  JSR @string_compare
+                        ; result is in res1 and in A register
+  CPI 1
+  JPZ match
+  ; -- no match --
+  LDA .bss + 1
+  ADI 22                ; forward by 22
+  STA .bss + 1
+  JMP compare_loop
+match:
+  LDI .prog_table
+  ADD .bss + 1          ; location of string in program table
+  ADI 16                ; location of base in program table
+  PHA
+  LAS                   ; get stored base from the pointer
+  STA .res1
+  RET
+no_match:
+  LDI 0
+  STA .res1
+  RET
