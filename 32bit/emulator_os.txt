@@ -1,3 +1,6 @@
+
+; keep abi_vars in sync with compile_routines.py and get_os_abi_var.easm
+
 char = 2000                 ; variable for printing
 textloc = 2001              ; location of next textline to print
 arg1 = 2002                 ; argument 1 for subroutines

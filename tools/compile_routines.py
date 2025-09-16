@@ -153,6 +153,7 @@ def assemble_dynamic_module(src_path: str,
     base = headers.get("base")
 
     # Inject OS ABI if requested
+    # keep in sync with emulator_os.txt and get_os_abi_var.easm
     lines = []
     if abi == "os":
         lines += [

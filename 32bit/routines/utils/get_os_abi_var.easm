@@ -1,22 +1,23 @@
-;! name: GETMNEMONICN
-;! entry: get_mnemonic
-;! deps: string_compare, parse_number, buffer_to_separator
+;! name: OSABI
+;! entry: get_os_abi_var
+;! deps: string_compare, parse_number, buffer_to_separator, echon
 ;! abi: os
 ;! bss: auto
 ;! align: 4
 
 .separator = ","
-.mnemonics = "LDA,1,ADD,2,SUB,3,STA,4,LDI,5,JMP,6,JPC,7,JPZ,8,KEI,9,ADI,10,SUI,11,CMP,12,PHA,13,PLA,14,LDS,15,JSR,16,RET,17,SAS,18,LAS,19,LDB,20,CPI,21,RSA,22,LSA,23,DIS,24,DIC,25,LDD,26,OUT,254,HLT,255"
+; keep abi_vars in sync with compile_routines.py and emulator_os.txt
+.abi_vars = "CHAR,2000,TEXTLOC,2001,ARG1,2002,ARG2,2003,RES1,2004,RES2,2005,RES3,2014,POW2,2006,NUM-DIGITS,2007,ASCII-START,2008,NO-INPUT,2009,WORK1,2010,WORK2,2011,WORK3,2012,WORK4,2013,INPUT-BUF,2122,INPUT-PTR,2202,CMD-LEN,2203,CMD-READY,2204,ARGV-BASE,2400,ARGV-BUF,2500,RANDOM-SEED,2600,INC-RANDOM-SEED,2601,BITS-AVAIL,2602,PROG-TABLE,3000"
 
 ; bss       : pointer to input string
-; bss + 1   : current position in mnemonics string
+; bss + 1   : current position in abi vars string
 
-; --- Compare the string pointed to by .arg1 to assembly mnemonics and return (in res1) the corresponding instruction value, if it exists (otherwise null) ---
+; --- Compare the string pointed to by .arg1 to OS ABI variables and return (in res1) the corresponding memory location, if it exists (otherwise null) ---
 
-get_mnemonic:
+get_os_abi_var:
   LDA .arg1           ; .arg1 holds the pointer to the input string
   STA .bss
-  LDI .mnemonics      ; store current position of mnemonics string in bss + 1
+  LDI .abi_vars       ; store current position of abi var string in bss + 1
   STA .bss + 1
 compare:
   JSR buf_to_sep
@@ -51,15 +52,19 @@ end_no_match:
 buf_to_sep:          
   LDA .separator                ; Set separator byte (dereference first char of .separator)
   STA .arg2
-  LDA .bss + 1                  ; Start from current pointer into mnemonics string
+  LDA .bss + 1                  ; Start from current pointer into abi var string
   STA .arg1                     ; Buffer token up to separator. Pointer to buffered string in res1; length -> .res2
   JSR @buffer_to_separator
+  LDA .res2
+  CPI 0                         ; compare with 0
+  JPZ bts_done                  ; jump to end if so
   LDA .bss + 1
   ADD .res2                     ; Advance current pointer by token length
   STA .bss + 1
   LDA .bss + 1                  ; If current char is the separator, skip it as well; if null, do not
   PHA
   LAS
+  ; Check if the current character is the separator
   CMP .arg2
   JPZ bts_skip_sep
   JMP bts_done
