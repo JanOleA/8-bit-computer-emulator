@@ -7,16 +7,11 @@
 
 peek:
   ; argc at [argv_base]
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 0
   JPZ pk_end
   ; load argv[0] pointer at [argv_base+1]
-  LDI .argv_base
-  ADI 1
-  PHA
-  LAS
+  LDA .argv_base + 1
   STA .res2        ; res2 = pointer to string
   ; parse number in res2 -> res1
   LDI 0

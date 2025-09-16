@@ -1,0 +1,95 @@
+;! name: CAT
+;! entry: cat
+;! deps: write_char, newline, parse_number
+;! abi: os
+;! bss: auto
+;! align: 4
+
+; --- Print the contents of memory as text, until first null terminator. \ (ASCII 92) works as escape character. ---
+; -- escape characters overview
+; \n            - newline
+; \\            - \
+
+; if an argument is provided, interpret it as initial memory address
+; if not, use value in .arg1 as initial memory address
+
+; bss + 0   : escape mode
+; bss + 1   : chars printed on current line
+
+screen_width = 40      ; screen width in characters
+
+cat:
+  LDI 0
+  STA .bss + 0
+  STA .bss + 1
+  LDA .argv_base
+  CPI 0
+  JPZ print_loop
+  LDA .argv_base + 1
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .arg1
+print_loop:
+  LDA .arg1
+  PHA
+  LAS
+  STA .char
+  CPI 0
+  JPZ end
+  LDA .bss      ; check if we are in escape mode
+  CPI 1
+  JPZ escape_char
+  LDA .char
+  CPI 92
+  JPZ set_escape
+  JSR write_char_wrapper
+  JMP advance
+  
+set_escape:
+  LDI 1
+  STA .bss
+  JMP advance
+
+escape_char:            ; -- handle escape characters
+  LDI 0
+  STA .bss              ; reset escape mode
+  LDA .char
+  CPI 92                ; \, print it
+  JPZ escape_backslash
+  CPI 78                ; N, newline
+  JPZ escape_newline
+  ; -- no known escape, just print the character
+escape_backslash:           ; same for backslash
+  JSR write_char_wrapper
+  JMP advance
+escape_newline:
+  LDI 0
+  STA .bss + 1
+  JSR @newline
+advance:                ; -- advance the pointer by one, also makes a newline if we have printed >= screen_width number of characters, jump to start of loop
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  LDA .bss + 1
+  OUT
+  CPI .screen_width     ; if printed characters >= screen width, make a new line
+  JPC newline_helper
+  JMP print_loop
+
+newline_helper:         ; -- write a newline, but also set the characters printed on current line to 0
+  LDI 0
+  STA .bss + 1
+  JSR @newline
+  JMP print_loop
+
+write_char_wrapper:     ; -- Subroutine. Write character (in .char) and increment characters printed on current line
+  JSR @write_char
+  LDA .bss + 1
+  ADI 1
+  STA .bss + 1
+  RET
+
+end:
+  JSR @newline
+  RET

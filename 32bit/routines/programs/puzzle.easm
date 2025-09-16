@@ -51,15 +51,9 @@ its_prime:
   JSR @add_square64
   ; (sum of squares) % (#primes) == 0 ?
   ; remainder = (sum_hi:sum_lo) % num_primes
-  LDI .bss
-  ADI 8
-  PHA
-  LAS
+  LDA .bss + 8
   STA .arg1              ; lo
-  LDI .bss
-  ADI 9
-  PHA
-  LAS
+  LDA .bss + 9
   STA .arg2              ; hi
   LDA .bss + 6
   STA .res1              ; mod = num_primes

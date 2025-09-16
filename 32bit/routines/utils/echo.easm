@@ -7,9 +7,7 @@
 
 start:
   ; argc = [argv_base]
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   STA .work1           ; remaining args = argc
   ; if argc == 0 → just newline
   CPI 0

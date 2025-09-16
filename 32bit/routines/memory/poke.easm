@@ -7,18 +7,13 @@
 
 poke:
   ; argc >= 2?
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 2
   JPC pk_ok
   RET
 pk_ok:
   ; parse address from argv[0] -> res1
-  LDI .argv_base
-  ADI 1
-  PHA
-  LAS
+  LDA .argv_base + 1
   STA .res2
   LDI 0
   STA .res1
@@ -48,10 +43,7 @@ pk_paddr:
   JMP pk_paddr
 pk_paddr_done:
   ; parse value from argv[1] -> arg1
-  LDI .argv_base
-  ADI 2
-  PHA
-  LAS
+  LDA .argv_base + 2
   STA .res2
   LDI 0
   STA .arg1

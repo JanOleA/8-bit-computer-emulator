@@ -20,19 +20,14 @@ addr  = .bss          ; current address pointer
 
 main:
   ; argc at [argv_base]
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 2               ; need at least 2 args
   JPZ dmp_go
   RET
 
 dmp_go:
   ; parse first arg -> addr
-  LDI .argv_base
-  ADI 1
-  PHA
-  LAS
+  LDA .argv_base + 1
   STA .res2           ; res2 = pointer to string
   LDI 0
   STA .res1
@@ -65,10 +60,7 @@ dmp_pn1_done:
   STA .addr
 
   ; parse second arg -> lenv
-  LDI .argv_base
-  ADI 2
-  PHA
-  LAS
+  LDA .argv_base + 2
   STA .res2           ; res2 = pointer to string
   LDI 0
   STA .res1

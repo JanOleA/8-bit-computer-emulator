@@ -7,19 +7,14 @@
 
 main:
   ; require at least 1 argument
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 1
   JPZ test_go
   RET
 
 test_go:
   ; first arg -> string to compare
-  LDI .argv_base
-  ADI 1
-  PHA
-  LAS
+  LDA .argv_base + 1
   STA .arg1
   JSR @get_program_address
   LDA .res1

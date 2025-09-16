@@ -12,19 +12,14 @@
 
 run:
   ; argc must be >= 1
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 1
   JPC rn_have_arg
   RET
 
 rn_have_arg:
   ; parse argv[1] into .res1
-  LDI .argv_base
-  ADI 1
-  PHA
-  LAS
+  LDA .argv_base + 1
   STA .arg1
   JSR @parse_number
 

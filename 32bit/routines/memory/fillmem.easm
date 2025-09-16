@@ -13,36 +13,25 @@
 
 start:
   ; require at least 3 args
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 3
   JPZ cl_go
   RET
 
 cl_go:
-  LDI .argv_base
-  ADI 1
-  PHA
-  LAS
+  LDA .argv_base + 1
   STA .arg1
   JSR @parse_number
   LDA .res1
   STA .bss
 
-  LDI .argv_base
-  ADI 2
-  PHA
-  LAS
+  LDA .argv_base + 2
   STA .arg1
   JSR @parse_number
   LDA .res1
   STA .bss + 1
 
-  LDI .argv_base
-  ADI 3
-  PHA
-  LAS
+  LDA .argv_base + 3
   STA .arg1
   JSR @parse_number
   LDA .res1

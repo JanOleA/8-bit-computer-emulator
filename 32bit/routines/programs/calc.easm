@@ -14,29 +14,21 @@
 
 calc:
   ; require at least 2 args
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 2
   JPC cl_go
   RET
 
 cl_go:
   ; parse first number -> work1
-  LDI .argv_base
-  ADI 1
-  PHA
-  LAS
+  LDA .argv_base + 1
   STA .arg1           ; arg1 = pointer to first number string
   JSR @parse_number
   LDA .res1
   STA .work1
 
   ; read operator char -> .char
-  LDI .argv_base
-  ADI 2
-  PHA
-  LAS
+  LDA .argv_base + 2
   STA .work2          ; pointer to operator token
   LDA .work2
   PHA
@@ -44,19 +36,14 @@ cl_go:
   STA .char
 
   ; check if we have three arguments
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 3
   JPZ get_second_num
   LDA .char
   JMP check_sqrt        ; if we don't have three numbers, immediately if we're trying to do a square root, skip other operators
 get_second_num:
   ; parse second number -> work2
-  LDI .argv_base
-  ADI 3
-  PHA
-  LAS
+  LDA .argv_base + 3
   STA .arg1           ; arg1 = pointer to second number string
   JSR @parse_number
   LDA .res1

@@ -118,15 +118,8 @@ check_input:
 pass_increase:
   KEI
   PHA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  CPI 1
-  JPZ input_entered
+  CPI 128
+  JPC input_entered     ; handle input if keyboard register is >= 128, since the 128 bit is signal bit
   PLA
   LDI 0
   STA .bss + 1
@@ -366,9 +359,7 @@ ba_skip1:
   STA .work3
   JMP ba_next_token
 ba_start:
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   CPI 8
   JPZ ba_done
   LDA .work1
@@ -403,9 +394,7 @@ ba_term:
   LDA .work2
   ADI 1
   STA .work2
-  LDI .argv_base
-  PHA
-  LAS
+  LDA .argv_base
   ADI 1
   STA .num_digits
   LDI .argv_base
