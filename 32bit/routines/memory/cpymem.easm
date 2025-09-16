@@ -12,11 +12,17 @@
 ;   bss + 2 = len
 
 start:
-  ; require at least 3 args
+  ; take three arguments. If less are given, use numbers in arg1, arg2 and num_digits (src, dst, len)
   LDA .argv_base
   CPI 3
   JPZ cl_go
-  RET
+  LDA .arg1
+  STA .bss
+  LDA .arg2
+  STA .bss + 1
+  LDA .num_digits
+  STA .bss + 2
+  JMP cpy
 
 cl_go:
   LDA .argv_base + 1
