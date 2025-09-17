@@ -344,8 +344,6 @@ class Game_32(Game):
         super().loop()
 
     def render(self):
-        print("\n"*50)
-        print(self.computer.memory[30000:30100])
         self._screen.blit(self._bg, (0,0))
 
         """ Draw LED displays """
