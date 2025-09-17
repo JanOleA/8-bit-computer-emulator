@@ -1,6 +1,6 @@
 ;! name: CAT
 ;! entry: cat
-;! deps: write_char, newline, parse_number
+;! deps: write_char, newline, parse_number, skip_line
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -13,6 +13,8 @@
 
 ; if an argument is provided, interpret it as initial memory address
 ; if not, use value in .arg1 as initial memory address and .arg2 as max lines (0 = all)
+; .res1 on input is whether to truncate lines (1=truncate, else=wrap)
+; 
 ; -- .res1 = number of characters that were printed. .res2 = number of newlines that were printed --
 
 ; bss + 0   : escape mode
@@ -20,6 +22,7 @@
 ; bss + 2   : total number of printed characters
 : bss + 3   : number of printed newlines
 : bss + 4   : max lines
+: bss + 5   : If 1 truncate lines, else wrap
 
 screen_width = 40      ; screen width in characters
 
@@ -32,14 +35,20 @@ cat:
   STA .bss + 3          ; there will always be at least one newline (end of program)
   LDA .argv_base
   CPI 0
-  JPZ print_loop
-  LDI 0
-  STA .arg2
+  JPZ print_init
   LDA .argv_base + 1
   STA .arg1
   JSR @parse_number
   LDA .res1
   STA .arg1
+  LDI 0
+  STA .arg2
+  STA .res1
+print_init:
+  LDA .res1
+  STA .bss + 5
+  LDA .arg2
+  STA .bss + 4
 print_loop:
   LDA .arg1
   PHA
@@ -82,11 +91,11 @@ escape_newline:
   LDA .bss + 3
   ADI 1                 ; increment number of newlines printed
   STA .bss + 3
-  CMP .arg2
+  CMP .bss + 4
   JPC check_max_lines
   JMP pass_check_max_lines
 check_max_lines:
-  LDA .arg2
+  LDA .bss + 4
   CPI 0
   JPZ pass_check_max_lines
   JMP end
@@ -98,9 +107,15 @@ advance:                ; -- advance the pointer by one, also makes a newline if
   STA .arg1
   LDA .bss + 1
   CPI .screen_width     ; if printed characters >= screen width, make a new line
-  JPC newline_helper
+  JPC wrap_or_truncate
   JMP print_loop
-
+wrap_or_truncate:
+  LDA .bss + 5
+  CPI 1
+  JPZ truncate
+  JMP newline_helper
+truncate:
+  JSR @skip_line  
 newline_helper:         ; -- write a newline, but also set the characters printed on current line to 0
   LDI 0
   STA .bss + 1

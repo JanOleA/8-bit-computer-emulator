@@ -1,0 +1,63 @@
+;! name: SKIPLINE
+;! entry: skip_line
+;! deps:
+;! abi: os
+;! bss: none
+;! align: 4
+
+skip_line:
+  ; -- Subroutine. Starts at .arg1, increments until \n, 0x0A, or null. Returns location of next line, or of the first null, in .arg1 and A --
+  ; -- .res1 has number of characters without the break character(s). .res2 includes the break character(s) in the count --
+  LDI 0
+  STA .res1
+  STA .res2
+sl_loop:
+  LDA .arg1
+  PHA
+  LAS
+  CPI 0
+  JPZ sl_end        ; end immediately on null
+  CPI 92            ; backslash
+  JPZ sl_backslash
+  CPI 10            ; 0x0A
+  JPZ sl_newline_literal
+  LDA .arg1         ; if not backslash, increment and continue loop
+  ADI 1
+  STA .arg1
+  LDA .res1
+  ADI 1
+  STA .res1
+  STA .res2
+  JMP sl_loop
+sl_backslash:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 78            ; N
+  JPZ sl_newline
+  LDA .arg1
+  ADI 2             ; not a newline, add two to skip both the backslash and escape character, then continue loop
+  STA .arg1
+  LDA .res1
+  ADI 2             ; also increment number of bytes in the count
+  STA .res1
+  STA .res2
+  JMP sl_loop
+sl_newline:                 ; skipping two if we have \n
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  LDA .res2
+  ADI 1
+  STA .res2
+sl_newline_literal:         ; skipping one if we have 0x0A. Handles the second skip for sl_newline
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  LDA .res2
+  ADI 1
+  STA .res2
+sl_end:
+  LDA .arg1
+  RET
