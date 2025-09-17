@@ -104,8 +104,6 @@ no_input:
 handle_left:
   LDI 1
   STA .no_input
-  DIS 24
-  JSR @toggle_display_enable
   JMP main_loop
 
 check_input:

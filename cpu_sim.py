@@ -116,8 +116,8 @@ class Computer:
         """ All operations begin with CO|MI -> RO|IAI|CE """
         self.assembly[0b00000000] = [ORE] # NOP, 0
         self.assembly[0b00000001] = [CO|MI,         RO|MI|CE,       RO|AI|ORE]                                              # LDA   1       load into A from mem
-        self.assembly[0b00000010] = [CO|MI,         RO|MI|CE,       RO|BI,              EO|AI|FI|ORE]                       # ADD   2       add to A
-        self.assembly[0b00000011] = [CO|MI,         RO|MI|CE,       RO|BI,              EO|AI|FI|SU|ORE]                    # SUB   3       subtract from A
+        self.assembly[0b00000010] = [CO|MI,         RO|MI|CE,       RO|BI,              EO|AI|FI|ORE]                       # ADD   2       add to A (value in memory)
+        self.assembly[0b00000011] = [CO|MI,         RO|MI|CE,       RO|BI,              EO|AI|FI|SU|ORE]                    # SUB   3       subtract from A (value in memory)
         self.assembly[0b00000100] = [CO|MI,         RO|MI|CE,       AO|RI|ORE]                                              # STA   4       store A to mem
         self.assembly[0b00000101] = [CO|MI,         RO|AI|CE|ORE]                                                           # LDI   5       load immediate (into A)
         self.assembly[0b00000110] = [CO|MI,         RO|JMP|CE|ORE]                                                          # JMP   6       jump

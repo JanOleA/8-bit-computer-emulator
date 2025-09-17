@@ -63,21 +63,27 @@ osinfo:
   JSR @newline
   LDI .installed_progs_text_2
   JSR print_no_newline
-  LDA .bss + 3
-  STA .arg1
-  JSR @display_number
+  LDA .bss + 3                    ; words used for programs
+  STA .bss + 10
+  LDA .bss + 7
+  STA .bss + 11
+  JSR print_decimal
   JSR @newline
   LDI .bss_text
   JSR print_no_newline
-  LDA .bss + 4
-  STA .arg1
-  JSR @display_number
+  LDA .bss + 4                    ; words used for bss
+  STA .bss + 10
+  LDA .bss + 8
+  STA .bss + 11
+  JSR print_decimal
   JSR @newline
   LDI .data_text
   JSR print_no_newline
-  LDA .bss + 5
-  STA .arg1
-  JSR @display_number
+  LDA .bss + 5                    ; words used for data
+  STA .bss + 10
+  LDA .bss + 9
+  STA .bss + 11
+  JSR print_decimal
   JSR @newline
   LDI .help_text
   JSR print_newline
@@ -89,6 +95,18 @@ osinfo:
   JSR @newline
   RET
 
+print_decimal:  ; -- print a decimal number, bss + 10 = before decimal, bss + 11 = after decimal --
+  LDA .bss + 10
+  STA .arg1
+  JSR @display_number
+  LDI 46
+  STA .char
+  JSR @write_char
+  LDA .bss + 11
+  STA .arg1
+  JSR @display_number
+  RET
+
 get_num_progs:
   LDI 0
   STA .bss + 1  ; word step from .prog_table
@@ -96,6 +114,9 @@ get_num_progs:
   STA .bss + 3  ; words used for programs
   STA .bss + 4  ; words used for BSS
   STA .bss + 5  ; words used for data
+  STA .bss + 7  ; decimal for words used for programs
+  STA .bss + 8  ; decimal for words used for BSS
+  STA .bss + 9  ; decimal for words used for data
 check_prog_loop:
   LDI .prog_table
   ADD .bss + 1
@@ -146,6 +167,12 @@ get_n_progs_end:
   STA .arg2
   JSR @divide
   STA .bss + 3        ; result from divide is stored in A reg
+  LDA .res2           ; get remainder
+  STA .arg1
+  LDI 10
+  STA .arg2
+  JSR @divide
+  STA .bss + 7        ; store value after decimal
 
   LDA .bss + 4
   STA .arg1
@@ -153,6 +180,12 @@ get_n_progs_end:
   STA .arg2
   JSR @divide 
   STA .bss + 4        ; result from divide is stored in A reg
+  LDA .res2           ; get remainder
+  STA .arg1
+  LDI 10
+  STA .arg2
+  JSR @divide
+  STA .bss + 8        ; store value after decimal
 
   LDA .bss + 5
   STA .arg1
@@ -160,6 +193,12 @@ get_n_progs_end:
   STA .arg2
   JSR @divide
   STA .bss + 5        ; result from divide is stored in A reg
+  LDA .res2           ; get remainder
+  STA .arg1
+  LDI 10
+  STA .arg2
+  JSR @divide
+  STA .bss + 9        ; store value after decimal
 
   RET
 
