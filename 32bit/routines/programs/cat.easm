@@ -108,14 +108,18 @@ advance:                ; -- advance the pointer by one, also makes a newline if
   LDA .bss + 1
   CPI .screen_width     ; if printed characters >= screen width, make a new line
   JPC wrap_or_truncate
-  JMP print_loop
+  JMP print_loop        ; continue main loop if line not full
 wrap_or_truncate:
   LDA .bss + 5
   CPI 1
   JPZ truncate
   JMP newline_helper
 truncate:
-  JSR @skip_line  
+  JSR @skip_line
+  LDA .res1
+  ADD .bss + 2
+  STA .bss + 2
+  JMP escape_newline
 newline_helper:         ; -- write a newline, but also set the characters printed on current line to 0
   LDI 0
   STA .bss + 1

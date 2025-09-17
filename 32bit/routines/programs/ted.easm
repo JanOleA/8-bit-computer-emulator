@@ -27,6 +27,10 @@ screen_height = 20
 .mode_text = "Mode: "
 .wc_text = "  wc="
 .lc_text = "  lc="
+.mode0_text = "insert"
+.mode1_text = "command"
+.compiling_text = "Compiling to mem["
+.compiling_text_2 = ":]"
 
 ted_start:
   LDA .argv_base
@@ -42,6 +46,10 @@ ted_go:
   STA .bss + 5
   STA .bss + 6
   STA .bss + 7
+  STA .bss + 8
+  STA .bss + 9
+  LDI 1
+  STA .bss + 12         ; initialize this as 1, so we don't get spurious inputs on startup
   LDA .argv_base + 1
   STA .arg1
   JSR @parse_number
@@ -60,6 +68,12 @@ main_loop:
   LDI 1
   STA .bss + 12             ; set no_input toggle
   LDA .bss + 11
+  CPI 44
+  JPZ handle_ctrl
+  LDA .bss + 9
+  CPI 1
+  JPZ command_handling
+  LDA .bss + 11
   CPI 42
   JPZ handle_up
   CPI 53
@@ -74,8 +88,6 @@ main_loop:
   JPZ handle_enter
   CPI 43
   JPZ handle_backspace
-  CPI 44
-  JPZ handle_ctrl
   ; -- insert ascii --
   ADD .ascii_start
   PHA
@@ -99,12 +111,48 @@ refresh_screen:
   JMP main_loop
   RET
 
+command_handling:
+  LDA .bss + 11
+  CPI 11                    ; Q
+  JPZ exit
+  CPI 35                    ; C
+  JPZ compile
+  JMP main_loop
+
 set_no_input:
   LDI 0
   STA .bss + 12
   JMP main_loop
 
 handle_ctrl:
+  LDI 1
+  STA .res1
+  LDA .bss + 9
+  CPI 0
+  JPZ set_mode_1
+set_mode_0:
+  LDI 0
+  STA .bss + 9
+  JMP post_key_input
+set_mode_1:
+  LDI 1
+  STA .bss + 9
+  JMP post_key_input
+
+compile:
+  JSR clear_display
+  LDI .compiling_text
+  JSR print_no_newline
+  LDA .bss + 0
+  ADD .bss + 2
+  ADI 2
+  STA .arg1
+  JSR @display_number
+  LDI .compiling_text_2
+  JSR print_newline
+  RET
+
+exit:
   JSR clear_display
   RET
 
@@ -446,8 +494,16 @@ end_bottom_row_loop:
   LDI .mode_text
   JSR print_no_newline
   LDA .bss + 9
-  STA .arg1
-  JSR @display_number
+  CPI 0
+  JPZ print_mode0_text
+print_mode1_text:
+  LDI .mode1_text
+  JSR print_no_newline
+  JMP end_mode_text
+print_mode0_text:
+  LDI .mode0_text
+  JSR print_no_newline
+end_mode_text:
   LDI .wc_text
   JSR print_no_newline
   LDA .bss + 2
@@ -592,6 +648,8 @@ count_lines:
   STA .bss + 2
   STA .bss + 3
   STA .bss + 5
+  STA .work1           ; last line had newline flag
+  STA .work2           ; last line had characters flag
 cl_loop:
   LDA .bss + 0
   ADD .bss + 5
@@ -600,15 +658,49 @@ cl_loop:
   LDA .res2
   CPI 0
   JPZ count_end
+  LDI 0
+  STA .work1
+  STA .work2
+  LDA .res2
+  STA .work3
+  LDA .res1
+  STA .work4
+  LDA .work3
+  SUB .work4
+  CPI 0
+  JPZ cl_no_newline_flag
+  LDI 1
+  STA .work1
+cl_no_newline_flag:
+  LDA .work4
+  CPI 0
+  JPZ cl_no_chars_flag
+  LDI 1
+  STA .work2
+cl_no_chars_flag:
   LDA .bss + 3
   ADI 1             ; increase line count
   STA .bss + 3
   LDA .bss + 2
-  ADD .res2         ; add current number of bytes to bss + 2
+  ADD .work3        ; add current number of bytes to bss + 2
   STA .bss + 2
   STA .bss + 5      ; pointer will be the same as text length while we are counting
   JMP cl_loop  
 count_end:
+  LDA .work1
+  CPI 1
+  JPZ cl_maybe_add_blank
+  JMP cl_finish
+cl_maybe_add_blank:
+  LDA .work2
+  CPI 1
+  JPZ cl_add_blank
+  JMP cl_finish
+cl_add_blank:
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+cl_finish:
   RET
 
 ; -- print helpers, null terminated. Pointer to text must be in A register --
