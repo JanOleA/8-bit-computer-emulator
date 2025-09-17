@@ -6,6 +6,8 @@
 ;! align: 4
 
 ; Input buffering and history
+; bss + 0 = keyboard input value
+; bss + 1 = keyboard input entered
 ; bss + 2 = hist_head
 ; bss + 3 = hist_count
 ; bss + 4 = hist_pos

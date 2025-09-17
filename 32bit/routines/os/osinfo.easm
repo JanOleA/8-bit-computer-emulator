@@ -108,15 +108,21 @@ print_decimal:  ; -- print a decimal number, bss + 10 = before decimal, bss + 11
   RET
 
 get_num_progs:
+  LDI .prog_table
+  ADI 16
+  PHA
+  LAS
+  STA .bss + 10 ; base of first program
   LDI 0
   STA .bss + 1  ; word step from .prog_table
   STA .bss + 2  ; program count
-  STA .bss + 3  ; words used for programs
+  STA .bss + 3  ; size of the final program in the table
   STA .bss + 4  ; words used for BSS
   STA .bss + 5  ; words used for data
   STA .bss + 7  ; decimal for words used for programs
   STA .bss + 8  ; decimal for words used for BSS
   STA .bss + 9  ; decimal for words used for data
+  STA .bss + 11 ; base of final program
 check_prog_loop:
   LDI .prog_table
   ADD .bss + 1
@@ -129,16 +135,23 @@ check_prog_loop:
   STA .bss + 2        ; increment program count by 1
 
   LDA .bss + 1
-  ADI 17              ; increment word step by 17
+  ADI 16              ; increment word step by 16
+  STA .bss + 1
+  ADI .prog_table
+  PHA
+  LAS                 ; get base for this program
+  STA .bss + 11
+
+  LDA .bss + 1
+  ADI 1               ; increment word step by 17 (17 total)
   STA .bss + 1
   ADI .prog_table
   PHA
   LAS                 ; get words used for this program
-  ADD .bss + 3        ; add current sum
-  STA .bss + 3        ; store it again
+  STA .bss + 3        ; store it
 
   LDA .bss + 1
-  ADI 2              ; increment word step by 2 (19 total)
+  ADI 2               ; increment word step by 2 (19 total)
   STA .bss + 1
   ADI .prog_table
   PHA
@@ -162,7 +175,9 @@ check_prog_loop:
 
   JMP check_prog_loop
 get_n_progs_end:
-  LDA .bss + 3
+  LDA .bss + 11       ; base of final program
+  ADD .bss + 3        ; size of final program
+  SUB .bss + 10       ; base of first program
   STA .arg1
   LDI 1000
   STA .arg2

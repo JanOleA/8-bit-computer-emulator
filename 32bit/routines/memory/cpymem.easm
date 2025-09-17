@@ -1,5 +1,5 @@
 ;! name: CPYMEM
-;! entry: start
+;! entry: copy_mem
 ;! deps: display_number, parse_number
 ;! abi: os
 ;! bss: auto
@@ -11,7 +11,7 @@
 ;   bss + 1 = dst
 ;   bss + 2 = len
 
-start:
+copy_mem:
   ; take three arguments. If less are given, use numbers in arg1, arg2 and num_digits (src, dst, len)
   LDA .argv_base
   CPI 3

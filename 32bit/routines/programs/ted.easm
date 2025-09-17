@@ -1,0 +1,459 @@
+;! name: TED
+;! entry: ted_start
+;! deps: cat, parse_number, display_number, newline, toggle_display_enable, copy_mem
+;! abi: os
+;! bss: auto
+;! align: 4
+
+; --- Text EDitor. First argument is memory address of start of text file. ---
+
+; bss + 0       : Text file start
+; bss + 1       : Cursor position in text file (calculated from cursor Y and cursor X)
+; bss + 2       : Current length of text file (includes break and escape characters)
+; bss + 3       : number of lines in text file
+; bss + 4       : lines to skip before starting to draw content
+; bss + 5       : read pointer from start of text
+; bss + 6       : cursor Y, line we are editing from the top of current on-screen text
+; bss + 7       : cursor X, position in current line we are editing
+; bss + 8       : length of text on the current line we are editing
+; bss + 9       : mode
+; bss + 10      : input entered
+; bss + 11      : entered value
+; bss + 12      : no input
+
+screen_width = 40
+screen_height = 20
+
+.mode_text = "Mode: "
+.wc_text = "  wc="
+.lc_text = "  lc="
+
+ted_start:
+  LDA .argv_base
+  CPI 1
+  JPC ted_go
+  RET
+
+ted_go:
+  LDI 0
+  STA .argv_base        ; reset argv_base so CAT can use .arg1 later
+  STA .bss + 1
+  STA .bss + 4
+  STA .bss + 5
+  STA .bss + 6
+  STA .bss + 7
+  LDA .argv_base + 1
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .bss + 0
+  JSR count_lines
+  JSR update_display
+main_loop:
+  JSR check_input
+  LDA .bss + 10
+  CPI 0
+  JPZ set_no_input
+  LDA .bss + 12
+  CPI 1
+  JPZ main_loop             ; if the key hasn't been released yet
+  LDI 1
+  STA .bss + 12             ; set no_input toggle
+  LDA .bss + 11
+  CPI 42
+  JPZ handle_up
+  CPI 53
+  JPZ handle_down
+  CPI 52
+  JPZ handle_left
+  CPI 54
+  JPZ handle_right
+  CPI 31
+  JPZ handle_enter
+  CPI 32
+  JPZ handle_enter
+  CPI 43
+  JPZ handle_backspace
+  CPI 44
+  JPZ handle_ctrl
+  ; -- insert ascii --
+  ADD .ascii_start
+  OUT
+  PHA
+  LAS
+  STA .char
+  JSR insert_character
+  LDA .bss + 7
+  ADI 1
+  STA .bss + 7
+  LDI 1
+  STA .res1
+post_key_input:
+  LDA .res1
+  CPI 1
+  JPZ refresh_screen
+  JSR move_cursor_pointer   ; if we don't refresh the entire screen, do the cursor logic alone
+  JMP main_loop
+refresh_screen:
+  JSR update_display
+  JMP main_loop
+  RET
+
+set_no_input:
+  LDI 0
+  STA .bss + 12
+  JMP main_loop
+
+handle_ctrl:
+  JSR clear_display
+  RET
+
+handle_enter:
+  LDI 10                  ; newline literal
+  STA .char
+  JSR insert_character
+  JSR count_lines
+  LDI 0
+  STA .bss + 7
+  LDA .bss + 6
+  ADI 1
+  STA .bss + 6
+  LDI 1
+  STA .res1
+  JMP post_key_input
+
+handle_backspace:
+  LDA .bss + 0          ; start of file
+  ADD .bss + 1          ; cursor pointer in text buffer
+  STA .arg1             ; add them to get source
+  SUI 1                 ; subtract one to get destination. TODO: subtract 2 when there is an escape character
+  STA .arg2
+  ; length is len(file) - pointer loc + 1 (add 1 for null terminator)
+  LDA .bss + 2
+  SUB .bss + 1
+  ADI 1
+  STA .num_digits
+  JSR @copy_mem
+  JSR count_lines
+  LDI 1
+  STA .res1
+  LDA .bss + 7
+  CPI 0
+  JPZ post_key_input
+  SUI 1
+  STA .bss + 7
+  JMP post_key_input
+
+insert_character:   ; --- insert character in .char into current location pointed to by cursor buffer pointer
+  LDA .bss + 0          ; start of file
+  ADD .bss + 1          ; cursor pointer in text buffer
+  STA .arg1             ; add them to get source
+  ADI 1
+  STA .arg2             ; destination is one higher
+  ; length is len(file) - pointer loc + 1 (add 1 for null terminator)
+  LDA .bss + 2
+  SUB .bss + 1
+  ADI 1
+  STA .num_digits
+  JSR @copy_mem
+  LDA .bss + 0
+  ADD .bss + 1
+  PHA                   ; push memory location of insert to stack
+  LDA .char
+  SAS                   ; pop memory location from stack to store .char
+  RET
+
+handle_left:
+  LDI 0
+  STA .res1
+  LDA .bss + 7
+  CPI 0
+  JPZ post_key_input
+  SUI 1
+  STA .bss + 7
+  JMP post_key_input
+
+handle_right:
+  LDI 0
+  STA .res1
+  LDA .bss + 7
+  ADI 1
+  STA .bss + 7          ; clamping is handled by move_cursor_pointer
+  JMP post_key_input
+
+handle_up:
+  LDI 0
+  STA .res1
+  LDA .bss + 6
+  CPI 1
+  JPC sub_y
+  LDA .bss + 4                      ; handle shifting buffer up one line if .bss + 4 >= 1
+  CPI 1
+  JPC sub_lineskip
+  JMP post_key_input                ; if both bss+4 and bss+7 are 0, return without doing anything
+sub_lineskip:
+  SUI 1
+  STA .bss + 4
+  LDI 1
+  STA .res1                         ; res1 is 1 -> redraw screen
+  JMP post_key_input
+sub_y:
+  SUI 1
+  STA .bss + 6
+  JMP post_key_input
+
+handle_down:
+  LDI 0
+  STA .res1
+  LDA .bss + 4
+  ADD .bss + 6                      ; line number we are on in the actual file
+  ADI 1
+  CMP .bss + 3                      ; compare to total number in file
+  JPC post_key_input                ; do nothing if we're maxed
+
+  LDI .screen_height - 3
+  CMP .bss + 6
+  JPC add_y_check                   ; if 17 >= Y (aka Y < 18) (assumes screen_height = 20)
+  ; Y >= 19 (assumes screen_height = 20)
+  LDA .bss + 4
+  ADI 1                             ; increment skipped lines
+  STA .bss + 4
+  LDI 1
+  STA .res1
+  JMP post_key_input
+add_y_check:
+  LDA .bss + 3                      ; number of lines in text file
+  SUB .bss + 4                      ; skipped lines
+  ; A = lines from top of screen to end of text
+  CMP .bss + 6
+  JPZ add_y                         ; if num_lines >= Y, allow moving down
+add_y:
+  LDA .bss + 6
+  ADI 1
+  STA .bss + 6
+  JMP post_key_input
+
+update_display:
+  LDI 0
+  STA .bss + 1          ; cursor buffer pointer
+  STA .bss + 5          ; read buffer pointer
+  LDA .bss + 4
+  STA .work1
+  JSR clear_display
+skip_lines_loop:
+  LDA .work1
+  CPI 0
+  JPZ end_skip_lines    ; branch away if skip count is at 0
+  LDA .bss + 0
+  ADD .bss + 5          ; bss[0] + bss[5] = current location
+  STA .arg1
+  JSR skip_line
+  LDA .bss + 5
+  ADD .res2             ; add N-characters that were skipped to pointer
+  STA .bss + 5
+  LDA .work1
+  SUI 1                 ; subtract one from count
+  STA .work1
+  JMP skip_lines_loop
+end_skip_lines:
+  LDA .bss + 5
+  ADD .bss + 0
+  STA .arg1
+  LDI 20
+  STA .arg2
+  JSR @cat
+skip_to_bottom_row_loop:
+  LDA .res2
+  CPI .screen_height - 1
+  JPC end_bottom_row_loop
+  JSR @newline
+  ADI 1
+  STA .res2
+  JMP skip_to_bottom_row_loop
+end_bottom_row_loop:
+  LDI .mode_text
+  JSR print_no_newline
+  LDA .bss + 9
+  STA .arg1
+  JSR @display_number
+  LDI .wc_text
+  JSR print_no_newline
+  LDA .bss + 2
+  STA .arg1
+  JSR @display_number
+  LDI .lc_text
+  JSR print_no_newline
+  LDA .bss + 3
+  STA .arg1
+  JSR @display_number
+move_cursor_pointer:    ; -- move the pointer for where the cursor is in the current text buffer --
+  DIS 2                 ; set cursor to top left
+  JSR @toggle_display_enable
+  LDA .bss + 5
+  STA .bss + 1          ; set cursor pointer to be the same as read buffer
+  LDA .bss + 6
+  STA .work1
+mcp_loop:
+  LDA .work1
+  CPI 0
+  JPZ end_mcp           ; branch away if Y count is at 0
+  LDA .bss + 0
+  ADD .bss + 1          ; cursor position in buffer
+  STA .arg1
+  JSR skip_line
+  LDA .bss + 1
+  ADD .res2             ; add N-characters that were skipped to pointer
+  STA .bss + 1
+  LDA .work1
+  SUI 1                 ; subtract one from count
+  STA .work1
+  DIS 20
+  JSR @toggle_display_enable
+  JMP mcp_loop
+end_mcp:
+  LDA .bss + 0
+  ADD .bss + 1
+  STA .arg1
+  JSR skip_line         ; use skip line to get the length of the line the cursor is on
+  LDA .res1             ; length without break/escape
+  STA .bss + 8
+  CMP .bss + 7          ; if len(line) >= X
+  JPC no_clamp_x        ; skip clamp
+  STA .bss + 7          ; else, clamp to length of line
+no_clamp_x:
+  LDA .bss + 7
+  STA .work1
+  ADD .bss + 1
+  STA .bss + 1          ; move cursor buffer pointer by same x
+mcr_loop:               ; move cursor right loop
+  LDA .work1
+  CPI 0
+  JPZ end_mcr_loop
+  SUI 1
+  STA .work1
+  DIS 17
+  JSR @toggle_display_enable
+  JMP mcr_loop
+end_mcr_loop:
+  RET
+
+check_input:
+  KEI
+  PHA
+  CPI 128
+  JPC input_entered     ; handle input if keyboard register is >= 128, since the 128 bit is signal bit
+  PLA
+  LDI 0
+  STA .bss + 10
+  RET
+input_entered:
+  PLA
+  SUI 128
+  STA .bss + 11
+  LDI 1
+  STA .bss + 10
+  RET
+
+clear_display:
+  DIS 1             ; 0000 0001 - clear display
+  JSR @toggle_display_enable
+  RET
+
+count_lines:
+  LDI 0
+  STA .bss + 2
+  STA .bss + 3
+  STA .bss + 5
+cl_loop:
+  LDA .bss + 0
+  ADD .bss + 5
+  STA .arg1
+  JSR skip_line
+  LDA .res2
+  CPI 0
+  JPZ count_end
+  LDA .bss + 3
+  ADI 1             ; increase line count
+  STA .bss + 3
+  LDA .bss + 2
+  ADD .res2         ; add current number of bytes to bss + 2
+  STA .bss + 2
+  STA .bss + 5      ; pointer will be the same as text length while we are counting
+  JMP cl_loop  
+count_end:
+  RET
+
+skip_line:
+  ; -- Subroutine. Starts at .arg1, increments until \n, 0x0A, or null. Returns location of next line, or of the first null, in .arg1 and A --
+  ; -- .res1 has number of characters without the break character(s). .res2 includes the break character(s) in the count --
+  LDI 0
+  STA .res1
+  STA .res2
+sl_loop:
+  LDA .arg1
+  PHA
+  LAS
+  CPI 0
+  JPZ sl_end        ; end immediately on null
+  CPI 92            ; backslash
+  JPZ sl_backslash
+  CPI 10            ; 0x0A
+  JPZ sl_newline_literal
+  LDA .arg1         ; if not backslash, increment and continue loop
+  ADI 1
+  STA .arg1
+  LDA .res1
+  ADI 1
+  STA .res1
+  STA .res2
+  JMP sl_loop
+sl_backslash:
+  LDA .arg1
+  ADI 1
+  PHA
+  LAS
+  CPI 78            ; N
+  JPZ sl_newline
+  LDA .arg1
+  ADI 2             ; not a newline, add two to skip both the backslash and escape character, then continue loop
+  STA .arg1
+  LDA .res1
+  ADI 2             ; also increment number of bytes in the count
+  STA .res1
+  STA .res2
+  JMP sl_loop
+sl_newline:                 ; skipping two if we have \n
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  LDA .res2
+  ADI 1
+  STA .res2
+sl_newline_literal:         ; skipping one if we have 0x0A. Handles the second skip for sl_newline
+  LDA .arg1
+  ADI 1
+  STA .arg1
+  LDA .res2
+  ADI 1
+  STA .res2
+sl_end:
+  LDA .arg1
+  RET
+
+; -- print helpers, null terminated. Pointer to text must be in A register --
+print_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  STA .arg2
+  JSR @echon
+  RET
+
+print_no_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  LDI 1
+  STA .arg2
+  JSR @echon
+  RET

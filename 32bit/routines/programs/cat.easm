@@ -5,16 +5,21 @@
 ;! bss: auto
 ;! align: 4
 
-; --- Print the contents of memory as text, until first null terminator. \ (ASCII 92) works as escape character. ---
+; --- Print the contents of memory as text, until first null terminator. \ (ASCII 92) as well as certain special values works as escape character. ---
 ; -- escape characters overview
 ; \n            - newline
 ; \\            - \
+; 0x0A (10)     - newline
 
 ; if an argument is provided, interpret it as initial memory address
-; if not, use value in .arg1 as initial memory address
+; if not, use value in .arg1 as initial memory address and .arg2 as max lines (0 = all)
+; -- .res1 = number of characters that were printed. .res2 = number of newlines that were printed --
 
 ; bss + 0   : escape mode
 ; bss + 1   : chars printed on current line
+; bss + 2   : total number of printed characters
+: bss + 3   : number of printed newlines
+: bss + 4   : max lines
 
 screen_width = 40      ; screen width in characters
 
@@ -22,9 +27,14 @@ cat:
   LDI 0
   STA .bss + 0
   STA .bss + 1
+  STA .bss + 2
+  LDI 1
+  STA .bss + 3          ; there will always be at least one newline (end of program)
   LDA .argv_base
   CPI 0
   JPZ print_loop
+  LDI 0
+  STA .arg2
   LDA .argv_base + 1
   STA .arg1
   JSR @parse_number
@@ -37,15 +47,18 @@ print_loop:
   STA .char
   CPI 0
   JPZ end
-  LDA .bss      ; check if we are in escape mode
+  LDA .bss              ; check if we are in escape mode
   CPI 1
   JPZ escape_char
   LDA .char
   CPI 92
   JPZ set_escape
+  LDA .char
+  CPI 10                ; literal newline (0x0A)
+  JPZ escape_newline
   JSR write_char_wrapper
   JMP advance
-  
+
 set_escape:
   LDI 1
   STA .bss
@@ -66,13 +79,24 @@ escape_backslash:           ; same for backslash
 escape_newline:
   LDI 0
   STA .bss + 1
+  LDA .bss + 3
+  ADI 1                 ; increment number of newlines printed
+  STA .bss + 3
+  CMP .arg2
+  JPC check_max_lines
+  JMP pass_check_max_lines
+check_max_lines:
+  LDA .arg2
+  CPI 0
+  JPZ pass_check_max_lines
+  JMP end
+pass_check_max_lines:
   JSR @newline
 advance:                ; -- advance the pointer by one, also makes a newline if we have printed >= screen_width number of characters, jump to start of loop
   LDA .arg1
   ADI 1
   STA .arg1
   LDA .bss + 1
-  OUT
   CPI .screen_width     ; if printed characters >= screen width, make a new line
   JPC newline_helper
   JMP print_loop
@@ -83,13 +107,20 @@ newline_helper:         ; -- write a newline, but also set the characters printe
   JSR @newline
   JMP print_loop
 
-write_char_wrapper:     ; -- Subroutine. Write character (in .char) and increment characters printed on current line
+write_char_wrapper:     ; -- Subroutine. Write character (in .char) and increment characters printed on current line (and total)
   JSR @write_char
   LDA .bss + 1
   ADI 1
   STA .bss + 1
+  LDA .bss + 2
+  ADI 1
+  STA .bss + 2
   RET
 
 end:
+  LDA .bss + 2
+  STA .res1
+  LDA .bss + 3
+  STA .res2
   JSR @newline
   RET

@@ -1,4 +1,12 @@
 {
-  "python.defaultInterpreterPath": "/home/janole/Projects/homedev/bin/python"
+  "python.defaultInterpreterPath": "/var/home/janole/Projects/homedev/bin/python",
+  "python.venvPath": "/var/home/janole/Projects",
+  "python.venvFolders": [
+    "homedev"
+  ],
+  "python.analysis.venvPath": "/var/home/janole/Projects",
+  "python.analysis.venv": "homedev",
+  "python.analysis.extraPaths": [
+    "/var/home/janole/Projects/homedev/lib/python3.13/site-packages"
+  ]
 }
-
