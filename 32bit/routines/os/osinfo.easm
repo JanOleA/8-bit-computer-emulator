@@ -153,10 +153,11 @@ check_prog_loop:
   PHA
   LAS                 ; get data words reserved for this program
   ADD .bss + 5        ; add current sum
+  ADI 8               ; add 8 to compensate for the average gap between data regions
   STA .bss + 5        ; store it again
 
   LDA .bss + 1
-  ADI 1              ; increment word step by 1 (22 total)
+  ADI 1               ; increment word step by 1 (22 total)
   STA .bss + 1
 
   JMP check_prog_loop

@@ -220,7 +220,7 @@ def assemble_dynamic_module(src_path: str,
         return max_off + 1
 
     bss_required = _scan_bss_required(raw_lines)
-    default_bss_size = 1
+    default_bss_size = 2
     if bss == "auto":
         bss_base = ((bss_auto_start + bss_align - 1) // bss_align) * bss_align
         bss_size = max(default_bss_size, bss_required)
@@ -367,7 +367,7 @@ def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> boo
             except Exception:
                 pass
             break
-    # Patch CALL_STUB operand (CALL_STUB+1) to ESH base, if present
+    # Patch CALL_STUB operand (CALL_STUB+1) and (CALL_STUB+3) to ESH base, if present
     # Prefer an explicit module named 'esh'. Do NOT heuristically use entry=='start',
     # because many modules use 'start' and that can mispatch the boot target.
     shell_base = None
@@ -380,6 +380,8 @@ def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> boo
             s = ln.replace(" ", "")
             if s.startswith(f"{call_stub_base+1}="):
                 new_text[i] = f"{call_stub_base+1} = {shell_base}"
+            if s.startswith(f"{call_stub_base+3}="):
+                new_text[i] = f"{call_stub_base+3} = {shell_base}"
 
     # Fill OS API vector with label addresses (simple first pass label indexer)
     # Build label->address mapping based on assembled instruction layout
