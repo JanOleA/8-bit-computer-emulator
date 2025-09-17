@@ -78,7 +78,6 @@ main_loop:
   JPZ handle_ctrl
   ; -- insert ascii --
   ADD .ascii_start
-  OUT
   PHA
   LAS
   STA .char
@@ -149,19 +148,82 @@ handle_backspace:
   LDA .bss + 1          ; cursor pointer in text buffer
   CPI 0
   JPZ post_key_input
-  ADD .bss + 0          ; start of file
-  STA .arg1             ; add them to get source
-  SUI 1                 ; subtract one to get destination
-  STA .arg2
-  ; length is len(file) - pointer loc + 1 (add 1 for null terminator)
+  LDA .bss + 1
+  STA .work2            ; remember original cursor offset
+  LDA .bss + 0
+  ADD .work2
+  STA .arg1             ; source pointer (start + cursor)
+  LDA .arg1
+  SUI 1
+  STA .arg2             ; destination assumes single byte delete for now
+  LDI 1
+  STA .work1            ; delete size = 1 byte by default
+  LDA .arg2
+  PHA
+  LAS
+  STA .char             ; byte immediately before cursor
+  CPI 92                ; backslash?
+  JPZ hb_prev_backslash
+  JMP hb_delete_prev
+
+hb_prev_backslash:
+  LDA .arg1
+  PHA
+  LAS
+  CPI 92
+  JPZ hb_set_double_delete
+  LDA .work2
+  CPI 2
+  JPC hb_check_prev_byte
+  JMP hb_delete_prev
+
+hb_check_prev_byte:
+  LDA .arg2
+  SUI 1
+  PHA
+  LAS
+  CPI 92
+  JPZ hb_set_double_delete
+  JMP hb_delete_prev
+
+hb_set_double_delete:
+  LDI 2
+  STA .work1
+
+hb_delete_prev:
   LDA .bss + 2
-  SUB .bss + 1
+  SUB .work2
   ADI 1
-  STA .num_digits
+  STA .num_digits       ; bytes to copy (tail + null)
+  LDA .work1
+  CPI 2
+  JPZ hb_adjust_dest_two
+  JMP hb_copy_tail
+
+hb_adjust_dest_two:
+  LDA .arg2
+  SUI 1
+  STA .arg2             ; shift destination back one more byte
+
+hb_copy_tail:
   JSR @copy_mem
   JSR count_lines
   LDI 1
   STA .res1
+  LDA .work2
+  SUI 1
+  STA .bss + 1          ; move cursor pointer back by one
+  LDA .work1
+  CPI 2
+  JPZ hb_dec_ptr_extra
+  JMP hb_update_cursor_x
+
+hb_dec_ptr_extra:
+  LDA .bss + 1
+  SUI 1
+  STA .bss + 1
+
+hb_update_cursor_x:
   LDA .bss + 7
   SUI 1
   STA .bss + 7
@@ -210,6 +272,8 @@ hb_break_escape:
   PHA
   LAS
   CPI 78                ; 'N'
+  JPZ hb_set_break_two
+  CPI 92                ; '\\'
   JPZ hb_set_break_two
   LDI 1
   STA .work1
@@ -429,10 +493,66 @@ end_mcp:
   JPC no_clamp_x        ; skip clamp
   STA .bss + 7          ; else, clamp to length of line
 no_clamp_x:
+  LDA .bss + 1
+  STA .work2             ; byte offset from start of text for current line
   LDA .bss + 7
   STA .work1
-  ADD .bss + 1
-  STA .bss + 1          ; move cursor buffer pointer by same x
+mcp_byte_loop:
+  LDA .work1
+  CPI 0
+  JPZ mcp_bytes_done
+  LDA .bss + 0
+  ADD .work2
+  STA .arg1
+  PHA
+  LAS
+  CPI 92                ; backslash -> possible escape sequence
+  JPZ mcp_handle_escape
+  CPI 10                ; literal newline (0x0A)
+  JPZ mcp_advance_literal_newline
+  LDA .work2
+  ADI 1
+  STA .work2
+  JMP mcp_step_complete
+
+mcp_handle_escape:
+  LDA .bss + 0
+  ADD .work2
+  ADI 1
+  PHA
+  LAS
+  CPI 78                ; 'N' newline escape
+  JPZ mcp_advance_escape_two
+  CPI 92                ; '\\' literal backslash escape
+  JPZ mcp_advance_escape_two
+  LDA .work2
+  ADI 2
+  STA .work2
+  JMP mcp_step_complete
+
+mcp_advance_escape_two:
+  LDA .work2
+  ADI 2
+  STA .work2
+  JMP mcp_step_complete
+
+mcp_advance_literal_newline:
+  LDA .work2
+  ADI 1
+  STA .work2
+
+mcp_step_complete:
+  LDA .work1
+  SUI 1
+  STA .work1
+  JMP mcp_byte_loop
+
+mcp_bytes_done:
+  LDA .work2
+  STA .bss + 1          ; update cursor buffer pointer with byte offset
+  OUT
+  LDA .bss + 7
+  STA .work1
 mcr_loop:               ; move cursor right loop
   LDA .work1
   CPI 0

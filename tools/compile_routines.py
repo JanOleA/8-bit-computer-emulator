@@ -727,15 +727,16 @@ def main(apply_table: bool = False):
                         break
                 did = False
                 if call_stub_base is not None:
-                    target = call_stub_base + 1
-                    for i, ln in enumerate(lines):
-                        s = ln.replace(" ", "")
-                        if s.startswith(f"{target}="):
-                            comment_idx = ln.find(';')
-                            comment = ln[comment_idx:] if comment_idx != -1 else ''
-                            lines[i] = f"{target} = {shell_base}" + (" " + comment.lstrip() if comment else '')
-                            did = True
-                            break
+                    targets = [call_stub_base + 1, call_stub_base + 3]
+                    for target in targets:
+                        for i, ln in enumerate(lines):
+                            s = ln.replace(" ", "")
+                            if s.startswith(f"{target}="):
+                                comment_idx = ln.find(';')
+                                comment = ln[comment_idx:] if comment_idx != -1 else ''
+                                lines[i] = f"{target} = {shell_base}" + (" " + comment.lstrip() if comment else '')
+                                did = True
+                                break
                 if not did:
                     # Fallback heuristic: patch the line following the ' = 16' (JSR) in the call stub region
                     for i in range(len(lines) - 1):
