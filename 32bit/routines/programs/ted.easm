@@ -1,6 +1,6 @@
 ;! name: TED
 ;! entry: ted_start
-;! deps: cat, parse_number, display_number, newline, toggle_display_enable, copy_mem, skip_line
+;! deps: cat, parse_number, display_number, newline, toggle_display_enable, copy_mem, skip_line, compile
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -150,6 +150,12 @@ compile:
   JSR @display_number
   LDI .compiling_text_2
   JSR print_newline
+  LDA .bss + 0
+  STA .arg1
+  ADD .bss + 2
+  ADI 2
+  STA .arg2
+  JSR @compile
   RET
 
 exit:

@@ -44,14 +44,14 @@ Entries (NAME → BASE, SIZE, BSS, DATA):
   SKIPLINE         → 12344 (len 91)  BSS —  DATA —
   SQRT             → 12436 (len 55)  BSS 22632+3  DATA —
   STRCOMPARE       → 12492 (len 44)  BSS 22635+2  DATA —
-  TED              → 12536 (len 1107)  BSS 22637+13  DATA 28272+55
-  TGETMNEMONIC     → 13644 (len 22)  BSS —  DATA —
-  TGETOSVAR        → 13668 (len 22)  BSS —  DATA —
-  TGETPROG         → 13692 (len 22)  BSS —  DATA —
-  TESTLSA          → 13716 (len 9)  BSS —  DATA —
-  TESTMEM          → 13728 (len 236)  BSS 22650+6  DATA 28352+48
-  TOGGLEDIS        → 13964 (len 7)  BSS —  DATA —
-  WAIT100          → 13972 (len 11)  BSS —  DATA —
-  WAIT1600         → 13984 (len 20)  BSS —  DATA —
-  WAIT3200         → 14004 (len 5)  BSS —  DATA —
-  WRITECHAR        → 14012 (len 11)  BSS —  DATA —
+  TED              → 12536 (len 1119)  BSS 22637+13  DATA 28272+55
+  TGETMNEMONIC     → 13656 (len 22)  BSS —  DATA —
+  TGETOSVAR        → 13680 (len 22)  BSS —  DATA —
+  TGETPROG         → 13704 (len 22)  BSS —  DATA —
+  TESTLSA          → 13728 (len 9)  BSS —  DATA —
+  TESTMEM          → 13740 (len 236)  BSS 22650+6  DATA 28352+48
+  TOGGLEDIS        → 13976 (len 7)  BSS —  DATA —
+  WAIT100          → 13984 (len 11)  BSS —  DATA —
+  WAIT1600         → 13996 (len 20)  BSS —  DATA —
+  WAIT3200         → 14016 (len 5)  BSS —  DATA —
+  WRITECHAR        → 14024 (len 11)  BSS —  DATA —
