@@ -1,6 +1,6 @@
 ;! name: COMPILE
 ;! entry: compile_start
-;! deps: parse_number, display_number, newline, skip_line, echon, get_os_abi_var, get_mnemonic
+;! deps: parse_number, display_number, newline, skip_line, echon, get_os_abi_var, get_mnemonic, get_program_address
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -61,7 +61,7 @@ compile_init:
   STA .bss + 0
   LDA .arg2
   STA .bss + 1          ; store variables internally to avoid clobbering
-  RET  
+  JMP compile_main   
 
 ; -- print helpers, null terminated. Pointer to text must be in A register --
 print_newline:
@@ -79,4 +79,942 @@ print_no_newline:
   LDI 1
   STA .arg2
   JSR @echon
+  RET
+
+
+; --- configuration constants ---
+
+; --- status strings ---
+.success_prefix = "Compiled "
+.success_suffix = " words"
+.err_prefix = "ERR: "
+.err_line = " (line "
+.err_suffix = ")"
+.err_const_table = "Const table full"
+.err_const_names = "Const names full"
+.err_const_dup = "Const already set"
+.err_const_missing_name = "Const missing name"
+.err_const_missing_val = "Const missing value"
+.err_const_value = "Const value invalid"
+.err_label_table = "Label table full"
+.err_label_names = "Label names full"
+.err_label_dup = "Label already set"
+.err_unknown_cmd = "Unknown command"
+.err_missing_operand = "Missing operand"
+.err_const_unknown = "Unknown const"
+.err_label_unknown = "Unknown label"
+.err_abi_unknown = "Unknown abi var"
+.err_prog_unknown = "Unknown program"
+.err_number = "Invalid number"
+.err_token_long = "Token too long"
+.err_len_mismatch = "Length mismatch"
+.dbg_start = "Compile src="
+.dbg_mid = " dst="
+.dbg_pass1 = "Pass1 words="
+.dbg_consts = " consts="
+.dbg_labels = " labels="
+.dbg_pass2 = "Pass2 emit"
+
+
+; --- BSS aliases ---
+; .bss + 0 : source pointer
+; .bss + 1 : destination pointer
+; .bss + 2 : current line pointer (pass)
+; .bss + 3 : code write pointer
+; .bss + 4 : code length accumulator
+; .bss + 5 : const count
+; .bss + 6 : label count
+; .bss + 7 : const name write pointer
+; .bss + 8 : label name write pointer
+; .bss + 9 : const table write pointer
+; .bss + 10 : label table write pointer
+; .bss + 11 : token buffer pointer
+; .bss + 12 : token length
+; .bss + 13 : error flag
+; .bss + 14 : current line number
+; .bss + 15 : error message pointer
+; .bss + 16 : saved cursor pointer
+; .bss + 17 : saved line end pointer
+; .bss + 18 : pending const value slot
+
+
+
+compile_main:
+  ; announce compile stage and show source/destination pointers
+  LDI .dbg_start
+  JSR print_no_newline
+  LDA .bss + 0
+  STA .arg1
+  JSR @display_number
+  LDI .dbg_mid
+  JSR print_no_newline
+  LDA .bss + 1
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI 0
+  STA .bss + 13
+  JSR compile_pass1
+  ; report pass1 results regardless of error
+  LDI .dbg_pass1
+  JSR print_no_newline
+  LDA .bss + 4
+  STA .arg1
+  JSR @display_number
+  LDI .dbg_consts
+  JSR print_no_newline
+  LDA .bss + 5
+  STA .arg1
+  JSR @display_number
+  LDI .dbg_labels
+  JSR print_no_newline
+  LDA .bss + 6
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDA .bss + 13
+  CPI 0
+  JPZ cm_run_pass2
+  RET
+cm_run_pass2:
+  ; note transition into pass2 (only runs if no errors so far)
+  LDI .dbg_pass2
+  JSR print_newline
+  JSR compile_pass2
+  LDA .bss + 13
+  CPI 0
+  JPZ cm_success
+  RET
+cm_success:
+  LDA .bss + 1
+  STA .res1
+  LDA .bss + 4
+  STA .res2
+  LDI .success_prefix
+  JSR print_no_newline
+  LDA .bss + 4
+  STA .arg1
+  JSR @display_number
+  LDI .success_suffix
+  JSR print_newline
+  RET
+
+
+compile_pass1:
+  ; Pass 1: walk the text once to determine code size and register const/label references
+  LDA .bss + 0
+  STA .bss + 2
+  LDI 0
+  STA .bss + 4
+  STA .bss + 5
+  STA .bss + 6
+  STA .bss + 13
+  LDI .bss + 32
+  STA .bss + 9
+  LDI .bss + 352
+  STA .bss + 10
+  LDI .bss + 96
+  STA .bss + 7
+  LDI .bss + 480
+  STA .bss + 8
+  LDI 1
+  STA .bss + 14
+cp1_loop:
+  LDA .bss + 13
+  CPI 0
+  JPZ cp1_check_end
+  RET
+cp1_check_end:
+  ; pull current line bounds via skip_line so we can tokenise inside them
+  LDA .bss + 2
+  PHA
+  LAS
+  CPI 0
+  JPZ cp1_done
+  LDA .bss + 2
+  STA .work1
+  LDA .bss + 2
+  STA .arg1
+  JSR @skip_line
+  LDA .arg1
+  STA .bss + 2
+  LDA .res1
+  STA .work2
+  LDA .work1
+  STA .work3
+  LDA .work2
+  STA .work4
+  LDA .work3
+  ADD .work4
+  STA .work3
+  JSR next_token
+  LDA .res1
+  CPI 1
+  JPZ cp1_got_token
+  JMP cp1_next_line
+cp1_got_token:
+  ; classify the first token on the line to decide how to account for it
+  LDA .bss + 11
+  PHA
+  LAS
+  STA .char
+  LDA .char
+  CPI 73
+  JPZ cp1_maybe_const
+  CPI 45
+  JPZ cp1_store_label
+  JMP cp1_instruction
+cp1_maybe_const:
+  LDA .bss + 12
+  CPI 1
+  JPZ cp1_handle_const
+  JMP cp1_instruction
+cp1_handle_const:
+  ; const syntax: I <name> <value>
+  JSR next_token
+  LDA .res1
+  CPI 1
+  JPZ cp1_const_name
+  LDI .err_const_missing_name
+  JSR report_error
+  JMP cp1_next_line
+cp1_const_name:
+  LDA .work1
+  STA .bss + 16
+  LDA .work3
+  STA .bss + 17
+  JSR alloc_const_entry
+  LDA .bss + 16
+  STA .work1
+  LDA .bss + 17
+  STA .work3
+  LDA .res2
+  CPI 1
+  JPZ cp1_const_have_entry
+  JMP cp1_next_line
+cp1_const_have_entry:
+  LDA .res1
+  STA .work4
+  STA .bss + 18
+  JSR next_token
+  LDA .res1
+  CPI 1
+  JPZ cp1_const_value_token
+  LDI .err_const_missing_val
+  JSR report_error
+  JMP cp1_next_line
+cp1_const_value_token:
+  LDA .bss + 18
+  STA .work4
+  LDA .bss + 11
+  STA .work2
+  LDA .work2
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .work3
+  LDA .bss + 12
+  STA .pow2
+  LDA .work2
+  ADD .pow2
+  STA .pow2
+  LDA .arg1
+  CMP .pow2
+  JPZ cp1_store_const_value
+  LDI .err_const_value
+  JSR report_error
+  JMP cp1_next_line
+cp1_store_const_value:
+  LDA .work4
+  PHA
+  LDA .work3
+  SAS
+  JMP cp1_next_line
+cp1_store_label:
+  ; labels start with '-', map them to the current code length
+  LDA .work1
+  STA .bss + 16
+  LDA .work3
+  STA .bss + 17
+  JSR store_label_entry
+  LDA .bss + 16
+  STA .work1
+  LDA .bss + 17
+  STA .work3
+  JMP cp1_next_line
+cp1_instruction:
+  ; any other token is treated as an instruction; bump length (operand optional)
+  LDA .bss + 4
+  ADI 1
+  STA .bss + 4
+  JSR next_token
+  LDA .res1
+  CPI 1
+  JPZ cp1_has_operand
+  JMP cp1_next_line
+cp1_has_operand:
+  LDA .bss + 4
+  ADI 1
+  STA .bss + 4
+  LDA .work3
+  STA .work1
+  JMP cp1_next_line
+cp1_next_line:
+  LDA .bss + 14
+  ADI 1
+  STA .bss + 14
+  JMP cp1_loop
+cp1_done:
+  RET
+
+
+compile_pass2:
+  ; Pass 2: emit opcodes/operands now that symbol tables are populated
+  LDA .bss + 1
+  STA .bss + 3
+  LDA .bss + 0
+  STA .bss + 2
+  LDI 1
+  STA .bss + 14
+cp2_loop:
+  LDA .bss + 13
+  CPI 0
+  JPZ cp2_check_end
+  RET
+cp2_check_end:
+  ; same line traversal strategy as pass1
+  LDA .bss + 2
+  PHA
+  LAS
+  CPI 0
+  JPZ cp2_after_loop
+  LDA .bss + 2
+  STA .work1
+  LDA .bss + 2
+  STA .arg1
+  JSR @skip_line
+  LDA .arg1
+  STA .bss + 2
+  LDA .res1
+  STA .work2
+  LDA .work1
+  STA .work3
+  LDA .work2
+  STA .work4
+  LDA .work3
+  ADD .work4
+  STA .work3
+  JSR next_token
+  LDA .res1
+  CPI 1
+  JPZ cp2_got_token
+  JMP cp2_next_line
+cp2_got_token:
+  ; branch by leading token type
+  LDA .bss + 11
+  PHA
+  LAS
+  STA .char
+  LDA .char
+  CPI 73
+  JPZ cp2_maybe_const
+  CPI 45
+  JPZ cp2_skip_line
+  JMP cp2_instruction
+cp2_maybe_const:
+  LDA .bss + 12
+  CPI 1
+  JPZ cp2_skip_line
+  JMP cp2_instruction
+cp2_skip_line:
+  LDA .work3
+  STA .work1
+  JMP cp2_next_line
+cp2_instruction:
+  ; look up mnemonic and write opcode, then handle optional operand
+  LDA .bss + 11
+  STA .arg1
+  JSR @get_mnemonic
+  LDA .res1
+  CPI 0
+  JPZ cp2_unknown_cmd
+  STA .work4
+  LDA .bss + 3
+  PHA
+  LDA .work4
+  SAS
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+  JSR next_token
+  LDA .res1
+  CPI 1
+  JPZ cp2_operand
+  JMP cp2_next_line
+cp2_operand:
+  JSR resolve_operand
+  LDA .res2
+  CPI 1
+  JPZ cp2_store_operand
+  JMP cp2_next_line
+cp2_store_operand:
+  LDA .bss + 3
+  PHA
+  LDA .res1
+  SAS
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+  JMP cp2_next_line
+cp2_unknown_cmd:
+  LDI .err_unknown_cmd
+  JSR report_error
+  JMP cp2_next_line
+cp2_next_line:
+  LDA .bss + 14
+  ADI 1
+  STA .bss + 14
+  JMP cp2_loop
+cp2_after_loop:
+  LDA .bss + 1
+  ADD .bss + 4
+  STA .work1
+  LDA .bss + 3
+  CMP .work1
+  JPZ cp2_done
+  LDI .err_len_mismatch
+  JSR report_error
+cp2_done:
+  RET
+
+
+next_token:
+  ; Grab the next whitespace-delimited token between .work1 and .work3, copying it to .bss+736
+  LDA .work1
+  CMP .work3
+  JPZ nt_none
+nt_skip:
+  LDA .work1
+  CMP .work3
+  JPZ nt_none
+  LDA .work1
+  PHA
+  LAS
+  STA .char
+  CPI 32
+  JPZ nt_skip_ws
+  CPI 9
+  JPZ nt_skip_ws
+  CPI 59
+  JPZ nt_comment
+  JMP nt_start
+nt_skip_ws:
+  LDA .work1
+  ADI 1
+  STA .work1
+  JMP nt_skip
+nt_comment:
+  LDA .work3
+  STA .work1
+  JMP nt_none
+nt_start:
+  LDI .bss + 736
+  STA .bss + 11
+  LDI 0
+  STA .bss + 12
+  LDA .bss + 11
+  STA .work4
+nt_copy:
+  LDA .work1
+  CMP .work3
+  JPZ nt_finish
+  LDA .work1
+  PHA
+  LAS
+  STA .char
+  CPI 32
+  JPZ nt_finish
+  CPI 9
+  JPZ nt_finish
+  CPI 59
+  JPZ nt_comment_finish
+  LDA .bss + 12
+  CPI 79
+  JPZ nt_too_long
+  LDA .work4
+  PHA
+  LDA .char
+  SAS
+  LDA .work4
+  ADI 1
+  STA .work4
+  LDA .work1
+  ADI 1
+  STA .work1
+  LDA .bss + 12
+  ADI 1
+  STA .bss + 12
+  JMP nt_copy
+nt_comment_finish:
+  LDA .work3
+  STA .work1
+nt_finish:
+  LDA .work4
+  PHA
+  LDI 0
+  SAS
+  LDA .bss + 12
+  CPI 0
+  JPZ nt_none
+  LDI 1
+  STA .res1
+  RET
+nt_too_long:
+  LDI .err_token_long
+  JSR report_error
+  LDA .work3
+  STA .work1
+  JMP nt_finish
+nt_none:
+  LDI 0
+  STA .res1
+  LDI 0
+  STA .bss + 12
+  RET
+
+
+alloc_const_entry:
+  ; copy tokenised const name into the const table (name ptr + value slot)
+  LDA .bss + 11
+  STA .arg1
+  JSR find_const
+  LDA .res2
+  CPI 1
+  JPZ ace_duplicate
+  LDA .bss + 5
+  CPI 32
+  JPZ ace_full
+  LDA .bss + 12
+  ADI 1
+  STA .pow2
+  LDA .bss + 7
+  ADD .pow2
+  STA .work3
+  LDI .bss + 352
+  STA .work4
+  LDA .work3
+  CMP .work4
+  JPZ ace_copy
+  JPC ace_name_full
+ace_copy:
+  LDA .bss + 7
+  STA .work2
+  JSR copy_token_buffer
+  LDA .res2
+  STA .bss + 7
+  LDA .res1
+  STA .work2
+  LDA .bss + 9
+  PHA
+  LDA .work2
+  SAS
+  LDA .bss + 9
+  ADI 1
+  STA .bss + 9
+  LDA .bss + 9
+  STA .work4
+  ADI 1
+  STA .bss + 9
+  LDA .bss + 5
+  ADI 1
+  STA .bss + 5
+  LDA .work4
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+ace_duplicate:
+  LDI .err_const_dup
+  JSR report_error
+  LDI 0
+  STA .res2
+  RET
+ace_full:
+  LDI .err_const_table
+  JSR report_error
+  LDI 0
+  STA .res2
+  RET
+ace_name_full:
+  LDI .err_const_names
+  JSR report_error
+  LDI 0
+  STA .res2
+  RET
+
+
+store_label_entry:
+  ; record label names with their resolved addresses (dst base + current code length)
+  LDA .bss + 11
+  STA .arg1
+  JSR find_label
+  LDA .res2
+  CPI 1
+  JPZ sle_duplicate
+  LDA .bss + 6
+  CPI 64
+  JPZ sle_full
+  LDA .bss + 12
+  ADI 1
+  STA .pow2
+  LDA .bss + 8
+  ADD .pow2
+  STA .work2
+  LDI .bss + 736
+  STA .work3
+  LDA .work2
+  CMP .work3
+  JPZ sle_copy
+  JPC sle_name_full
+sle_copy:
+  LDA .bss + 8
+  STA .work2
+  JSR copy_token_buffer
+  LDA .res2
+  STA .bss + 8
+  LDA .res1
+  STA .work2
+  LDA .bss + 1
+  ADD .bss + 4
+  STA .work3
+  LDA .bss + 10
+  PHA
+  LDA .work2
+  SAS
+  LDA .bss + 10
+  ADI 1
+  STA .bss + 10
+  LDA .bss + 10
+  PHA
+  LDA .work3
+  SAS
+  LDA .bss + 10
+  ADI 1
+  STA .bss + 10
+  LDA .bss + 6
+  ADI 1
+  STA .bss + 6
+  RET
+sle_duplicate:
+  LDI .err_label_dup
+  JSR report_error
+  RET
+sle_full:
+  LDI .err_label_table
+  JSR report_error
+  RET
+sle_name_full:
+  LDI .err_label_names
+  JSR report_error
+  RET
+
+
+copy_token_buffer:
+  ; helper: write the current token buffer into sequential memory
+  LDA .bss + 11
+  STA .work4
+  LDA .work2
+  STA .work1
+ct_loop:
+  LDA .work4
+  PHA
+  LAS
+  STA .char
+  CPI 0
+  JPZ ct_end
+  LDA .work1
+  PHA
+  LDA .char
+  SAS
+  LDA .work4
+  ADI 1
+  STA .work4
+  LDA .work1
+  ADI 1
+  STA .work1
+  JMP ct_loop
+ct_end:
+  LDA .work1
+  PHA
+  LDI 0
+  SAS
+  LDA .work1
+  ADI 1
+  STA .work1
+  LDA .work2
+  STA .res1
+  LDA .work1
+  STA .res2
+  RET
+
+
+find_const:
+  ; linear search through the const table entries
+  LDA .arg1
+  STA .work2
+  LDA .bss + 5
+  CPI 0
+  JPZ fc_not_found
+  LDI .bss + 32
+  STA .work1
+  LDA .bss + 5
+  STA .work3
+fc_loop:
+  LDA .work3
+  CPI 0
+  JPZ fc_not_found
+  LDA .work1
+  PHA
+  LAS
+  STA .work4
+  LDA .work4
+  STA .arg1
+  LDA .work2
+  STA .arg2
+  JSR @string_compare
+  LDA .res1
+  CPI 1
+  JPZ fc_match
+  LDA .work2
+  STA .arg1
+  LDA .work1
+  ADI 2
+  STA .work1
+  LDA .work3
+  SUI 1
+  STA .work3
+  JMP fc_loop
+fc_match:
+  LDA .work2
+  STA .arg1
+  LDA .work1
+  ADI 1
+  STA .work4
+  LDA .work4
+  PHA
+  LAS
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+fc_not_found:
+  LDA .work2
+  STA .arg1
+  LDI 0
+  STA .res1
+  STA .res2
+  RET
+
+
+find_label:
+  ; linear search through the label table entries
+  LDA .arg1
+  STA .work2
+  LDA .bss + 6
+  CPI 0
+  JPZ fl_not_found
+  LDI .bss + 352
+  STA .work1
+  LDA .bss + 6
+  STA .work3
+fl_loop:
+  LDA .work3
+  CPI 0
+  JPZ fl_not_found
+  LDA .work1
+  PHA
+  LAS
+  STA .work4
+  LDA .work4
+  STA .arg1
+  LDA .work2
+  STA .arg2
+  JSR @string_compare
+  LDA .res1
+  CPI 1
+  JPZ fl_match
+  LDA .work2
+  STA .arg1
+  LDA .work1
+  ADI 2
+  STA .work1
+  LDA .work3
+  SUI 1
+  STA .work3
+  JMP fl_loop
+fl_match:
+  LDA .work2
+  STA .arg1
+  LDA .work1
+  ADI 1
+  STA .work4
+  LDA .work4
+  PHA
+  LAS
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+fl_not_found:
+  LDA .work2
+  STA .arg1
+  LDI 0
+  STA .res1
+  STA .res2
+  RET
+
+
+resolve_operand:
+  ; resolve the second token on an instruction line into a numeric operand
+  LDA .bss + 12
+  CPI 0
+  JPZ ro_missing
+  LDA .bss + 11
+  PHA
+  LAS
+  STA .char
+  LDA .char
+  CPI 42
+  JPZ ro_const
+  CPI 46
+  JPZ ro_abi
+  CPI 45
+  JPZ ro_label
+  CPI 43
+  JPZ ro_prog
+  JMP ro_number
+ro_const:
+  LDA .bss + 12
+  CPI 1
+  JPZ ro_missing
+  LDA .bss + 11
+  ADI 1
+  STA .arg1
+  JSR find_const
+  LDA .res2
+  CPI 1
+  JPZ ro_return
+  LDI .err_const_unknown
+  JSR report_error
+  JMP ro_fail
+ro_label:
+  LDA .bss + 11
+  STA .arg1
+  JSR find_label
+  LDA .res2
+  CPI 1
+  JPZ ro_return
+  LDI .err_label_unknown
+  JSR report_error
+  JMP ro_fail
+ro_abi:
+  LDA .bss + 12
+  CPI 1
+  JPZ ro_missing
+  LDA .bss + 11
+  ADI 1
+  STA .arg1
+  JSR @get_os_abi_var
+  LDA .res1
+  CPI 0
+  JPZ ro_abi_fail
+  LDA .res1
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+ro_abi_fail:
+  LDI .err_abi_unknown
+  JSR report_error
+  JMP ro_fail
+ro_prog:
+  LDA .bss + 12
+  CPI 1
+  JPZ ro_missing
+  LDA .bss + 11
+  ADI 1
+  STA .arg1
+  JSR @get_program_address
+  LDA .res1
+  CPI 0
+  JPZ ro_prog_fail
+  LDA .res1
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+ro_prog_fail:
+  LDI .err_prog_unknown
+  JSR report_error
+  JMP ro_fail
+ro_number:
+  LDA .bss + 11
+  STA .work2
+  LDA .work2
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .work4
+  LDA .bss + 12
+  STA .pow2
+  LDA .work2
+  ADD .pow2
+  STA .pow2
+  LDA .arg1
+  CMP .pow2
+  JPZ ro_num_ok
+  LDI .err_number
+  JSR report_error
+  JMP ro_fail
+ro_num_ok:
+  LDA .work4
+  STA .res1
+  LDI 1
+  STA .res2
+  RET
+ro_return:
+  LDI 1
+  STA .res2
+  RET
+ro_missing:
+  LDI .err_missing_operand
+  JSR report_error
+ro_fail:
+  LDI 0
+  STA .res1
+  STA .res2
+  RET
+
+
+report_error:
+  ; emit a single line describing the first error encountered (message + line number)
+  STA .bss + 15
+  LDA .bss + 13
+  CPI 0
+  JPZ re_first
+  RET
+re_first:
+  LDI 1
+  STA .bss + 13
+  LDI .err_prefix
+  JSR print_no_newline
+  LDA .bss + 15
+  JSR print_no_newline
+  LDI .err_line
+  JSR print_no_newline
+  LDA .bss + 14
+  STA .arg1
+  JSR @display_number
+  LDI .err_suffix
+  JSR print_newline
   RET

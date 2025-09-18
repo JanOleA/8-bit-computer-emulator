@@ -51,9 +51,9 @@ cmd_ready   = 2204
 ; A small trampoline at a fixed address: [CALL_STUB]=JSR, [CALL_STUB+1]=handler addr (patched), [CALL_STUB+2]=RET
 CALL_STUB = 19996
 19996 = 16
-19997 = 7256
+19997 = 8736
 19998 = 17
-19999 = 7256
+19999 = 8736
 
 call_stub_initial = 19999   ; the initial address for the call stub is stored here on boot in order to reset it after a program call
 
@@ -122,7 +122,7 @@ initialize_display: ; initializes the display
 print:              ; 
   LDA .textloc
   STA .arg1
-  JSR #7024        ; must be switched to ECHON location if it changes
+  JSR #8504        ; must be switched to ECHON location if it changes
   RET
 
 newline:            ; print newline on the screen
