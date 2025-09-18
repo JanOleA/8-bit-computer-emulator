@@ -1,0 +1,82 @@
+;! name: COMPILE
+;! entry: compile_start
+;! deps: parse_number, display_number, newline, skip_line, echon, get_os_abi_var, get_mnemonic
+;! abi: os
+;! bss: auto
+;! align: 4
+
+; --- Compile ascii text to executable bytes ---
+; - Two pass compiler. Pass 1: consts and labels. Pass 2: compile to executable -
+
+; -- Example (slightly different from easm format to allow typing in emulator) --
+;I <NAME> <NUMBER>      ; define a number const: I <const name> <number>
+;
+;-LABEL                 ; labels begin with a -
+; CMD ARG               ; commands begin with a single space, words are separated by space (parse CMD with get_mnemonic(), which returns a value to insert in memory for any text command)
+; CMD                   ; commands can be single word
+; CMD *NAME             ; *NAME will replace *NAME with the number stored in the const
+; CMD .NAME             ; .NAME will replace .NAME with an OS abi variable location (get address of variable with get_os_abi_var())
+; JMP -LABEL            ; -LABEL will replace -LABEL with the memory address the label points to
+; JSR -LABEL            ; JSR (jump to subroutine) can jump to labeled internal subroutines
+; JSR +PROGNAME         ; it can also jump to programs/routines installed in the OS (get address with get_program_address())
+
+; if an argument is provided, use it as initial memory address to read from
+; if not, use value in .arg1 as initial memory address
+
+; if a second argument is provided, use it as the start of compiled program
+; if not, use .arg2
+
+; - bss table overview - ;
+; bss + 0       : start of file
+; bss + 1       : start of compiled program
+
+compile_start:
+  LDA .argv_base
+  CPI 1
+  JPC parse_arg
+  JMP compile_init
+parse_arg:
+  LDA .argv_base + 1
+  STA .bss + 0          ; store temporarily
+  LDA .argv_base
+  CPI 2
+  JPC parse_arg_2
+  JMP parse_finish
+parse_arg_2:
+  LDA .argv_base + 2
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .bss + 1          ; store temporarily
+parse_finish:
+  LDA .bss + 0          ; get the temp bss + 0, parse it
+  STA .arg1
+  JSR @parse_number
+  LDA .res1
+  STA .arg1
+  LDA .bss + 1
+  STA .arg2             ; store temp bss + 1 in arg2
+compile_init:
+  LDA .arg1
+  STA .bss + 0
+  LDA .arg2
+  STA .bss + 1          ; store variables internally to avoid clobbering
+  RET  
+
+; -- print helpers, null terminated. Pointer to text must be in A register --
+print_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  STA .arg2
+  JSR @echon
+  RET
+
+print_no_newline:
+  STA .arg1
+  LDI 0
+  STA .num_digits
+  LDI 1
+  STA .arg2
+  JSR @echon
+  RET
