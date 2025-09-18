@@ -1,0 +1,11 @@
+CONST LIMIT 10
+VAR counter 0
+
+loop:
+PRINT counter
+ADD counter 1
+IFLT counter LIMIT end
+GOTO loop
+
+LABEL end
+RET

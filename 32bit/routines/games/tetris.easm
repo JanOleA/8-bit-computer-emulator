@@ -1,0 +1,1446 @@
+;! name: TETRIS
+;! entry: main
+;! deps: write_char, newline, display_number, echon, randint, wait_100, toggle_display_enable
+;! abi: os
+;! bss: auto
+;! align: 4
+
+board_width = 10
+board_height = 20
+board_size = 200
+board_indent = 22
+frame_delay = 1
+initial_drop = 18
+min_drop = 4
+lines_per_level = 10
+spawn_x = 3
+last_row_index = 19
+input_repeat_delay = 3
+
+score_single = 100
+score_double = 300
+score_triple = 500
+score_tetris = 800
+
+space_char = 32
+border_char = 124
+
+.title_text = "TETRIS"
+.score_text = "Score: "
+.lines_text = "Lines: "
+.level_text = "Level: "
+.controls_line1 = "Left/Right: move"
+.controls_line2 = "Down: soft drop"
+.controls_line3 = "Up: rotate"
+.controls_line4 = "Enter: hard drop"
+.game_over_text = "GAME OVER"
+.final_score_text = "Final score: "
+.exit_text = "Press ENTER to exit"
+.piece_chars = "IOTSZJL"
+
+.i_rot0 = "XXXX............"
+.i_rot1 = "X...X...X...X..."
+.i_rot2 = "XXXX............"
+.i_rot3 = "X...X...X...X..."
+.o_rot0 = "XX..XX.........."
+.o_rot1 = "XX..XX.........."
+.o_rot2 = "XX..XX.........."
+.o_rot3 = "XX..XX.........."
+.t_rot0 = ".X..XXX........."
+.t_rot1 = "X...XX..X......."
+.t_rot2 = "XXX..X.........."
+.t_rot3 = ".X..XX...X......"
+.s_rot0 = ".XX.XX.........."
+.s_rot1 = "X...XX...X......"
+.s_rot2 = ".XX.XX.........."
+.s_rot3 = "X...XX...X......"
+.z_rot0 = "XX...XX........."
+.z_rot1 = ".X..XX..X......."
+.z_rot2 = "XX...XX........."
+.z_rot3 = ".X..XX..X......."
+.j_rot0 = "X...XXX........."
+.j_rot1 = "XX...X...X......"
+.j_rot2 = "..X.XXX........."
+.j_rot3 = "X...X...XX......"
+.l_rot0 = "..X.XXX........."
+.l_rot1 = "X...X...XX......"
+.l_rot2 = "XXX.X..........."
+.l_rot3 = "XX...X...X......"
+
+main:
+  DIS 8
+  JSR @toggle_display_enable
+  JSR reset_game
+  JSR spawn_new_piece
+  JSR update_display
+main_loop:
+  JSR frame_wait
+  LDA .bss + 209
+  CPI 0
+  JPZ game_over
+  JSR drop_tick
+  JSR maybe_render
+  JMP main_loop
+
+game_over:
+  JSR render_game_over
+  RET
+
+reset_game:
+  JSR clear_board
+  JSR clear_display
+  LDI 0
+  STA .bss + 204
+  STA .bss + 205
+  STA .bss + 201
+  STA .bss + 210
+  STA .bss + 211
+  STA .bss + 212
+  STA .bss + 215
+  STA .bss + 213
+  STA .bss + 214
+  STA .bss + 260
+  STA .bss + 261
+  LDI .spawn_x
+  STA .bss + 202
+  LDI 0
+  STA .bss + 203
+  LDI 1
+  STA .bss + 206
+  LDI .initial_drop
+  STA .bss + 208
+  STA .bss + 207
+  LDI 1
+  STA .bss + 209
+  LDI 1
+  STA .bss + 212
+  RET
+
+clear_board:
+  LDI .bss
+  STA .bss + 228
+  LDI .board_size
+  STA .bss + 216
+cb_loop:
+  LDA .bss + 216
+  CPI 0
+  JPZ cb_done
+  LDA .bss + 228
+  PHA
+  LDI 0
+  SAS
+  LDA .bss + 228
+  ADI 1
+  STA .bss + 228
+  LDA .bss + 216
+  SUI 1
+  STA .bss + 216
+  JMP cb_loop
+cb_done:
+  RET
+
+spawn_new_piece:
+  LDI 7
+  STA .arg1
+  JSR @randint
+  LDA .res1
+  STA .bss + 200
+  LDI 0
+  STA .bss + 201
+  LDI .spawn_x
+  STA .bss + 202
+  LDI 0
+  STA .bss + 203
+  LDA .bss + 200
+  STA .bss + 218
+  LDI 0
+  STA .bss + 215
+  JSR build_offsets_temp
+  LDA .bss + 202
+  STA .bss + 213
+  LDA .bss + 203
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ snp_place_ok
+  LDI 0
+  STA .bss + 209
+  LDI 1
+  STA .bss + 212
+  RET
+snp_place_ok:
+  JSR copy_temp_to_current
+  LDI 0
+  STA .bss + 201
+  JSR update_piece_cells
+  LDA .bss + 208
+  STA .bss + 207
+  LDI 1
+  STA .bss + 212
+  LDI 1
+  STA .bss + 209
+  RET
+
+frame_wait:
+  LDA .bss + 209
+  CPI 0
+  JPZ fw_done
+  LDI .frame_delay
+  STA .bss + 234
+fw_loop:
+  JSR check_input
+  LDA .bss + 210
+  CPI 0
+  JPZ fw_timer_check
+  JSR handle_input_value
+  LDI 0
+  STA .bss + 210
+  LDI 0
+  STA .bss + 234
+  JMP fw_done
+fw_timer_check:
+  LDA .bss + 234
+  CPI 0
+  JPZ fw_done
+  JSR @wait_100
+  LDA .bss + 234
+  SUI 1
+  STA .bss + 234
+  JMP fw_loop
+fw_done:
+  RET
+
+maybe_render:
+  LDA .bss + 212
+  CPI 1
+  JPZ mr_render
+  RET
+mr_render:
+  LDI 0
+  STA .bss + 212
+  JSR update_display
+  RET
+
+drop_tick:
+  LDA .bss + 209
+  CPI 0
+  JPZ dt_done
+  LDA .bss + 207
+  CPI 1
+  JPC dt_decrement
+  JMP dt_drop
+dt_decrement:
+  SUI 1
+  STA .bss + 207
+  RET
+dt_drop:
+  LDA .bss + 208
+  STA .bss + 207
+  JSR drop_step
+  LDA .res1
+  CPI 1
+  JPZ dt_moved
+  LDI 1
+  STA .bss + 212
+  RET
+dt_moved:
+  LDI 1
+  STA .bss + 212
+  RET
+dt_done:
+  RET
+
+drop_step:
+  LDA .bss + 202
+  STA .bss + 213
+  LDA .bss + 203
+  ADI 1
+  STA .bss + 214
+  LDI .bss + 236
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ ds_move
+  JSR lock_piece
+  JSR spawn_new_piece
+  LDI 0
+  STA .res1
+  RET
+ds_move:
+  LDA .bss + 214
+  STA .bss + 203
+  JSR update_piece_cells
+  LDI 1
+  STA .res1
+  RET
+
+move_left:
+  LDA .bss + 202
+  SUI 1
+  STA .bss + 213
+  LDA .bss + 203
+  STA .bss + 214
+  LDI .bss + 236
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ ml_apply
+  RET
+ml_apply:
+  LDA .bss + 213
+  STA .bss + 202
+  JSR update_piece_cells
+  LDI 1
+  STA .bss + 212
+  RET
+
+move_right:
+  LDA .bss + 202
+  ADI 1
+  STA .bss + 213
+  LDA .bss + 203
+  STA .bss + 214
+  LDI .bss + 236
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ mr_apply
+  RET
+mr_apply:
+  LDA .bss + 213
+  STA .bss + 202
+  JSR update_piece_cells
+  LDI 1
+  STA .bss + 212
+  RET
+
+hard_drop:
+  LDI 0
+  STA .bss + 216
+hd_loop:
+  LDA .bss + 209
+  CPI 0
+  JPZ hd_done
+  JSR drop_step
+  LDA .res1
+  CPI 1
+  JPZ hd_continue
+  LDI 1
+  STA .bss + 212
+  RET
+hd_continue:
+  LDI 1
+  STA .bss + 212
+  JMP hd_loop
+hd_done:
+  RET
+
+rotate_piece:
+  LDA .bss + 200
+  STA .bss + 218
+  LDA .bss + 201
+  ADI 1
+  STA .bss + 215
+  LDA .bss + 215
+  CPI 4
+  JPC rp_keep
+  LDI 0
+  STA .bss + 215
+rp_keep:
+  JSR build_offsets_temp
+  LDA .bss + 202
+  STA .bss + 213
+  LDA .bss + 203
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ rp_commit
+  LDA .bss + 202
+  SUI 1
+  STA .bss + 213
+  LDA .bss + 203
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ rp_commit
+  LDA .bss + 202
+  ADI 1
+  STA .bss + 213
+  LDA .bss + 203
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ rp_commit
+  LDA .bss + 202
+  STA .bss + 213
+  LDA .bss + 203
+  SUI 1
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ rp_commit
+  LDA .bss + 202
+  SUI 1
+  STA .bss + 213
+  LDA .bss + 203
+  SUI 1
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ rp_commit
+  LDA .bss + 202
+  ADI 1
+  STA .bss + 213
+  LDA .bss + 203
+  SUI 1
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .res1
+  CPI 1
+  JPZ rp_commit
+  RET
+rp_commit:
+  JSR finalize_rotation
+  RET
+
+finalize_rotation:
+  JSR copy_temp_to_current
+  LDA .bss + 215
+  STA .bss + 201
+  LDA .bss + 213
+  STA .bss + 202
+  LDA .bss + 214
+  STA .bss + 203
+  LDA .bss + 208
+  STA .bss + 207
+  JSR update_piece_cells
+  LDI 1
+  STA .bss + 212
+  RET
+
+copy_temp_to_current:
+  LDI .bss + 244
+  STA .bss + 235
+  LDI .bss + 236
+  STA .bss + 222
+  LDI 8
+  STA .bss + 216
+ctc_loop:
+  LDA .bss + 216
+  CPI 0
+  JPZ ctc_done
+  LDA .bss + 235
+  PHA
+  LAS
+  STA .bss + 221
+  LDA .bss + 222
+  PHA
+  LDA .bss + 221
+  SAS
+  LDA .bss + 235
+  ADI 1
+  STA .bss + 235
+  LDA .bss + 222
+  ADI 1
+  STA .bss + 222
+  LDA .bss + 216
+  SUI 1
+  STA .bss + 216
+  JMP ctc_loop
+ctc_done:
+  RET
+
+build_offsets_temp:
+  LDA .bss + 218
+  CPI 0
+  JPZ bo_i
+  CPI 1
+  JPZ bo_o
+  CPI 2
+  JPZ bo_t
+  CPI 3
+  JPZ bo_s
+  CPI 4
+  JPZ bo_z
+  CPI 5
+  JPZ bo_j
+bo_l:
+  LDA .bss + 215
+  CPI 1
+  JPZ bo_l1
+  CPI 2
+  JPZ bo_l2
+  CPI 3
+  JPZ bo_l3
+bo_l0:
+  LDI .l_rot0
+  STA .bss + 224
+  JMP parse_shape
+bo_l1:
+  LDI .l_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_l2:
+  LDI .l_rot2
+  STA .bss + 224
+  JMP parse_shape
+bo_l3:
+  LDI .l_rot3
+  STA .bss + 224
+  JMP parse_shape
+bo_i:
+  LDA .bss + 215
+  CPI 1
+  JPZ bo_i1
+  CPI 2
+  JPZ bo_i2
+  CPI 3
+  JPZ bo_i3
+bo_i0:
+  LDI .i_rot0
+  STA .bss + 224
+  JMP parse_shape
+bo_i1:
+  LDI .i_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_i2:
+  LDI .i_rot0
+  STA .bss + 224
+  JMP parse_shape
+bo_i3:
+  LDI .i_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_o:
+  LDI .o_rot0
+  STA .bss + 224
+  JMP parse_shape
+bo_t:
+  LDA .bss + 215
+  CPI 1
+  JPZ bo_t1
+  CPI 2
+  JPZ bo_t2
+  CPI 3
+  JPZ bo_t3
+bo_t0:
+  LDI .t_rot0
+  STA .bss + 224
+  JMP parse_shape
+bo_t1:
+  LDI .t_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_t2:
+  LDI .t_rot2
+  STA .bss + 224
+  JMP parse_shape
+bo_t3:
+  LDI .t_rot3
+  STA .bss + 224
+  JMP parse_shape
+bo_s:
+  LDA .bss + 215
+  CPI 1
+  JPZ bo_s1
+  CPI 3
+  JPZ bo_s3
+bo_s0:
+  LDI .s_rot0
+  STA .bss + 224
+  JMP parse_shape
+bo_s1:
+  LDI .s_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_s3:
+  LDI .s_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_z:
+  LDA .bss + 215
+  CPI 1
+  JPZ bo_z1
+  CPI 3
+  JPZ bo_z3
+bo_z0:
+  LDI .z_rot0
+  STA .bss + 224
+  JMP parse_shape
+bo_z1:
+  LDI .z_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_z3:
+  LDI .z_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_j:
+  LDA .bss + 215
+  CPI 1
+  JPZ bo_j1
+  CPI 2
+  JPZ bo_j2
+  CPI 3
+  JPZ bo_j3
+bo_j0:
+  LDI .j_rot0
+  STA .bss + 224
+  JMP parse_shape
+bo_j1:
+  LDI .j_rot1
+  STA .bss + 224
+  JMP parse_shape
+bo_j2:
+  LDI .j_rot2
+  STA .bss + 224
+  JMP parse_shape
+bo_j3:
+  LDI .j_rot3
+  STA .bss + 224
+  JMP parse_shape
+
+parse_shape:
+  LDI .bss + 244
+  STA .bss + 222
+  LDI 0
+  STA .bss + 225
+  LDI 0
+  STA .bss + 226
+ps_loop:
+  LDA .bss + 225
+  CPI 16
+  JPZ ps_done
+  LDA .bss + 224
+  ADD .bss + 225
+  STA .bss + 235
+  LDA .bss + 235
+  PHA
+  LAS
+  STA .bss + 221
+  LDA .bss + 221
+  CPI 88
+  JPZ ps_store
+ps_next:
+  LDA .bss + 225
+  ADI 1
+  STA .bss + 225
+  JMP ps_loop
+ps_store:
+  LDA .bss + 225
+  STA .bss + 218
+  LDI 0
+  STA .bss + 219
+ps_row_loop:
+  LDA .bss + 218
+  CPI 4
+  JPC ps_sub_row
+  JMP ps_row_done
+ps_sub_row:
+  LDA .bss + 218
+  SUI 4
+  STA .bss + 218
+  LDA .bss + 219
+  ADI 1
+  STA .bss + 219
+  JMP ps_row_loop
+ps_row_done:
+  LDA .bss + 218
+  STA .bss + 220
+  LDA .bss + 222
+  PHA
+  LDA .bss + 220
+  SAS
+  LDA .bss + 222
+  ADI 1
+  STA .bss + 222
+  LDA .bss + 222
+  PHA
+  LDA .bss + 219
+  SAS
+  LDA .bss + 222
+  ADI 1
+  STA .bss + 222
+  LDA .bss + 226
+  ADI 1
+  STA .bss + 226
+  JMP ps_next
+ps_done:
+  RET
+
+update_piece_cells:
+  LDI .bss + 236
+  STA .bss + 222
+  LDI .bss + 252
+  STA .bss + 223
+  LDI 0
+  STA .bss + 226
+upc_loop:
+  LDA .bss + 226
+  CPI 4
+  JPZ upc_done
+  LDA .bss + 222
+  PHA
+  LAS
+  STA .bss + 220
+  LDA .bss + 222
+  ADI 1
+  STA .bss + 222
+  LDA .bss + 222
+  PHA
+  LAS
+  STA .bss + 219
+  LDA .bss + 222
+  ADI 1
+  STA .bss + 222
+  LDA .bss + 202
+  ADD .bss + 220
+  STA .bss + 213
+  LDA .bss + 203
+  ADD .bss + 219
+  STA .bss + 214
+  LDA .bss + 223
+  PHA
+  LDA .bss + 213
+  SAS
+  LDA .bss + 223
+  ADI 1
+  STA .bss + 223
+  LDA .bss + 223
+  PHA
+  LDA .bss + 214
+  SAS
+  LDA .bss + 223
+  ADI 1
+  STA .bss + 223
+  LDA .bss + 226
+  ADI 1
+  STA .bss + 226
+  JMP upc_loop
+upc_done:
+  LDA .bss + 200
+  STA .bss + 218
+  LDI .piece_chars
+  ADD .bss + 218
+  STA .bss + 224
+  LDA .bss + 224
+  PHA
+  LAS
+  STA .bss + 227
+  RET
+
+can_place:
+  LDI 0
+  STA .res1
+  LDA .bss + 222
+  STA .bss + 235
+  LDI 0
+  STA .bss + 226
+cp_loop:
+  LDA .bss + 226
+  CPI 4
+  JPZ cp_success
+  LDA .bss + 235
+  PHA
+  LAS
+  STA .bss + 220
+  LDA .bss + 235
+  ADI 1
+  STA .bss + 235
+  LDA .bss + 235
+  PHA
+  LAS
+  STA .bss + 219
+  LDA .bss + 235
+  ADI 1
+  STA .bss + 235
+  LDA .bss + 213
+  ADD .bss + 220
+  STA .bss + 218
+  LDA .bss + 218
+  CPI .board_width
+  JPC cp_fail
+  LDA .bss + 214
+  ADD .bss + 219
+  STA .bss + 217
+  LDA .bss + 217
+  CPI .board_height
+  JPC cp_fail
+  LDA .bss + 217
+  STA .bss + 219
+  LDA .bss + 218
+  STA .bss + 220
+  JSR coords_to_ptr
+  LDA .bss + 230
+  PHA
+  LAS
+  CPI 0
+  JPZ cp_cell_ok
+  JMP cp_fail
+cp_cell_ok:
+  LDA .bss + 226
+  ADI 1
+  STA .bss + 226
+  JMP cp_loop
+cp_fail:
+  LDI 0
+  STA .res1
+  RET
+cp_success:
+  LDI 1
+  STA .res1
+  RET
+
+coords_to_ptr:
+  LDA .bss + 219
+  STA .bss + 216
+  LDI 0
+  STA .bss + 229
+ctp_loop:
+  LDA .bss + 216
+  CPI 0
+  JPZ ctp_done
+  LDA .bss + 229
+  ADI .board_width
+  STA .bss + 229
+  LDA .bss + 216
+  SUI 1
+  STA .bss + 216
+  JMP ctp_loop
+ctp_done:
+  LDA .bss + 229
+  ADD .bss + 220
+  STA .bss + 229
+  LDI .bss
+  ADD .bss + 229
+  STA .bss + 230
+  RET
+
+lock_piece:
+  LDI .bss + 252
+  STA .bss + 223
+  LDI 0
+  STA .bss + 226
+  LDA .bss + 200
+  ADI 1
+  STA .bss + 221
+lp_loop:
+  LDA .bss + 226
+  CPI 4
+  JPZ lp_after
+  LDA .bss + 223
+  PHA
+  LAS
+  STA .bss + 220
+  LDA .bss + 223
+  ADI 1
+  STA .bss + 223
+  LDA .bss + 223
+  PHA
+  LAS
+  STA .bss + 219
+  LDA .bss + 223
+  ADI 1
+  STA .bss + 223
+  JSR coords_to_ptr
+  LDA .bss + 230
+  PHA
+  LDA .bss + 221
+  SAS
+  LDA .bss + 226
+  ADI 1
+  STA .bss + 226
+  JMP lp_loop
+lp_after:
+  JSR clear_lines
+  LDI 1
+  STA .bss + 212
+  RET
+
+clear_lines:
+  LDI 0
+  STA .bss + 233
+  LDI .board_height
+  SUI 1
+  STA .bss + 231
+cl_loop:
+  LDA .bss + 231
+  CPI 255
+  JPZ cl_finish
+  JSR row_full
+  LDA .res1
+  CPI 1
+  JPZ cl_remove
+cl_advance:
+  LDA .bss + 231
+  CPI 0
+  JPZ cl_finish
+  LDA .bss + 231
+  SUI 1
+  STA .bss + 231
+  JMP cl_loop
+cl_remove:
+  JSR remove_row
+  LDA .bss + 233
+  ADI 1
+  STA .bss + 233
+  JMP cl_loop
+cl_finish:
+  LDA .bss + 233
+  CPI 0
+  JPZ cl_done
+  LDA .bss + 205
+  ADD .bss + 233
+  STA .bss + 205
+  LDA .bss + 233
+  CPI 1
+  JPZ cl_score1
+  CPI 2
+  JPZ cl_score2
+  CPI 3
+  JPZ cl_score3
+  CPI 4
+  JPZ cl_score4
+  JMP cl_after_score
+cl_score1:
+  LDA .bss + 204
+  ADI .score_single
+  STA .bss + 204
+  JMP cl_after_score
+cl_score2:
+  LDA .bss + 204
+  ADI .score_double
+  STA .bss + 204
+  JMP cl_after_score
+cl_score3:
+  LDA .bss + 204
+  ADI .score_triple
+  STA .bss + 204
+  JMP cl_after_score
+cl_score4:
+  LDA .bss + 204
+  ADI .score_tetris
+  STA .bss + 204
+cl_after_score:
+  LDA .bss + 205
+  STA .bss + 218
+  LDI 1
+  STA .bss + 206
+cl_level_loop:
+  LDA .bss + 218
+  CPI .lines_per_level
+  JPC cl_level_more
+  JMP cl_set_interval
+cl_level_more:
+  LDA .bss + 218
+  SUI .lines_per_level
+  STA .bss + 218
+  LDA .bss + 206
+  ADI 1
+  STA .bss + 206
+  JMP cl_level_loop
+cl_set_interval:
+  LDA .bss + 206
+  CPI 1
+  JPZ cl_level_initial
+  LDA .bss + 206
+  SUI 1
+  STA .bss + 218
+  LDA .bss + 218
+  LSA
+  STA .bss + 218
+  LDI .initial_drop
+  SUB .bss + 218
+  STA .bss + 216
+  LDA .bss + 216
+  CPI .min_drop
+  JPC cl_store_interval
+  LDI .min_drop
+  STA .bss + 216
+cl_store_interval:
+  LDA .bss + 216
+  STA .bss + 208
+  STA .bss + 207
+  JMP cl_done
+cl_level_initial:
+  LDI .initial_drop
+  STA .bss + 208
+  STA .bss + 207
+cl_done:
+  RET
+
+row_full:
+  LDA .bss + 231
+  STA .bss + 219
+  LDI 0
+  STA .bss + 220
+  JSR coords_to_ptr
+  LDA .bss + 230
+  STA .bss + 228
+  LDI .board_width
+  STA .bss + 216
+  LDI 1
+  STA .res1
+rf_loop:
+  LDA .bss + 216
+  CPI 0
+  JPZ rf_done
+  LDA .bss + 228
+  PHA
+  LAS
+  CPI 0
+  JPZ rf_not_full
+  LDA .bss + 228
+  ADI 1
+  STA .bss + 228
+  LDA .bss + 216
+  SUI 1
+  STA .bss + 216
+  JMP rf_loop
+rf_not_full:
+  LDI 0
+  STA .res1
+  RET
+rf_done:
+  RET
+
+remove_row:
+  LDA .bss + 231
+  STA .bss + 219
+rr_loop:
+  LDA .bss + 219
+  CPI 0
+  JPZ rr_fill_top
+  LDA .bss + 219
+  STA .bss + 218
+  LDA .bss + 219
+  SUI 1
+  STA .bss + 216
+  LDA .bss + 216
+  STA .bss + 219
+  LDI 0
+  STA .bss + 220
+  JSR coords_to_ptr
+  LDA .bss + 230
+  STA .bss + 223
+  LDA .bss + 218
+  STA .bss + 219
+  LDI 0
+  STA .bss + 220
+  JSR coords_to_ptr
+  LDA .bss + 230
+  STA .bss + 228
+  LDI .board_width
+  STA .bss + 217
+rr_copy_loop:
+  LDA .bss + 217
+  CPI 0
+  JPZ rr_next
+  LDA .bss + 223
+  PHA
+  LAS
+  STA .bss + 221
+  LDA .bss + 228
+  PHA
+  LDA .bss + 221
+  SAS
+  LDA .bss + 223
+  ADI 1
+  STA .bss + 223
+  LDA .bss + 228
+  ADI 1
+  STA .bss + 228
+  LDA .bss + 217
+  SUI 1
+  STA .bss + 217
+  JMP rr_copy_loop
+rr_next:
+  LDA .bss + 218
+  SUI 1
+  STA .bss + 219
+  JMP rr_loop
+rr_fill_top:
+  LDI 0
+  STA .bss + 219
+  LDI 0
+  STA .bss + 220
+  JSR coords_to_ptr
+  LDA .bss + 230
+  STA .bss + 228
+  LDI .board_width
+  STA .bss + 217
+rr_zero_loop:
+  LDA .bss + 217
+  CPI 0
+  JPZ rr_done
+  LDA .bss + 228
+  PHA
+  LDI 0
+  SAS
+  LDA .bss + 228
+  ADI 1
+  STA .bss + 228
+  LDA .bss + 217
+  SUI 1
+  STA .bss + 217
+  JMP rr_zero_loop
+rr_done:
+  RET
+
+render_board:
+  LDI .bss
+  STA .bss + 228
+  LDI 0
+  STA .bss + 231
+rb_loop:
+  LDA .bss + 231
+  CPI .board_height
+  JPZ rb_done
+  JSR print_indent
+  LDI .border_char
+  STA .char
+  JSR @write_char
+  LDI 0
+  STA .bss + 232
+rb_col_loop:
+  LDA .bss + 232
+  CPI .board_width
+  JPZ rb_row_end
+  LDA .bss + 228
+  PHA
+  LAS
+  STA .bss + 218
+  LDA .bss + 228
+  ADI 1
+  STA .bss + 228
+  LDI .space_char
+  STA .bss + 221
+  LDA .bss + 218
+  CPI 0
+  JPZ rb_check_piece
+  LDA .bss + 218
+  SUI 1
+  STA .bss + 225
+  LDI .piece_chars
+  ADD .bss + 225
+  STA .bss + 224
+  LDA .bss + 224
+  PHA
+  LAS
+  STA .bss + 221
+rb_check_piece:
+  JSR check_active_overlay
+  LDA .bss + 221
+  STA .char
+  JSR @write_char
+  LDA .bss + 232
+  ADI 1
+  STA .bss + 232
+  JMP rb_col_loop
+rb_row_end:
+  LDI .border_char
+  STA .char
+  JSR @write_char
+  LDA .bss + 231
+  CPI .last_row_index
+  JPZ rb_skip_newline
+  JSR @newline
+rb_skip_newline:
+  LDA .bss + 231
+  ADI 1
+  STA .bss + 231
+  JMP rb_loop
+rb_done:
+  RET
+
+check_active_overlay:
+  LDA .bss + 209
+  CPI 0
+  JPZ cao_done
+  LDI .bss + 252
+  STA .bss + 223
+  LDI 0
+  STA .bss + 226
+cao_loop:
+  LDA .bss + 226
+  CPI 4
+  JPZ cao_done
+  LDA .bss + 223
+  PHA
+  LAS
+  STA .bss + 220
+  LDA .bss + 223
+  ADI 1
+  STA .bss + 223
+  LDA .bss + 223
+  PHA
+  LAS
+  STA .bss + 219
+  LDA .bss + 223
+  ADI 1
+  STA .bss + 223
+  LDA .bss + 220
+  CMP .bss + 232
+  JPZ cao_check_row
+  JMP cao_next
+cao_check_row:
+  LDA .bss + 219
+  CMP .bss + 231
+  JPZ cao_hit
+cao_next:
+  LDA .bss + 226
+  ADI 1
+  STA .bss + 226
+  JMP cao_loop
+cao_hit:
+  LDA .bss + 227
+  STA .bss + 221
+cao_done:
+  RET
+
+print_indent:
+  LDI .board_indent
+  STA .bss + 216
+pi_loop:
+  LDA .bss + 216
+  CPI 0
+  JPZ pi_done
+  DIS 17
+  JSR @toggle_display_enable
+  LDA .bss + 216
+  SUI 1
+  STA .bss + 216
+  JMP pi_loop
+pi_done:
+  RET
+
+render_scoreboard:
+  DIS 2
+  JSR @toggle_display_enable
+  LDI .title_text
+  STA .arg1
+  JSR print_z
+  JSR @newline
+  LDI .score_text
+  STA .arg1
+  JSR print_z
+  LDA .bss + 204
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI .lines_text
+  STA .arg1
+  JSR print_z
+  LDA .bss + 205
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI .level_text
+  STA .arg1
+  JSR print_z
+  LDA .bss + 206
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI .controls_line1
+  STA .arg1
+  JSR print_z
+  JSR @newline
+  LDI .controls_line2
+  STA .arg1
+  JSR print_z
+  JSR @newline
+  LDI .controls_line3
+  STA .arg1
+  JSR print_z
+  JSR @newline
+  LDI .controls_line4
+  STA .arg1
+  JSR print_z
+  JSR @newline
+  RET
+
+update_display:
+  DIS 2
+  JSR @toggle_display_enable
+  JSR render_board
+  JSR render_scoreboard
+  RET
+
+clear_display:
+  DIS 1
+  JSR @toggle_display_enable
+  RET
+
+render_game_over:
+  JSR clear_display
+  LDI .game_over_text
+  STA .arg1
+  JSR print_z
+  JSR @newline
+  LDI .final_score_text
+  STA .arg1
+  JSR print_z
+  LDA .bss + 204
+  STA .arg1
+  JSR @display_number
+  JSR @newline
+  LDI .exit_text
+  STA .arg1
+  JSR print_z
+  JSR wait_for_exit
+  RET
+
+wait_for_exit:
+  LDI 0
+  STA .bss + 210
+  STA .no_input
+  STA .bss + 260
+  STA .bss + 261
+wfe_loop:
+  JSR check_input
+  LDA .bss + 210
+  CPI 0
+  JPZ wfe_loop
+  RET
+
+handle_input_value:
+  LDA .bss + 209
+  CPI 0
+  JPZ handle_input_game_over
+  LDA .bss + 211
+  CPI 52
+  JPZ hi_left
+  CPI 54
+  JPZ hi_right
+  CPI 53
+  JPZ hi_down
+  CPI 42
+  JPZ hi_rotate
+  CPI 31
+  JPZ hi_hard_drop
+  CPI 32
+  JPZ hi_hard_drop
+  CPI 48
+  JPZ hi_hard_drop
+  CPI 81
+  JPZ hi_quit
+  RET
+hi_left:
+  JSR move_left
+  RET
+hi_right:
+  JSR move_right
+  RET
+hi_down:
+  JSR drop_step
+  LDA .res1
+  CPI 1
+  JPZ hi_down_moved
+  LDI 1
+  STA .bss + 212
+  RET
+hi_down_moved:
+  LDA .bss + 208
+  STA .bss + 207
+  LDI 1
+  STA .bss + 212
+  RET
+hi_rotate:
+  JSR rotate_piece
+  RET
+hi_hard_drop:
+  JSR hard_drop
+  RET
+hi_quit:
+  LDI 0
+  STA .bss + 209
+  LDI 1
+  STA .bss + 212
+  RET
+handle_input_game_over:
+  LDA .bss + 211
+  CPI 81
+  JPZ hi_quit
+  LDI 0
+  STA .bss + 210
+  RET
+
+check_input:
+  KEI
+  PHA
+  CPI 128
+  JPC ci_entered
+  PLA
+  LDI 0
+  STA .bss + 210
+  LDI 0
+  STA .no_input
+  STA .bss + 260
+  STA .bss + 261
+  RET
+ci_entered:
+  PLA
+  SUI 128
+  STA .bss + 211
+  LDA .no_input
+  CPI 0
+  JPZ ci_new_press
+  LDA .bss + 211
+  CMP .bss + 260
+  JPZ ci_repeat
+ci_new_press:
+  LDA .bss + 211
+  STA .bss + 260
+  LDI 1
+  STA .bss + 210
+  LDI 1
+  STA .no_input
+  LDI 0
+  STA .bss + 261
+  RET
+ci_repeat:
+  LDA .bss + 261
+  ADI 1
+  STA .bss + 261
+  CPI .input_repeat_delay
+  JPC ci_fire_repeat
+  RET
+ci_fire_repeat:
+  LDI .input_repeat_delay
+  STA .bss + 261
+  LDI 1
+  STA .bss + 210
+  RET
+
+print_z:
+  LDI 1
+  STA .arg2
+  LDI 0
+  STA .num_digits
+  JSR @echon
+  RET
