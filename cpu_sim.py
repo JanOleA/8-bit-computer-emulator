@@ -155,6 +155,8 @@ class Computer:
         self.assembly[0b00100000] = [AO|SPI|ORE]                                                                            # MVASP 32      Move A to stack pointer
         self.assembly[0b00100001] = [BO|SPI|ORE]                                                                            # MVBSP 33      Move B to stack pointer
         self.assembly[0b00100010] = [EO|AI|FI|ORE]                                                                          # SUM   34      Take the sum from A and B, move to A, sets flags
+        self.assembly[0b00100011] = [AO|MI,         RO|AI|ORE]                                                              # LAP   35      Load to A from memory-address in A (A <- mem[A])
+        self.assembly[0b00100100] = [CO|MI,         RO|MI|CE,       RO|AI|ORE,      AO|MI,         RO|AI|ORE]               # LPA   36      Load to A from memory-address in another memory address (A <- mem[mem[arg]])
         self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT   254     display the value from A on the output display
         self.assembly[0b11111111] = [HLT]                                                                                   # HLT   255     halt operation
 
@@ -163,43 +165,45 @@ class Computer:
             self.instruction_map = _build_instruction_map()
         else:
             # Keep in sync with assembler_core.py and get_mnemonic_n.easm
-            self.instruction_map = {"NOP": 0,
-                                    "LDA": 1,
-                                    "ADD": 2,
-                                    "SUB": 3,
-                                    "STA": 4,
-                                    "LDI": 5,
-                                    "JMP": 6,
-                                    "JPC": 7,
-                                    "JPZ": 8,
-                                    "KEI": 9,
-                                    "ADI": 10,
-                                    "SUI": 11,
-                                    "CMP": 12,
-                                    "PHA": 13,
-                                    "PLA": 14,
-                                    "LDS": 15,
-                                    "JSR": 16,
-                                    "RET": 17,
-                                    "SAS": 18,
-                                    "LAS": 19,
-                                    "LDB": 20,
-                                    "CPI": 21,
-                                    "RSA": 22,
-                                    "LSA": 23,
-                                    "DIS": 24,
-                                    "DIC": 25,
-                                    "LDD": 26,
-                                    "JNZ": 27,
-                                    "STB": 28,
+            self.instruction_map = {"NOP":   0,
+                                    "LDA":   1,
+                                    "ADD":   2,
+                                    "SUB":   3,
+                                    "STA":   4,
+                                    "LDI":   5,
+                                    "JMP":   6,
+                                    "JPC":   7,
+                                    "JPZ":   8,
+                                    "KEI":   9,
+                                    "ADI":   10,
+                                    "SUI":   11,
+                                    "CMP":   12,
+                                    "PHA":   13,
+                                    "PLA":   14,
+                                    "LDS":   15,
+                                    "JSR":   16,
+                                    "RET":   17,
+                                    "SAS":   18,
+                                    "LAS":   19,
+                                    "LDB":   20,
+                                    "CPI":   21,
+                                    "RSA":   22,
+                                    "LSA":   23,
+                                    "DIS":   24,
+                                    "DIC":   25,
+                                    "LDD":   26,
+                                    "JNZ":   27,
+                                    "STB":   28,
                                     "MOVBA": 29,
                                     "MOVAB": 30,
                                     "LSP":   31,
                                     "MVASP": 32,
                                     "MVBSP": 33,
                                     "SUM":   34,
-                                    "OUT": 254,
-                                    "HLT": 255,}
+                                    "LAP":   35,
+                                    "LPA":   36,
+                                    "OUT":   254,
+                                    "HLT":   255,}
     
     @staticmethod
     def assemble_lines(lines, memory, instruction_map):

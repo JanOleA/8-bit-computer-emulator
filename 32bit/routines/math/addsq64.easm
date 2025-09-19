@@ -36,13 +36,28 @@ asq_loop:
   LDA .bss + 1
   CPI 0
   JPZ asq_add_to_sum
-  ; Test LSB of multiplier: odd if ((x>>1)<<1) != x
-  STA .char
+  ; Shift multiplier and branch on prior LSB
   RSA
+  STA .char
+  JPC asq_odd
+
+asq_store_mul:
+  LDA .char
+  STA .bss + 1
+
+  ; multiplicand <<= 1 (64-bit)
+  ; shift hi first
+  LDA .bss + 6
   LSA
-  CMP .char
-  JPZ asq_even
-  ; odd -> prod += multiplicand (64-bit):
+  STA .bss + 6
+  ; shift lo and propagate bit into hi if overflowed
+  LDA .bss
+  LSA
+  STA .bss
+  JPC asq_set_hi_bit
+  JMP asq_shift_done
+asq_odd:
+  ; prod += multiplicand (64-bit)
   ; prod_lo += mul_lo
   LDA .bss + 2
   ADD .bss
@@ -58,26 +73,12 @@ asq_add_hi_only:
   LDA .bss + 3
   ADD .bss + 6
   STA .bss + 3
-asq_even:
-  ; multiplicand <<= 1 (64-bit) ; multiplier >>= 1
-  ; shift hi first
-  LDA .bss + 6
-  LSA
-  STA .bss + 6
-  ; shift lo and propagate bit into hi if overflowed
-  LDA .bss
-  LSA
-  STA .bss
-  JPC asq_set_hi_bit
-  JMP asq_shift_done
+  JMP asq_store_mul
 asq_set_hi_bit:
   LDA .bss + 6
   ADI 1
   STA .bss + 6
 asq_shift_done:
-  LDA .bss + 1
-  RSA
-  STA .bss + 1
   JMP asq_loop
 
 asq_add_to_sum:

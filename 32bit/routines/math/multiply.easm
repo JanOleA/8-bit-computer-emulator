@@ -28,31 +28,28 @@ mult_loop:
   CPI 0
   JPZ mult_done
 
-  ; test odd: ((m2>>1)<<1) == m2 ? even : odd
-  ; tmp = m2
-  STA .bss + 2          
-  RSA               ; A = m2 >> 1
-  LSA               ; A = (m2 >> 1) << 1
-  ; sets ZF
-  CMP .bss + 2          
-  JPZ m2_even       ; equal => even
+  ; compute new m2 and branch on prior LSB via carry
+  RSA                     ; A = m2 >> 1, carry = original LSB
+  STA .bss + 2            ; keep shifted value for later store
+  JPC mult_add
 
-  ; odd -> res += m1
-  LDA .res1
-  ADD .bss
-  STA .res1
+mult_shift:
+  LDA .bss + 2
+  STA .bss + 1
 
-m2_even:
-  ; m1 <<= 1; m2 >>= 1
+  ; m1 <<= 1
   LDA .bss
   LSA
   STA .bss
 
-  LDA .bss + 1
-  RSA
-  STA .bss + 1
-
   JMP mult_loop
+
+mult_add:
+  ; odd -> res += m1
+  LDA .res1
+  ADD .bss
+  STA .res1
+  JMP mult_shift
 
 mult_done:
   LDA .res1

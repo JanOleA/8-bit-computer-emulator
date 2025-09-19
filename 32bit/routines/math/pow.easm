@@ -36,7 +36,8 @@ pow_loop:
   LDA .work2
   SUI 1
   STA .work2
-  JMP pow_loop
+  JNZ pow_loop
+  JMP pow_done
 
 pow_one:
   LDI 1
@@ -45,4 +46,3 @@ pow_one:
 pow_done:
   LDA .res1
   RET
-

@@ -35,9 +35,8 @@ p2_next:
   LDA .num_digits
   SUI 1
   STA .num_digits
-  JMP p2_loop
+  JNZ p2_loop
 
 p2_done:
   LDA .bss + 1
   RET
-

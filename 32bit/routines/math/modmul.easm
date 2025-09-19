@@ -39,27 +39,15 @@ mm_loop:
   LDA .bss + 2
   CPI 0
   JPZ mm_done
-  ; Test LSB of y: even if ((y>>1)<<1) == y
-  STA .char         ; tmp = y
-  RSA               ; y>>1
-  LSA               ; (y>>1)<<1
-  CMP .char
-  JPZ mm_even
-  ; odd -> res = (res + x) mod mod
-  LDA .bss
-  ADD .bss + 1
-  STA .bss
-  ; if add overflowed (carry) OR res >= mod, subtract mod
-  JPC mm_sub_mod_carry
-  CMP .bss + 3
-  JPC mm_sub_mod_carry
-  JMP mm_after_add
-mm_sub_mod_carry:
-  LDA .bss
-  SUB .bss + 3
-  STA .bss
-mm_after_add:
-mm_even:
+  ; Shift y and branch on prior LSB via carry
+  RSA
+  STA .char         ; store y >> 1 for later
+  JPC mm_add
+
+mm_store_y:
+  LDA .char
+  STA .bss + 2
+
   ; x = (x + x) mod mod
   LDA .bss + 1
   ADD .bss + 1
@@ -69,15 +57,26 @@ mm_even:
   CMP .bss + 3
   JPC mm_x_sub_carry
   JMP mm_x_done
+mm_add:
+  ; odd -> res = (res + x) mod mod
+  LDA .bss
+  ADD .bss + 1
+  STA .bss
+  ; if add overflowed (carry) OR res >= mod, subtract mod
+  JPC mm_sub_mod_carry
+  CMP .bss + 3
+  JPC mm_sub_mod_carry
+  JMP mm_store_y
+mm_sub_mod_carry:
+  LDA .bss
+  SUB .bss + 3
+  STA .bss
+  JMP mm_store_y
 mm_x_sub_carry:
   LDA .bss + 1
   SUB .bss + 3
   STA .bss + 1
 mm_x_done:
-  ; y >>= 1
-  LDA .bss + 2
-  RSA
-  STA .bss + 2
   JMP mm_loop
 
 mm_done:

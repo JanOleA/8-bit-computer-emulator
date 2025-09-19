@@ -254,8 +254,7 @@ cl_loop:
   LDA .num_digits
   SUI 1
   STA .num_digits
-  JPZ cl_done
-  JMP cl_loop
+  JNZ cl_loop
 cl_done:
   JSR ret_home
   JSR print_prompt

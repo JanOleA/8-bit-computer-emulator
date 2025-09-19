@@ -313,10 +313,10 @@ cp1_const_value_token:
   JSR @parse_number
   LDA .res1
   STA .work3
-  LDA .bss + 12
-  STA .pow2
   LDA .work2
-  ADD .pow2
+  MOVAB
+  LDA .bss + 12
+  SUM
   STA .pow2
   LDA .arg1
   CMP .pow2
@@ -793,7 +793,8 @@ fc_loop:
   LDA .work3
   SUI 1
   STA .work3
-  JMP fc_loop
+  JNZ fc_loop
+  JMP fc_not_found
 fc_match:
   LDA .work2
   STA .arg1
@@ -851,7 +852,8 @@ fl_loop:
   LDA .work3
   SUI 1
   STA .work3
-  JMP fl_loop
+  JNZ fl_loop
+  JMP fl_not_found
 fl_match:
   LDA .work2
   STA .arg1
