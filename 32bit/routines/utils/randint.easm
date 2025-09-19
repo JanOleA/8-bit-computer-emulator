@@ -25,11 +25,10 @@ randint:
 ; --- 16-bit style LCG path ---
 ri_16:
   LDA .random_seed
-  STA .arg1
+  PHA
   LDI 25173
-  STA .arg2
+  PHA
   JSR @multiply
-  LDA .res1
   ADI 13849
   STA .arg1
   STA .random_seed
@@ -44,11 +43,10 @@ ri_16:
 ; --- 32-bit LCG path (A-reg >= 32 bits) ---
 ri_32:
   LDA .random_seed
-  STA .arg1
+  PHA
   LDI 1664525
-  STA .arg2
+  PHA
   JSR @multiply
-  LDA .res1
   ADI 1013904223
   STA .arg1
   STA .random_seed

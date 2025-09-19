@@ -16,7 +16,7 @@ main:
 begin:
   ; print 2
   LDI 2
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   ; start from 3
@@ -63,7 +63,7 @@ not_prime_os:
 prime_os:
   ; print the prime then newline
   LDA .bss
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   RET

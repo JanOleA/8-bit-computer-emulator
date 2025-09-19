@@ -144,12 +144,12 @@ compile_main:
   LDI .dbg_start
   JSR print_no_newline
   LDA .bss + 0
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .dbg_mid
   JSR print_no_newline
   LDA .bss + 1
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   LDI 0
@@ -159,17 +159,17 @@ compile_main:
   LDI .dbg_pass1
   JSR print_no_newline
   LDA .bss + 4
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .dbg_consts
   JSR print_no_newline
   LDA .bss + 5
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .dbg_labels
   JSR print_no_newline
   LDA .bss + 6
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   LDA .bss + 13
@@ -193,7 +193,7 @@ cm_success:
   LDI .success_prefix
   JSR print_no_newline
   LDA .bss + 4
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .success_suffix
   JSR print_newline
@@ -991,7 +991,7 @@ re_first:
   LDI .err_line
   JSR print_no_newline
   LDA .bss + 14
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .err_suffix
   JSR print_newline

@@ -30,7 +30,7 @@ osinfo:
   LDI .bits_avail_text_1
   JSR print_no_newline
   LDA .bits_avail
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .bits_avail_text_2
   JSR print_newline
@@ -43,14 +43,14 @@ osinfo:
   STA .arg2
   JSR @divide
   LDA .res1
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .memory_available_text_2
   JSR print_newline
   LDI .memory_available_text_3
   JSR print_no_newline
   LDA .bits_avail
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .memory_available_text_4
   JSR print_newline
@@ -58,7 +58,7 @@ osinfo:
   LDI .installed_progs_text
   JSR print_no_newline
   LDA .bss + 2
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   LDI .installed_progs_text_2
@@ -97,13 +97,13 @@ osinfo:
 
 print_decimal:  ; -- print a decimal number, bss + 10 = before decimal, bss + 11 = after decimal --
   LDA .bss + 10
-  STA .arg1
+  PHA
   JSR @display_number
   LDI 46
   STA .char
   JSR @write_char
   LDA .bss + 11
-  STA .arg1
+  PHA
   JSR @display_number
   RET
 

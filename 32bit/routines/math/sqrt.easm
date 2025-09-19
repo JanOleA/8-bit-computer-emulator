@@ -6,13 +6,17 @@
 ;! align: 4
 
 ; Integer floor square root using subtraction of odd numbers.
-; Inputs: .arg1 = n
-; Returns: .res1 = floor(sqrt(n)), .res2 = residual, .work1 = gap to next square, .res1 is also in A
+; Inputs: Stack Pointer - 2 = n
+; Returns values on stack after return (caller *must* pop) -> [ ..., floor(sqrt(n)), residual, gap_to_next_square ]
+; floor(sqrt(n)) is also in A register on return
 
 sqrt:
-  ; m = n
-  LDA .arg1
+  PLA                     ; get return address from stack
+  STA .bss + 3            ; move return address to bss + 3 for now
+
+  PLA
   STA .bss          ; m
+  ; m = n
   ; step = 1
   LDI 1
   STA .bss + 1      ; step
@@ -42,12 +46,14 @@ sqrt_ge:
   JMP sqrt_loop
 
 sqrt_done:
+  LDA .bss + 2
+  PHA
   LDA .bss
-  STA .res2
+  PHA
   LDA .bss + 1
   SUB .bss
-  STA .work1
-  LDA .bss + 2
-  STA .res1
+  PHA
+  LDA .bss + 3
+  PHA
   RET
 

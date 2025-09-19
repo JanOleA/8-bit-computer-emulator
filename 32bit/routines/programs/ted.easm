@@ -145,7 +145,7 @@ compile:
   LDA .bss + 0
   ADD .bss + 2
   ADI 2
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .compiling_text_2
   JSR print_newline
@@ -505,12 +505,12 @@ end_mode_text:
   LDI .wc_text
   JSR print_no_newline
   LDA .bss + 2
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .lc_text
   JSR print_no_newline
   LDA .bss + 3
-  STA .arg1
+  PHA
   JSR @display_number
 move_cursor_pointer:    ; -- move the pointer for where the cursor is in the current text buffer --
   DIS 2                 ; set cursor to top left

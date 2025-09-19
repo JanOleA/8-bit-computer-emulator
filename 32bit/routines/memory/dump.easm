@@ -113,7 +113,7 @@ dmp_loop:
   JSR dmp_emit_padding
   ; print the number right-aligned in 9-char field
   LDA .bss + 6
-  STA .arg1
+  PHA
   JSR @display_number
 
   ; advance

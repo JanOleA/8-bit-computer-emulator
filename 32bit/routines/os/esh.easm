@@ -5,17 +5,29 @@
 ;! bss: auto
 ;! align: 4
 
-; Input buffering and history
-; bss + 0 = keyboard input value
-; bss + 1 = keyboard input entered
-; bss + 2 = hist_head
-; bss + 3 = hist_count
-; bss + 4 = hist_pos
-; bss + 5 = hist_tmp1
-; bss + 6 = hist_tmp2
-; bss + 7 = hist_start
-; bss + 7 .. bss + 1607 = hist_buffer
-; bss + 1608 = characters in command
+; BSS layout (relative to auto `.bss` base)
+;   +0    key value / status flag
+;   +1    key ready flag
+;   +2    history head index
+;   +3    history entry count
+;   +4    history cursor position
+;   +5    history multiplication scratch
+;   +6    history multiplication accumulator
+;   +7..+1606 history buffer (40 entries × 40 chars)
+;   +1607 sentinel workspace for res_bss
+;   +1608 pointer to argument start in input buffer
+;   +1609 command scanning pointer
+;   +1610 history write pointer
+;   +1611 generic copy source pointer
+;   +1612 generic copy destination pointer
+;   +1613 argv slot pointer
+;   +1614 argv char buffer pointer
+;   +1615 argv input pointer
+;   +1616 argv scanning pointer
+;   +1617 temporary counter
+;   +1618 temporary char store
+;   +1619 cached program entry address
+
 hist_entry_len = 40   ; max characters per history entry and input line
 hist_max    = 40      ; max number of history entries
 
@@ -262,23 +274,25 @@ cl_done:
 ; --- Command parsing ---
 run_command:
   LDI .input_buf
-  STA .arg1
+  STA .bss + 1609
   JSR skip_spaces
   JSR dispatch_program
   RET
 
 skip_spaces:
-  LPA .arg1                 ; load mem[mem[.arg1]] into A
+  LPA .bss + 1609
   CPI 32
   JPZ sksp_inc
   RET
 sksp_inc:
-  LDA .arg1
+  LDA .bss + 1609
   ADI 1
-  STA .arg1
+  STA .bss + 1609
   JMP skip_spaces
 
 dispatch_program:
+  LDA .bss + 1609
+  STA .arg1
   LDI 32
   STA .arg2                 ; buffer to first space
   JSR @buffer_to_separator
@@ -287,24 +301,26 @@ dispatch_program:
   JPZ dp_nomatch            ; jump to no match if buffer returns empty string (0 length)
   LDI .input_buf
   ADD .res2                 ; add length of command to input buffer to get to start of arguments
-  STA .bss + 1608           ; store memory location for start of argument buffer
+  STA .bss + 1608        ; store memory location for start of argument buffer
   LDA .res1
   STA .arg1
   JSR @get_program_address
-  STA .work4                ; store address for program in work4
+  STA .bss + 1619       ; store resolved program entry
   CPI 0
   JPZ dp_nomatch
   
 dp_match:
   LDA .bss + 1608
-  STA .arg1
+  STA .bss + 1609
   JSR skip_spaces
+  LDA .bss + 1609
+  STA .bss + 1615
   JSR build_argv
   LDI .argv_base
   STA .arg1
   LDI .argv_buf
   STA .arg2
-  LDA .work4
+  LDA .bss + 1619
   STA 19997
   JSR #19996
   LDA 19999
@@ -327,7 +343,7 @@ err_help:
   STA .bss
   RET
 
-; Build argc/argv from the raw argument string at .arg1
+; Build argc/argv from the raw argument string referenced by .bss + 1615
 build_argv:
   LDI .argv_base
   PHA
@@ -335,67 +351,69 @@ build_argv:
   SAS
   LDI .argv_base
   ADI 1
-  STA .work1
+  STA .bss + 1613
   LDI .argv_buf
-  STA .work2
-  LDA .arg1
-  STA .work3
+  STA .bss + 1614
+  LDA .bss + 1615
+  STA .bss + 1616
 ba_next_token:
-  LPA .work3                ; load mem[mem[.work3]] into A
+  LPA .bss + 1616
   CPI 32
-  JPZ ba_skip1
+  JPZ ba_skip_whitespace
   CPI 0
   JPZ ba_done
   JMP ba_start
-ba_skip1:
-  LDA .work3
+ba_skip_whitespace:
+  LDA .bss + 1616
   ADI 1
-  STA .work3
+  STA .bss + 1616
   JMP ba_next_token
 ba_start:
   LDA .argv_base
   CPI 8
   JPZ ba_done
-  LDA .work1
+  LDA .bss + 1613
   PHA
-  LDA .work2
+  LDA .bss + 1614
   SAS
+  LDA .bss + 1614
+  STA .bss + 1612
 ba_copy:
-  LPA .work3                ; load mem[mem[.work3]] into A
+  LPA .bss + 1616
   CPI 0
   JPZ ba_term
   CPI 32
   JPZ ba_term
-  STA .char
-  LDA .work2
+  STA .bss + 1618
+  LDA .bss + 1612
   PHA
-  LDA .char
+  LDA .bss + 1618
   SAS
-  LDA .work3
+  LDA .bss + 1616
   ADI 1
-  STA .work3
-  LDA .work2
+  STA .bss + 1616
+  LDA .bss + 1612
   ADI 1
-  STA .work2
+  STA .bss + 1612
   JMP ba_copy
 ba_term:
-  LDA .work2
+  LDA .bss + 1612
   PHA
   LDI 0
   SAS
-  LDA .work2
+  LDA .bss + 1612
   ADI 1
-  STA .work2
+  STA .bss + 1614
   LDA .argv_base
   ADI 1
-  STA .num_digits
+  STA .bss + 1617
   LDI .argv_base
   PHA
-  LDA .num_digits
+  LDA .bss + 1617
   SAS
-  LDA .work1
+  LDA .bss + 1613
   ADI 1
-  STA .work1
+  STA .bss + 1613
   JMP ba_next_token
 ba_done:
   RET
@@ -405,7 +423,7 @@ save_history:
   LDA .cmd_len
   CPI 0
   JPZ sh_done
-  ; compute dest = hist_base + hist_head*80
+  ; compute dest = hist_base + .bss + 2*80
   LDA .bss + 2
   STA .bss + 5
   LDA .bss + 5
@@ -422,47 +440,47 @@ save_history:
   LSA
   LSA
   ADD .bss + 6
-  STA .bss + 1
+  STA .bss + 6
   LDI .bss + 7
-  ADD .bss + 1
-  STA .arg2
+  ADD .bss + 6
+  STA .bss + 1610
   LDI .input_buf
-  STA .arg1
+  STA .bss + 1611
   LDI 0
-  STA .num_digits
+  STA .bss + 1617
 sh_copy:
-  LDA .num_digits
+  LDA .bss + 1617
   CPI 80
   JPZ sh_pad_done
-  LPA .arg1                ; load mem[mem[.arg1]] into A
-  STA .char
+  LPA .bss + 1611
+  STA .bss + 1618
   CPI 0
   JPZ sh_pad
-  LDA .arg2
+  LDA .bss + 1610
   PHA
-  LDA .char
+  LDA .bss + 1618
   SAS
-  LDA .arg1
+  LDA .bss + 1611
   ADI 1
-  STA .arg1
-  LDA .arg2
+  STA .bss + 1611
+  LDA .bss + 1610
   ADI 1
-  STA .arg2
-  LDA .num_digits
+  STA .bss + 1610
+  LDA .bss + 1617
   ADI 1
-  STA .num_digits
+  STA .bss + 1617
   JMP sh_copy
 sh_pad:
-  LDA .arg2
+  LDA .bss + 1610
   PHA
   LDI 0
   SAS
-  LDA .arg2
+  LDA .bss + 1610
   ADI 1
-  STA .arg2
-  LDA .num_digits
+  STA .bss + 1610
+  LDA .bss + 1617
   ADI 1
-  STA .num_digits
+  STA .bss + 1617
   JMP sh_copy
 sh_pad_done:
   LDA .bss + 2
@@ -505,38 +523,38 @@ history_load_current:
   LDA .bss + 2
   ADI .hist_max
   SUB .bss + 4
-  STA .bss
+  STA .bss + 1617
   JMP hlc_idx_ready
 hlc_nowrap:
   LDA .bss + 2
   SUB .bss + 4
-  STA .bss
+  STA .bss + 1617
 hlc_idx_ready:
-  LDA .bss
+  LDA .bss + 1617
   LSA
   LSA
   LSA
   LSA
-  STA .bss + 5
-  LDA .bss
+  STA .bss + 6
+  LDA .bss + 1617
   LSA
   LSA
   LSA
   LSA
   LSA
   LSA
-  ADD .bss + 5
-  STA .bss + 1
+  ADD .bss + 6
+  STA .bss + 6
   LDI .bss + 7
-  ADD .bss + 1
-  STA .arg1
+  ADD .bss + 6
+  STA .bss + 1611
   LDI 0
-  STA .num_digits
+  STA .bss + 1617
 hlc_copy:
-  LDA .num_digits
+  LDA .bss + 1617
   CPI .hist_entry_len
   JPZ hlc_done
-  LPA .arg1                ; load mem[mem[.arg1]] into A
+  LPA .bss + 1611
   STA .char
   CPI 0
   JPZ hlc_done
@@ -545,18 +563,18 @@ hlc_copy:
   PHA
   LDA .char
   SAS
-  LDA .arg1
+  LDA .bss + 1611
   ADI 1
-  STA .arg1
+  STA .bss + 1611
   LDA .input_ptr
   ADI 1
   STA .input_ptr
   LDA .cmd_len
   ADI 1
   STA .cmd_len
-  LDA .num_digits
+  LDA .bss + 1617
   ADI 1
-  STA .num_digits
+  STA .bss + 1617
   JMP hlc_copy
 hlc_done:
   LDA .input_ptr

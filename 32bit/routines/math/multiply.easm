@@ -5,52 +5,58 @@
 ;! bss: auto
 ;! align: 4
 
-; --- Multiply .arg1 and .arg2, store the result in .res1 and the A register
+; --- Multiply two inputs (retrieve first two from stack) store the result in the A register
 
-; Inputs: .arg1, .arg2
 ; Output: .res1 and A
-; Temps:  .bss, .bss + 1, .bss + 2
+; Temps:  .bss + 1, .bss + 2, .bss + 3, bss + 4
 
 multiply:
+  PLA                     ; get return address from stack
+  MOVAB                   ; move return address to B for now
+
+  PLA                     ; arg1
+  ; m1 = bss + 1, m2 = bss + 2
+  STA .bss + 1
+  PLA                     ; arg2
+  STA .bss + 2
+  
+  MOVBA                   ; move return address back to A
+  PHA                     ; push it back to stack
+
   ; res = 0
   LDI 0
-  STA .res1
+  STA .bss + 4
 
-  ; m1 = arg1, m2 = arg2
-  LDA .arg1
-  STA .bss
-  LDA .arg2
-  STA .bss + 1
 
 mult_loop:
   ; if m2 == 0 -> done  (need to set ZF!)
-  LDA .bss + 1
+  LDA .bss + 2
   CPI 0
   JPZ mult_done
 
   ; compute new m2 and branch on prior LSB via carry
   RSA                     ; A = m2 >> 1, carry = original LSB
-  STA .bss + 2            ; keep shifted value for later store
+  STA .bss + 3            ; keep shifted value for later store
   JPC mult_add
 
 mult_shift:
-  LDA .bss + 2
-  STA .bss + 1
+  LDA .bss + 3
+  STA .bss + 2
 
   ; m1 <<= 1
-  LDA .bss
+  LDA .bss + 1
   LSA
-  STA .bss
+  STA .bss + 1
 
   JMP mult_loop
 
 mult_add:
   ; odd -> res += m1
-  LDA .res1
-  ADD .bss
-  STA .res1
+  LDA .bss + 4
+  ADD .bss + 1
+  STA .bss + 4
   JMP mult_shift
 
 mult_done:
-  LDA .res1
+  LDA .bss + 4
   RET

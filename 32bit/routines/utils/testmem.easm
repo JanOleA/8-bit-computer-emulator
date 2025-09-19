@@ -103,7 +103,7 @@ print_largest:
   JSR print_no_newline
 
   LDA .bss + 3
-  STA .arg1
+  PHA
   JSR @display_number
 
   LDI .largest_text_3
@@ -111,12 +111,12 @@ print_largest:
 
   LDA .bss + 3
   ADD .bss + 4
-  STA .arg1
+  PHA
   JSR @display_number
   LDI .largest_text_4
   JSR print_no_newline
   LDA .bss + 4
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   RET
@@ -142,7 +142,7 @@ print_no_newline:
 
 display_current:
   LDA .bss + 1
-  STA .arg1
+  PHA
   JSR @display_number
   LDI 32
   STA .char
@@ -151,7 +151,7 @@ display_current:
   JSR @write_char
   LDA .bss + 1
   ADD .bss + 2
-  STA .arg1
+  PHA
   JSR @display_number
   LDI 32
   STA .char
@@ -159,7 +159,7 @@ display_current:
   JSR @write_char
   JSR @write_char
   LDA .bss + 2
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   RET

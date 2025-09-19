@@ -285,7 +285,7 @@ print_prompt:
   STA .char
   JSR @write_char
   LDA .bss + 1        ; current write address
-  STA .arg1
+  PHA
   JSR @display_number
   LDI 93              ; ']'
   STA .char

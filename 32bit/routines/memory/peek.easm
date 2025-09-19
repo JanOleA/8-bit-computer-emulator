@@ -41,8 +41,7 @@ pk_pn_loop:
 pk_pn_done:
   ; read memory at [res1]
   LPA .res1                ; load mem[mem[.res1]] into A
-  STA .arg1
-  ; print via display_number
+  PHA
   JSR @display_number
   JSR @newline
 pk_end:

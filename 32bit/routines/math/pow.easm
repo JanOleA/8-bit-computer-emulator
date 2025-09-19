@@ -5,37 +5,48 @@
 ;! bss: auto
 ;! align: 4
 
-; Compute pow(arg1, arg2) = (base ^ exp)
-; Inputs: .arg1 = base, .arg2 = exp
+; Compute pow(SP - 3, SP - 2) = (base ^ exp)
+; Inputs: Stack Pointer - 3 = base, Stack Pointer - 2 = exp
 ; Returns: .res1 = result; A = result
+
+; bss + 1 = exp
+; bss + 2 = base
 
 pow:
   ; Save base and exp into locals
-  LDA .arg1
-  STA .work1          ; base
-  LDA .arg2
-  STA .work2          ; exp
+  PLA                     ; get return address from stack
+  MOVAB                   ; move return address to B for now
+
+  PLA
+  STA .bss + 2            ; exp
+  PLA
+  STA .bss + 1            ; base
+  
+  MOVBA                   ; move return address back to A
+  PHA                     ; push it back to stack
+
   ; Handle exp == 0 -> 1
-  LDA .work2
+  LDA .bss + 2
   CPI 0
   JPZ pow_one
   ; res = 1
   LDI 1
   STA .res1
 pow_loop:
-  LDA .work2
+  LDA .bss + 2
   CPI 0
   JPZ pow_done
   ; res1 = res1 * base
   LDA .res1
-  STA .arg1
-  LDA .work1
-  STA .arg2
+  PHA
+  LDA .bss + 1
+  PHA
   JSR @multiply
+  STA .res1
   ; dec exp
-  LDA .work2
+  LDA .bss + 2
   SUI 1
-  STA .work2
+  STA .bss + 2
   JNZ pow_loop
   JMP pow_done
 

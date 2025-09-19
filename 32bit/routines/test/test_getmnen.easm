@@ -18,7 +18,7 @@ test_go:
   STA .arg1           ; res2 = pointer to string
   JSR @get_mnemonic
   LDA .res1
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   RET

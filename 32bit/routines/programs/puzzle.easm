@@ -37,7 +37,7 @@ its_prime:
   ADI 1
   STA .bss + 6
   OUT
-  CPI 600
+  CPI 500000
   JPC done
   ; add n^2 into 64-bit sum at (sum_lo,sum_hi)
   LDA .bss
@@ -65,7 +65,7 @@ its_prime:
 found_one:
   ; print bss + 6
   LDA .bss + 6
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   ; store bss + 6 at *(bss + 7); then increment pointer
@@ -86,8 +86,11 @@ next_val:
 check_prime_os:
   ; limit divisor up to floor(sqrt(n)) for fewer trials
   LDA .bss
-  STA .arg1
+  PHA
   JSR @sqrt
+  PLA
+  PLA
+  PLA
   STA .bss + 2        ; sqrt_n
   LDI 3
   STA .bss + 1

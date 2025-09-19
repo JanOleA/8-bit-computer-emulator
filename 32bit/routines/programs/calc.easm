@@ -77,48 +77,46 @@ do_sub:
 
 do_sqrt:
   LDA .work1
-  STA .arg1
+  PHA
   JSR @sqrt
-  ; A holds result, .res2 holds residual, .work1 holds distance to next square, - print all
-  ; Save result, residual and distance before display_number overwrites .res2
-  STA .work2
-  LDA .res2
+  ; Returns values on stack after return (caller *must* pop) -> [ ..., floor(sqrt(n)), residual, gap_to_next_square ]
+  PLA           ; gap
   STA .work3
-  LDA .work1
+  PLA           ; residual
   STA .work4
-  LDA .work2
-  STA .arg1
+  PLA           ; result
+  PHA
   JSR @display_number
+  JSR @newline
   LDI .residual_text
   JSR print_no_newline
   ; print residual
-  LDA .work3
-  STA .arg1
+  LDA .work4
+  PHA
   JSR @display_number
   JSR @newline
   LDI .distance_text
   JSR print_no_newline
   ; print distance
-  LDA .work4
-  STA .arg1
+  LDA .work3
+  PHA
   JSR @display_number
   JSR @newline
   RET
 
 do_pow:
   LDA .work1
-  STA .arg1
+  PHA
   LDA .work2
-  STA .arg2
+  PHA
   JSR @pow
-  LDA .res1
   JMP do_print
 
 do_mul:
   LDA .work1
-  STA .arg1
+  PHA
   LDA .work2
-  STA .arg2
+  PHA
   JSR @multiply
   JMP do_print
 
@@ -135,7 +133,7 @@ do_div:
   STA .work3          ; save remainder
   LDA .work4          ; restore quotient
   ; print quotient
-  STA .arg1
+  PHA
   JSR @display_number
   ; print " R "
   LDI 32
@@ -149,13 +147,13 @@ do_div:
   JSR @write_char
   ; print remainder
   LDA .work3
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   RET
 
 do_print:
-  STA .arg1
+  PHA
   JSR @display_number
   JSR @newline
   RET
