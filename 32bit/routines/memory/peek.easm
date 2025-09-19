@@ -17,9 +17,7 @@ peek:
   LDI 0
   STA .res1
 pk_pn_loop:
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ pk_pn_done
   CPI 32
@@ -42,9 +40,7 @@ pk_pn_loop:
   JMP pk_pn_loop
 pk_pn_done:
   ; read memory at [res1]
-  LDA .res1
-  PHA
-  LAS
+  LPA .res1                ; load mem[mem[.res1]] into A
   STA .arg1
   ; print via display_number
   JSR @display_number

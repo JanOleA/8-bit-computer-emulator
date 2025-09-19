@@ -90,8 +90,7 @@ main_loop:
   JPZ handle_backspace
   ; -- insert ascii --
   ADD .ascii_start
-  PHA
-  LAS
+  LAP
   STA .char
   JSR insert_character
   LDA .bss + 7
@@ -212,18 +211,14 @@ handle_backspace:
   STA .arg2             ; destination assumes single byte delete for now
   LDI 1
   STA .work1            ; delete size = 1 byte by default
-  LDA .arg2
-  PHA
-  LAS
+  LPA .arg2                ; load mem[mem[.arg2]] into A
   STA .char             ; byte immediately before cursor
   CPI 92                ; backslash?
   JPZ hb_prev_backslash
   JMP hb_delete_prev
 
 hb_prev_backslash:
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                ; load mem[mem[.arg1]] into A
   CPI 92
   JPZ hb_set_double_delete
   LDA .work2
@@ -234,8 +229,7 @@ hb_prev_backslash:
 hb_check_prev_byte:
   LDA .arg2
   SUI 1
-  PHA
-  LAS
+  LAP
   CPI 92
   JPZ hb_set_double_delete
   JMP hb_delete_prev
@@ -305,8 +299,7 @@ hb_ls_after_move:
   JSR move_cursor_pointer
   LDA .bss + 0
   ADD .bss + 1
-  PHA
-  LAS
+  LAP
   STA .char             ; first break character
   CPI 0
   JPZ hb_no_break
@@ -323,8 +316,7 @@ hb_break_escape:
   LDA .bss + 0
   ADD .bss + 1
   ADI 1
-  PHA
-  LAS
+  LAP
   CPI 78                ; 'N'
   JPZ hb_set_break_two
   CPI 92                ; '\\'
@@ -566,8 +558,7 @@ mcp_byte_loop:
   LDA .bss + 0
   ADD .work2
   STA .arg1
-  PHA
-  LAS
+  LAP
   CPI 92                ; backslash -> possible escape sequence
   JPZ mcp_handle_escape
   CPI 10                ; literal newline (0x0A)
@@ -581,8 +572,7 @@ mcp_handle_escape:
   LDA .bss + 0
   ADD .work2
   ADI 1
-  PHA
-  LAS
+  LAP
   CPI 78                ; 'N' newline escape
   JPZ mcp_advance_escape_two
   CPI 92                ; '\\' literal backslash escape

@@ -60,8 +60,7 @@ main_loop:
   JPZ handle_left
   LDA .ascii_start
   ADD .bss
-  PHA
-  LAS
+  LAP
   STA .char
   JSR @write_char
   ; buffer char
@@ -269,9 +268,7 @@ run_command:
   RET
 
 skip_spaces:
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                 ; load mem[mem[.arg1]] into A
   CPI 32
   JPZ sksp_inc
   RET
@@ -344,9 +341,7 @@ build_argv:
   LDA .arg1
   STA .work3
 ba_next_token:
-  LDA .work3
-  PHA
-  LAS
+  LPA .work3                ; load mem[mem[.work3]] into A
   CPI 32
   JPZ ba_skip1
   CPI 0
@@ -366,9 +361,7 @@ ba_start:
   LDA .work2
   SAS
 ba_copy:
-  LDA .work3
-  PHA
-  LAS
+  LPA .work3                ; load mem[mem[.work3]] into A
   CPI 0
   JPZ ba_term
   CPI 32
@@ -441,9 +434,7 @@ sh_copy:
   LDA .num_digits
   CPI 80
   JPZ sh_pad_done
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                ; load mem[mem[.arg1]] into A
   STA .char
   CPI 0
   JPZ sh_pad
@@ -545,9 +536,7 @@ hlc_copy:
   LDA .num_digits
   CPI .hist_entry_len
   JPZ hlc_done
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                ; load mem[mem[.arg1]] into A
   STA .char
   CPI 0
   JPZ hlc_done

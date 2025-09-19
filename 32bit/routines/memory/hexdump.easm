@@ -29,9 +29,7 @@ hx_go:
   LDI 0
   STA .res1
 hx_pn1:
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ hx_pn1_done
   CPI 32
@@ -62,9 +60,7 @@ hx_pn1_done:
   LDI 0
   STA .res1
 hx_pn2:
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ hx_pn2_done
   CPI 32
@@ -99,9 +95,7 @@ hx_loop:
   JPZ hx_end
 
   ; read word at [addr] into A
-  LDA .addr
-  PHA
-  LAS
+  LPA .addr                ; load mem[mem[.addr]] into A
   STA .arg1           ; keep a copy if needed
   ; print 8 hex digits from A
   JSR print_hex8

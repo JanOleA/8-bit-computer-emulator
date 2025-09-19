@@ -226,9 +226,7 @@ cp1_loop:
   RET
 cp1_check_end:
   ; pull current line bounds via skip_line so we can tokenise inside them
-  LDA .bss + 2
-  PHA
-  LAS
+  LPA .bss + 2                ; load mem[mem[.bss + 2]] into A
   CPI 0
   JPZ cp1_done
   LDA .bss + 2
@@ -254,9 +252,7 @@ cp1_check_end:
   JMP cp1_next_line
 cp1_got_token:
   ; classify the first token on the line to decide how to account for it
-  LDA .bss + 11
-  PHA
-  LAS
+  LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
   STA .char
   LDA .char
   CPI 73
@@ -383,9 +379,7 @@ cp2_loop:
   RET
 cp2_check_end:
   ; same line traversal strategy as pass1
-  LDA .bss + 2
-  PHA
-  LAS
+  LPA .bss + 2                ; load mem[mem[.bss + 2]] into A
   CPI 0
   JPZ cp2_after_loop
   LDA .bss + 2
@@ -411,9 +405,7 @@ cp2_check_end:
   JMP cp2_next_line
 cp2_got_token:
   ; branch by leading token type
-  LDA .bss + 11
-  PHA
-  LAS
+  LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
   STA .char
   LDA .char
   CPI 73
@@ -497,9 +489,7 @@ nt_skip:
   LDA .work1
   CMP .work3
   JPZ nt_none
-  LDA .work1
-  PHA
-  LAS
+  LPA .work1                ; load mem[mem[.work1]] into A
   STA .char
   CPI 32
   JPZ nt_skip_ws
@@ -528,9 +518,7 @@ nt_copy:
   LDA .work1
   CMP .work3
   JPZ nt_finish
-  LDA .work1
-  PHA
-  LAS
+  LPA .work1                ; load mem[mem[.work1]] into A
   STA .char
   CPI 32
   JPZ nt_finish
@@ -726,9 +714,7 @@ copy_token_buffer:
   LDA .work2
   STA .work1
 ct_loop:
-  LDA .work4
-  PHA
-  LAS
+  LPA .work4                ; load mem[mem[.work4]] into A
   STA .char
   CPI 0
   JPZ ct_end
@@ -773,9 +759,7 @@ fc_loop:
   LDA .work3
   CPI 0
   JPZ fc_not_found
-  LDA .work1
-  PHA
-  LAS
+  LPA .work1                ; load mem[mem[.work1]] into A
   STA .work4
   LDA .work4
   STA .arg1
@@ -801,9 +785,7 @@ fc_match:
   LDA .work1
   ADI 1
   STA .work4
-  LDA .work4
-  PHA
-  LAS
+  LPA .work4                ; load mem[mem[.work4]] into A
   STA .res1
   LDI 1
   STA .res2
@@ -832,9 +814,7 @@ fl_loop:
   LDA .work3
   CPI 0
   JPZ fl_not_found
-  LDA .work1
-  PHA
-  LAS
+  LPA .work1                ; load mem[mem[.work1]] into A
   STA .work4
   LDA .work4
   STA .arg1
@@ -860,9 +840,7 @@ fl_match:
   LDA .work1
   ADI 1
   STA .work4
-  LDA .work4
-  PHA
-  LAS
+  LPA .work4                ; load mem[mem[.work4]] into A
   STA .res1
   LDI 1
   STA .res2
@@ -881,9 +859,7 @@ resolve_operand:
   LDA .bss + 12
   CPI 0
   JPZ ro_missing
-  LDA .bss + 11
-  PHA
-  LAS
+  LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
   STA .char
   LDA .char
   CPI 42

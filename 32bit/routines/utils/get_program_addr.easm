@@ -38,8 +38,7 @@ match:
   LDI .prog_table
   ADD .bss + 1          ; location of string in program table
   ADI 16                ; location of base in program table
-  PHA
-  LAS                   ; get stored base from the pointer
+  LAP                   ; get stored base from the pointer
   STA .res1
   RET
 no_match:

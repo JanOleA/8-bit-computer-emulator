@@ -32,9 +32,7 @@ dmp_go:
   LDI 0
   STA .res1
 dmp_pn1:
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ dmp_pn1_done
   CPI 32
@@ -65,9 +63,7 @@ dmp_pn1_done:
   LDI 0
   STA .res1
 dmp_pn2:
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ dmp_pn2_done
   CPI 32
@@ -102,9 +98,7 @@ dmp_loop:
   JPZ dmp_end
 
   ; read word at [addr] into .arg1 safely
-  LDA .addr
-  PHA
-  LAS
+  LPA .addr                ; load mem[mem[.addr]] into A
   STA .arg1
   STA .bss + 6        ; save original value
   STA .bss + 3        ; working copy for digit count

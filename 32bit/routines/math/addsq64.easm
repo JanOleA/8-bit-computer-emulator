@@ -83,14 +83,10 @@ asq_shift_done:
 
 asq_add_to_sum:
   ; Load current sum_lo into tmp_lo
-  LDA .arg2
-  PHA
-  LAS
+  LPA .arg2                ; load mem[mem[.arg2]] into A
   STA .bss + 4
   ; Load sum_hi into tmp_hi
-  LDA .res1
-  PHA
-  LAS
+  LPA .res1                ; load mem[mem[.res1]] into A
   STA .bss + 5
   ; tmp_lo += prod_lo
   LDA .bss + 4

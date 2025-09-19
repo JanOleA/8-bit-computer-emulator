@@ -452,9 +452,7 @@ ctc_loop:
   LDA .bss + 216
   CPI 0
   JPZ ctc_done
-  LDA .bss + 235
-  PHA
-  LAS
+  LPA .bss + 235                ; load mem[mem[.bss + 235]] into A
   STA .bss + 221
   LDA .bss + 222
   PHA
@@ -638,9 +636,7 @@ ps_loop:
   LDA .bss + 224
   ADD .bss + 225
   STA .bss + 235
-  LDA .bss + 235
-  PHA
-  LAS
+  LPA .bss + 235                ; load mem[mem[.bss + 235]] into A
   STA .bss + 221
   LDA .bss + 221
   CPI 88
@@ -703,16 +699,12 @@ upc_loop:
   LDA .bss + 226
   CPI 4
   JPZ upc_done
-  LDA .bss + 222
-  PHA
-  LAS
+  LPA .bss + 222                ; load mem[mem[.bss + 222]] into A
   STA .bss + 220
   LDA .bss + 222
   ADI 1
   STA .bss + 222
-  LDA .bss + 222
-  PHA
-  LAS
+  LPA .bss + 222                ; load mem[mem[.bss + 222]] into A
   STA .bss + 219
   LDA .bss + 222
   ADI 1
@@ -747,9 +739,7 @@ upc_done:
   LDI .piece_chars
   ADD .bss + 218
   STA .bss + 224
-  LDA .bss + 224
-  PHA
-  LAS
+  LPA .bss + 224                ; load mem[mem[.bss + 224]] into A
   STA .bss + 227
   RET
 
@@ -764,16 +754,12 @@ cp_loop:
   LDA .bss + 226
   CPI 4
   JPZ cp_success
-  LDA .bss + 235
-  PHA
-  LAS
+  LPA .bss + 235                ; load mem[mem[.bss + 235]] into A
   STA .bss + 220
   LDA .bss + 235
   ADI 1
   STA .bss + 235
-  LDA .bss + 235
-  PHA
-  LAS
+  LPA .bss + 235                ; load mem[mem[.bss + 235]] into A
   STA .bss + 219
   LDA .bss + 235
   ADI 1
@@ -795,9 +781,7 @@ cp_loop:
   LDA .bss + 218
   STA .bss + 220
   JSR coords_to_ptr
-  LDA .bss + 230
-  PHA
-  LAS
+  LPA .bss + 230                ; load mem[mem[.bss + 230]] into A
   CPI 0
   JPZ cp_cell_ok
   JMP cp_fail
@@ -852,16 +836,12 @@ lp_loop:
   LDA .bss + 226
   CPI 4
   JPZ lp_after
-  LDA .bss + 223
-  PHA
-  LAS
+  LPA .bss + 223                ; load mem[mem[.bss + 223]] into A
   STA .bss + 220
   LDA .bss + 223
   ADI 1
   STA .bss + 223
-  LDA .bss + 223
-  PHA
-  LAS
+  LPA .bss + 223                ; load mem[mem[.bss + 223]] into A
   STA .bss + 219
   LDA .bss + 223
   ADI 1
@@ -1009,9 +989,7 @@ rf_loop:
   LDA .bss + 216
   CPI 0
   JPZ rf_done
-  LDA .bss + 228
-  PHA
-  LAS
+  LPA .bss + 228                ; load mem[mem[.bss + 228]] into A
   CPI 0
   JPZ rf_not_full
   LDA .bss + 228
@@ -1060,9 +1038,7 @@ rr_copy_loop:
   LDA .bss + 217
   CPI 0
   JPZ rr_next
-  LDA .bss + 223
-  PHA
-  LAS
+  LPA .bss + 223                ; load mem[mem[.bss + 223]] into A
   STA .bss + 221
   LDA .bss + 228
   PHA
@@ -1130,9 +1106,7 @@ rb_col_loop:
   LDA .bss + 232
   CPI .board_width
   JPZ rb_row_end
-  LDA .bss + 228
-  PHA
-  LAS
+  LPA .bss + 228                ; load mem[mem[.bss + 228]] into A
   STA .bss + 218
   LDA .bss + 228
   ADI 1
@@ -1148,9 +1122,7 @@ rb_col_loop:
   LDI .piece_chars
   ADD .bss + 225
   STA .bss + 224
-  LDA .bss + 224
-  PHA
-  LAS
+  LPA .bss + 224                ; load mem[mem[.bss + 224]] into A
   STA .bss + 221
 rb_check_piece:
   JSR check_active_overlay
@@ -1189,16 +1161,12 @@ cao_loop:
   LDA .bss + 226
   CPI 4
   JPZ cao_done
-  LDA .bss + 223
-  PHA
-  LAS
+  LPA .bss + 223                ; load mem[mem[.bss + 223]] into A
   STA .bss + 220
   LDA .bss + 223
   ADI 1
   STA .bss + 223
-  LDA .bss + 223
-  PHA
-  LAS
+  LPA .bss + 223                ; load mem[mem[.bss + 223]] into A
   STA .bss + 219
   LDA .bss + 223
   ADI 1

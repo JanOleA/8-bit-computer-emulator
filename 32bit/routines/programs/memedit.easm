@@ -36,9 +36,7 @@ me_go:
   LDI 0
   STA .res1
 me_pn:
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ me_pn_done
   CPI 32
@@ -98,8 +96,7 @@ me_loop:
   ; Regular character: convert via ascii_map and append to buffer
   LDA .ascii_start
   ADD .res1
-  PHA
-  LAS
+  LAP
   STA .char
   JSR @write_char
   ; store into buffer
@@ -206,9 +203,7 @@ parse_and_store:
   STA .bss + 5
 pas_next_token:
   ; skip spaces
-  LDA .bss + 5
-  PHA
-  LAS
+  LPA .bss + 5                ; load mem[mem[.bss + 5]] into A
   CPI 32
   JPZ pas_skip1
   CPI 0
@@ -225,9 +220,7 @@ pas_start:
   LDI 0
   STA .num_digits
 pas_digits:
-  LDA .bss + 5
-  PHA
-  LAS
+  LPA .bss + 5                ; load mem[mem[.bss + 5]] into A
   CPI 48
   JPC pas_check_hi
   JMP pas_after_num

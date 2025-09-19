@@ -18,9 +18,7 @@ pk_ok:
   LDI 0
   STA .res1
 pk_paddr:
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ pk_paddr_done
   CPI 32
@@ -48,9 +46,7 @@ pk_paddr_done:
   LDI 0
   STA .arg1
 pk_pval:
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ pk_pval_done
   CPI 32

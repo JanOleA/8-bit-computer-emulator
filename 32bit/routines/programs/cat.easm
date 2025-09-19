@@ -50,9 +50,7 @@ print_init:
   LDA .arg2
   STA .bss + 4
 print_loop:
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                ; load mem[mem[.arg1]] into A
   STA .char
   CPI 0
   JPZ end

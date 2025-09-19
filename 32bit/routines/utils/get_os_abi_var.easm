@@ -30,9 +30,7 @@ compare:
   CPI 1
   JPZ match
   ; get character at read_pointer
-  LDA .bss + 1
-  PHA
-  LAS
+  LPA .bss + 1                ; load mem[mem[.bss + 1]] into A
   CPI 0                   ; if we reach null, end
   JPZ end_no_match
   JMP compare
@@ -61,9 +59,7 @@ buf_to_sep:
   LDA .bss + 1
   ADD .res2                     ; Advance current pointer by token length
   STA .bss + 1
-  LDA .bss + 1                  ; If current char is the separator, skip it as well; if null, do not
-  PHA
-  LAS
+  LPA .bss + 1                  ; If current char is the separator, skip it as well; if null, do not                ; load mem[mem[.bss + 1                  ; If current char is the separator, skip it as well; if null, do not]] into A
   ; Check if the current character is the separator
   CMP .arg2
   JPZ bts_skip_sep

@@ -12,9 +12,7 @@ skip_line:
   STA .res1
   STA .res2
 sl_loop:
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                ; load mem[mem[.arg1]] into A
   CPI 0
   JPZ sl_end        ; end immediately on null
   CPI 92            ; backslash
@@ -32,8 +30,7 @@ sl_loop:
 sl_backslash:
   LDA .arg1
   ADI 1
-  PHA
-  LAS
+  LAP
   CPI 78            ; N
   JPZ sl_newline
   LDA .arg1

@@ -30,9 +30,7 @@ cl_go:
   ; read operator char -> .char
   LDA .argv_base + 2
   STA .work2          ; pointer to operator token
-  LDA .work2
-  PHA
-  LAS
+  LPA .work2                ; load mem[mem[.work2]] into A
   STA .char
 
   ; check if we have three arguments

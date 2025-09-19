@@ -23,9 +23,7 @@ buffer_to_separator:  ; fill the buffer from current read pointer until first oc
   
 buf_loop:
   ; get character at read_pointer
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                ; load mem[mem[.arg1]] into A
   CMP .arg2
   JPZ buf_end         ; if we reach the separator, jump to buf_end
   CPI 0

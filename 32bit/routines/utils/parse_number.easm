@@ -10,9 +10,7 @@ parse_number:
   LDI 0
   STA .res1
 pn_loop:
-  LDA .arg1
-  PHA
-  LAS                 ; A = current char
+  LPA .arg1                 ; A = current char                ; load mem[mem[.arg1                 ; A = current char]] into A
   CPI 48              ; if A < '0' -> done
   JPC pn_ge_48
   JMP pn_done

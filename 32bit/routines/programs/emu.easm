@@ -80,9 +80,7 @@ main:
 
 ; Print zero-terminated string at .arg1
 print_zstr:
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                ; load mem[mem[.arg1]] into A
   STA .char
   CPI 0
   JPZ pzs_done

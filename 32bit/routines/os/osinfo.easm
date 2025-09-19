@@ -110,8 +110,7 @@ print_decimal:  ; -- print a decimal number, bss + 10 = before decimal, bss + 11
 get_num_progs:
   LDI .prog_table
   ADI 16
-  PHA
-  LAS
+  LAP
   STA .bss + 10 ; base of first program
   LDI 0
   STA .bss + 1  ; word step from .prog_table
@@ -126,8 +125,7 @@ get_num_progs:
 check_prog_loop:
   LDI .prog_table
   ADD .bss + 1
-  PHA
-  LAS                 ; get the first word of the name, if it's not null, continue
+  LAP                 ; get the first word of the name, if it's not null, continue
   CPI 0
   JPZ get_n_progs_end ; if it is null, end
   LDA .bss + 2
@@ -138,24 +136,21 @@ check_prog_loop:
   ADI 16              ; increment word step by 16
   STA .bss + 1
   ADI .prog_table
-  PHA
-  LAS                 ; get base for this program
+  LAP                 ; get base for this program
   STA .bss + 11
 
   LDA .bss + 1
   ADI 1               ; increment word step by 17 (17 total)
   STA .bss + 1
   ADI .prog_table
-  PHA
-  LAS                 ; get words used for this program
+  LAP                 ; get words used for this program
   STA .bss + 3        ; store it
 
   LDA .bss + 1
   ADI 2               ; increment word step by 2 (19 total)
   STA .bss + 1
   ADI .prog_table
-  PHA
-  LAS                 ; get BSS words reserved for this program
+  LAP                 ; get BSS words reserved for this program
   ADD .bss + 4        ; add current sum
   STA .bss + 4        ; store it again
 
@@ -163,8 +158,7 @@ check_prog_loop:
   ADI 2              ; increment word step by 2 (21 total)
   STA .bss + 1
   ADI .prog_table
-  PHA
-  LAS                 ; get data words reserved for this program
+  LAP                 ; get data words reserved for this program
   ADD .bss + 5        ; add current sum
   ADI 8               ; add 8 to compensate for the average gap between data regions
   STA .bss + 5        ; store it again

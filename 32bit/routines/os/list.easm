@@ -14,9 +14,7 @@ list_commands:
   STA .bss + 2
   STA .bss
 lc_next:
-  LDA .bss + 1
-  PHA
-  LAS
+  LPA .bss + 1                ; load mem[mem[.bss + 1]] into A
   CPI 0
   JPZ lc_end
   LDA .bss + 1
@@ -27,9 +25,7 @@ lc_printchar:
   LDA .num_digits
   CPI 16
   JPZ lc_pad
-  LDA .res2
-  PHA
-  LAS
+  LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ lc_pad
   STA .char

@@ -46,9 +46,7 @@ skip_startsite:
   ADI 1
   STA .bss + 2
 check_zero:
-  LDA .bss
-  PHA
-  LAS
+  LPA .bss                ; load mem[mem[.bss]] into A
   CPI 0
   JPZ is_zero
 not_zero:               ; if it's not zero

@@ -24,8 +24,7 @@ en_len_loop:
   ; read *(arg1 + num_digits)
   LDA .arg1
   ADD .num_digits
-  PHA
-  LAS
+  LAP
   CPI 0
   JPZ en_len_done
   ; inc length
@@ -44,9 +43,7 @@ en_print:
 
 lp:
   ; load *arg1 into .char
-  LDA .arg1
-  PHA
-  LAS
+  LPA .arg1                ; load mem[mem[.arg1]] into A
   STA .char
   ; write char
   JSR @write_char

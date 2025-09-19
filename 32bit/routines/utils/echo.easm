@@ -21,8 +21,7 @@ start:
 ; loop over arguments
 echo_arg:
   ; arg_ptr = *slot_ptr
-  PHA
-  LAS
+  LAP
   STA .arg1
   ; print token using ECHON (auto length, no newline)
   LDI 0
