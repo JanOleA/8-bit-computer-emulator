@@ -19,8 +19,7 @@ compare_loop:
   LDI .prog_table
   ADD .bss + 1
   STA .arg1             ; store in arg1 to use in string_compare later
-  PHA                   ; push memory address to stack
-  LAS                   ; load value at memory address
+  LAP                   ; push memory address to stack, load value at memory address
   CPI 0                 ; if the name starts with null, we reached the end of the program table
   JPZ no_match
   LDA .bss

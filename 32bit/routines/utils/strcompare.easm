@@ -12,14 +12,10 @@
 ; bss     : temp char1
 
 string_compare:
-  LDA .arg1     ; load pointer to A
-  PHA           ; push pointer to stack
-  LAS           ; use pointer as memory addres and load mem[pointer] to A
+  LPA .arg1     ; A <- mem[mem[.arg1]]
   ; store char1 in .bss
   STA .bss
-  LDA .arg2     ; load pointer to A
-  PHA           ; push pointer to stack
-  LAS           ; char2 to A
+  LPA .arg2     ; A <- mem[mem[.arg2]]
   CMP .bss      ; compare char1 to A (char2)
   JPZ equal
   JMP not_equal
