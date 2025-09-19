@@ -91,7 +91,7 @@ The B register is one of the registers (together with the A register), which is 
 
 The register reads a value from the bus on a clock-high pulse if the "B register in (BI)" control signal is active.
 
-It currently does not support outputting the contents of the register onto the bus.
+It can also place its contents on the bus when the "B register out (BO)" control signal is enabled, allowing direct stores from B or fast register swaps.
 
 ### ALU (sum)
 #### 8-bit adder
@@ -149,6 +149,8 @@ The stack pointer will increment by 1 on a clock-high pulse if the "increment st
 The stack pointer will decrement by 1 on a clock-high pulse if the "decrement stack (DES)" control signal is active.
 
 The stack pointer can output its value to the bus if the "stack out (STO)" control signal is active. When the stack pointer outputs its value to the bus, 224 `[1110 0000]` is added to the value, so that the actual values put onto the bus will range from 224 to 239.
+
+Finally, the pointer can be loaded from the bus via the "stack pointer in (SPI)" control signal. Values written through SPI are masked to the configured stack size, so you can reposition the stack in a single micro-step.
 
 ## Drawn connections
 The drawn connections and their colors represent different things. The "wires" connect components which are connected to eachother in some way.

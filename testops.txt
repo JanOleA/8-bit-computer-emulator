@@ -1,0 +1,15 @@
+  LDI 128
+  MOVAB
+  SUM
+  LDI 32
+  MOVAB
+  SUM
+  MOVBA
+  SUM
+  LSP 1
+  LDI 2
+  MVASP
+  LDI 3
+  MOVAB
+  MVBSP
+  HLT

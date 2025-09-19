@@ -10,7 +10,7 @@ from typing import List, Dict, Tuple
 
 
 def build_instruction_map() -> Dict[str, int]:
-    # Keep in sync with cpu_sim.Computer.setup_instructions
+    # Keep in sync with cpu_sim.Computer.setup_instructions and get_mnemonic_n.easm
     return {
         "NOP": 0,
         "LDA": 1,
@@ -40,6 +40,13 @@ def build_instruction_map() -> Dict[str, int]:
         "DIC": 25,
         "LDD": 26,
         "JNZ": 27,
+        "STB": 28,
+        "MOVBA": 29,
+        "MOVAB": 30,
+        "LSP":   31,
+        "MVASP": 32,
+        "MVBSP": 33,
+        "SUM":   34,
         "OUT": 254,
         "HLT": 255,
     }

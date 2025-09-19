@@ -6,7 +6,8 @@
 ;! align: 4
 
 .separator = ","
-.mnemonics = "LDA,1,ADD,2,SUB,3,STA,4,LDI,5,JMP,6,JPC,7,JPZ,8,KEI,9,ADI,10,SUI,11,CMP,12,PHA,13,PLA,14,LDS,15,JSR,16,RET,17,SAS,18,LAS,19,LDB,20,CPI,21,RSA,22,LSA,23,DIS,24,DIC,25,LDD,26,OUT,254,HLT,255"
+.mnemonics = "LDA,1,ADD,2,SUB,3,STA,4,LDI,5,JMP,6,JPC,7,JPZ,8,KEI,9,ADI,10,SUI,11,CMP,12,PHA,13,PLA,14,LDS,15,JSR,16,RET,17,SAS,18,LAS,19,LDB,20,CPI,21,RSA,22,LSA,23,DIS,24,DIC,25,LDD,26,JNZ,27,STB,28,MOVBA,29,MOVAB,30,LSP,31,MVASP,32,MVBSP,33,SUM,34,OUT,254,HLT,255"
+; -- keep mnemonics in sync with cpu_sim.py and assembler_core.py --
 
 ; bss       : pointer to input string
 ; bss + 1   : current position in mnemonics string

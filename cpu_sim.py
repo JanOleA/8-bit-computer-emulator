@@ -57,7 +57,7 @@ class Computer:
         EO  = self.EO  = 0b00000000001000000000000000000000 # Sum register out
         SU  = self.SU  = 0b00000000000100000000000000000000 # Subtract
         BI  = self.BI  = 0b00000000000010000000000000000000 # Register B in
-        BO  = self.BO  = 0b00000000000001000000000000000000 # Register B in
+        BO  = self.BO  = 0b00000000000001000000000000000000 # Register B out
         OI  = self.OI  = 0b00000000000000100000000000000000 # Output in
         CE  = self.CE  = 0b00000000000000010000000000000000 # Program counter enable (steps on clock->high)
         CO  = self.CO  = 0b00000000000000001000000000000000 # Program counter out
@@ -148,6 +148,13 @@ class Computer:
         self.assembly[0b00011001] = [CO|MI,         RO|IBI|CE,      IBO|DCI|ORE]                                            # DIC   25      load immediate (into display control)
         self.assembly[0b00011010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|DDI|ORE]                             # LDD   26      load from mem (into display data)
         self.assembly[0b00011011] = [CO|MI,         RO|JNZ|CE|ORE]                                                          # JNZ   27      jump on NOT zero
+        self.assembly[0b00011100] = [CO|MI,         RO|MI|CE,       BO|RI|ORE]                                              # STB   28      store B to mem
+        self.assembly[0b00011101] = [BO|AI|ORE]                                                                             # MOVBA 29      Move B to A
+        self.assembly[0b00011110] = [AO|BI|ORE]                                                                             # MOVAB 30      Move A to B
+        self.assembly[0b00011111] = [CO|MI,         RO|SPI|CE|ORE]                                                          # LSP   31      Load stack pointer with immediate value
+        self.assembly[0b00100000] = [AO|SPI|ORE]                                                                            # MVASP 32      Move A to stack pointer
+        self.assembly[0b00100001] = [BO|SPI|ORE]                                                                            # MVBSP 33      Move B to stack pointer
+        self.assembly[0b00100010] = [EO|AI|FI|ORE]                                                                          # SUM   34      Take the sum from A and B, move to A, sets flags
         self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT   254     display the value from A on the output display
         self.assembly[0b11111111] = [HLT]                                                                                   # HLT   255     halt operation
 
@@ -155,6 +162,7 @@ class Computer:
         if _build_instruction_map is not None:
             self.instruction_map = _build_instruction_map()
         else:
+            # Keep in sync with assembler_core.py and get_mnemonic_n.easm
             self.instruction_map = {"NOP": 0,
                                     "LDA": 1,
                                     "ADD": 2,
@@ -183,6 +191,13 @@ class Computer:
                                     "DIC": 25,
                                     "LDD": 26,
                                     "JNZ": 27,
+                                    "STB": 28,
+                                    "MOVBA": 29,
+                                    "MOVAB": 30,
+                                    "LSP":   31,
+                                    "MVASP": 32,
+                                    "MVBSP": 33,
+                                    "SUM":   34,
                                     "OUT": 254,
                                     "HLT": 255,}
     
@@ -344,6 +359,9 @@ class Computer:
 
         if operation&self.AO:
             self.bus = self.areg
+
+        if operation&self.BO:
+            self.bus = self.breg
         
         self.update_ALU()
 
@@ -449,6 +467,13 @@ class Computer:
             self.stackpointer -= 1
             if self.stackpointer < 0:
                 self.stackpointer = 2**self.bits_stackpointer - 1
+
+        if operation&self.SPI:
+            stack_mask = (1 << self.bits_stackpointer) - 1
+            # Accept either an absolute stack address or a raw offset on the bus.
+            # Translate back into the internal 0..(stack_size-1) range and wrap safely.
+            sp_offset = (int(self.bus) - self.stackpointer_start) & stack_mask
+            self.stackpointer = sp_offset
 
         return True
 
@@ -649,6 +674,9 @@ class Game:
             self.target_HZ = target_FPS
         else:
             self.target_HZ = target_HZ
+        if self.target_HZ == 0:
+            self.target_HZ = target_FPS
+            self.autorun = False
         self.HZ_multiplier = max(int(target_HZ/target_FPS), 0)
         self.draw_mem = draw_mem
         self.draw_ops = draw_ops
