@@ -31,6 +31,7 @@ def relocate_jumps_in_place(code_words, program, instruction_map, base_addr,
         instruction_map["JMP"],
         instruction_map["JPZ"],
         instruction_map["JPC"],
+        instruction_map["JNZ"]
     }
     if relocate_jsr:
         J_OPS.add(instruction_map["JSR"])

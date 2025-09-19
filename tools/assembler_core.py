@@ -39,6 +39,7 @@ def build_instruction_map() -> Dict[str, int]:
         "DIS": 24,
         "DIC": 25,
         "LDD": 26,
+        "JNZ": 27,
         "OUT": 254,
         "HLT": 255,
     }
@@ -137,8 +138,8 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
         for item in items:
             if item == items[0]:  # mnemonic
                 mem_ins = instruction_map[str(item)]
-                if 6 <= mem_ins <= 8 or 16 <= mem_ins <= 17:
-                    # Jump or call (JMP/JPZ/JPC/JSR/RET (RET has no operand))
+                if 6 <= mem_ins <= 8 or 16 <= mem_ins <= 17 or mem_ins == 27:
+                    # Jump or call (JMP/JPZ/JPC/JSR/RET/JNZ (RET has no operand))
                     jump = True
             else:  # operand
                 if jump:

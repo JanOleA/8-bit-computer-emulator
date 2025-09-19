@@ -15,8 +15,7 @@ echon:
   ; If .num_digits == 0, compute length until null (cap 80)
   LDA .num_digits
   CPI 0
-  JPZ en_compute_len
-  JMP en_print
+  JNZ en_print
 
 en_compute_len:
   LDI 0
@@ -58,8 +57,7 @@ lp:
   LDA .num_digits
   SUI 1
   STA .num_digits
-  JPZ end
-  JMP lp
+  JNZ lp
 
 end:
   LDA .arg2

@@ -9,8 +9,5 @@ wait_100:
   LDI 100
 wait_100_loop:
   SUI 1
-  CPI 0
-  JPZ wait_100_return
-  JMP wait_100_loop
-wait_100_return:
+  JNZ wait_100_loop
   RET

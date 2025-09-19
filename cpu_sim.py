@@ -57,22 +57,25 @@ class Computer:
         EO  = self.EO  = 0b00000000001000000000000000000000 # Sum register out
         SU  = self.SU  = 0b00000000000100000000000000000000 # Subtract
         BI  = self.BI  = 0b00000000000010000000000000000000 # Register B in
-        OI  = self.OI  = 0b00000000000001000000000000000000 # Output in
-        CE  = self.CE  = 0b00000000000000100000000000000000 # Program counter enable (steps on clock->high)
-        CO  = self.CO  = 0b00000000000000010000000000000000 # Program counter out
-        JMP = self.JMP = 0b00000000000000001000000000000000 # Jump
-        FI  = self.FI  = 0b00000000000000000100000000000000 # Flags in
-        JC  = self.JC  = 0b00000000000000000010000000000000 # Jump on carry
-        JZ  = self.JZ  = 0b00000000000000000001000000000000 # Jump on zero
-        KEO = self.KEO = 0b00000000000000000000100000000000 # Keypad register out
-        ORE = self.ORE = 0b00000000000000000000010000000000 # Reset operation counter
-        INS = self.INS = 0b00000000000000000000001000000000 # Increment stack pointer
-        DES = self.DES = 0b00000000000000000000000100000000 # Decrement stack pointer
-        STO = self.STO = 0b00000000000000000000000010000000 # Stack pointer out
-        RSA = self.RSA = 0b00000000000000000000000001000000 # Shift A right one time
-        LSA = self.LSA = 0b00000000000000000000000000100000 # Shift A left one time
-        DDI = self.DDI = 0b00000000000000000000000000010000 # LCD screen (Display) data in
-        DCI = self.DCI = 0b00000000000000000000000000001000 # LCD screen (Display) control signals in
+        BO  = self.BO  = 0b00000000000001000000000000000000 # Register B in
+        OI  = self.OI  = 0b00000000000000100000000000000000 # Output in
+        CE  = self.CE  = 0b00000000000000010000000000000000 # Program counter enable (steps on clock->high)
+        CO  = self.CO  = 0b00000000000000001000000000000000 # Program counter out
+        JMP = self.JMP = 0b00000000000000000100000000000000 # Jump
+        FI  = self.FI  = 0b00000000000000000010000000000000 # Flags in
+        JC  = self.JC  = 0b00000000000000000001000000000000 # Jump on carry
+        JZ  = self.JZ  = 0b00000000000000000000100000000000 # Jump on zero
+        JNZ = self.JNZ = 0b00000000000000000000010000000000 # Jump on NOT zero
+        KEO = self.KEO = 0b00000000000000000000001000000000 # Keypad register out
+        ORE = self.ORE = 0b00000000000000000000000100000000 # Reset operation counter
+        INS = self.INS = 0b00000000000000000000000010000000 # Increment stack pointer
+        DES = self.DES = 0b00000000000000000000000001000000 # Decrement stack pointer
+        STO = self.STO = 0b00000000000000000000000000100000 # Stack pointer out
+        SPI = self.SPI = 0b00000000000000000000000000010000 # Stack pointer in
+        RSA = self.RSA = 0b00000000000000000000000000001000 # Shift A right one time
+        LSA = self.LSA = 0b00000000000000000000000000000100 # Shift A left one time
+        DDI = self.DDI = 0b00000000000000000000000000000010 # LCD screen (Display) data in
+        DCI = self.DCI = 0b00000000000000000000000000000001 # LCD screen (Display) control signals in
 
         microcode_defs = [
             (HLT,   "Halt"      ),
@@ -88,6 +91,7 @@ class Computer:
             (EO,    "Sum out"   ),
             (SU,    "Sub"       ),
             (BI,    "B in"      ),
+            (BO,    "B out"     ),
             (OI,    "Outp. I"   ),
             (CE,    "Counter"   ),
             (CO,    "Cntr. O"   ),
@@ -95,11 +99,13 @@ class Computer:
             (FI,    "Flg. in"   ),
             (JC,    "Jmp Cry"   ),
             (JZ,    "Jmp 0"     ),
+            (JNZ,   "Jmp !0"    ),
             (KEO,   "Inpt. O"   ),
             (ORE,   "OpT rst"   ),
             (INS,   "Inc stk"   ),
             (DES,   "Dec stk"   ),
-            (STO,   "Stk O"     ),
+            (STO,   "Stk P.Ot"  ),
+            (SPI,   "Stk P.In"  ),
             (RSA,   "Shft A-"   ),
             (LSA,   "Shft A+"   ),
             (DDI,   "DispD I"   ),
@@ -141,6 +147,7 @@ class Computer:
         self.assembly[0b00011000] = [CO|MI,         RO|IBI|CE,      IBO|DDI|ORE]                                            # DIS   24      load immediate (into display data)
         self.assembly[0b00011001] = [CO|MI,         RO|IBI|CE,      IBO|DCI|ORE]                                            # DIC   25      load immediate (into display control)
         self.assembly[0b00011010] = [CO|MI,         RO|IBI|CE,      IBO|MI,         RO|DDI|ORE]                             # LDD   26      load from mem (into display data)
+        self.assembly[0b00011011] = [CO|MI,         RO|JNZ|CE|ORE]                                                          # JNZ   27      jump on NOT zero
         self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT   254     display the value from A on the output display
         self.assembly[0b11111111] = [HLT]                                                                                   # HLT   255     halt operation
 
@@ -175,6 +182,7 @@ class Computer:
                                     "DIS": 24,
                                     "DIC": 25,
                                     "LDD": 26,
+                                    "JNZ": 27,
                                     "OUT": 254,
                                     "HLT": 255,}
     
@@ -426,6 +434,10 @@ class Computer:
 
         if operation&self.JZ:
             if self.flagreg&0b01:
+                self.prog_count = self.bus
+
+        if operation&self.JNZ:
+            if not self.flagreg&0b01:
                 self.prog_count = self.bus
 
         if operation&self.INS:
@@ -785,9 +797,9 @@ class Game:
         self.keypad_texts_div = self._font_small.render("/", True, self.WHITE)
 
         ctrl_word_text = ["HLT", "MI", "RI", "RO", "IAO", "IAI", "IBO", "IBI",
-                          "AI", "AO", "EO", "SU", "BI", "OI", "CE", "CO", "JMP",
-                          "FI", "JC", "JZ", "KEO", "ORE", "INS", "DES", "STO",
-                          "RSA", "LSA", "DDI", "DCI"]
+                          "AI", "AO", "EO", "SU", "BI", "BO", "OI", "CE", "CO", "JMP",
+                          "FI", "JC", "JZ", "JNZ", "KEO", "ORE", "INS", "DES", "STO",
+                          "SPI", "RSA", "LSA", "DDI", "DCI"]
 
         self.ctrl_word_text_rendered = []
         for text in ctrl_word_text:
