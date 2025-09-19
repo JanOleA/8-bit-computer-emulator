@@ -8,8 +8,12 @@
 ; bss + 0 = check_value
 ; bss + 1 = loop_index
 ; bss + 2 = half_check
+; bss + 3 = limit
 
 main:
+  
+
+begin:
   ; print 2
   LDI 2
   STA .arg1

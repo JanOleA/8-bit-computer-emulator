@@ -1,0 +1,20 @@
+meta name = Counter
+meta entry = main
+meta abi = os
+depends write_char, newline
+
+const ZERO = 0
+var counter
+var counter2
+
+data digits = "0123456789"
+
+func main:
+    let counter = 5
+    while counter:
+        let counter -= 1
+        let work1 = digits
+        let work1 += counter
+        call @write_char(work1, work2, work3)
+    call @newline()
+    return
