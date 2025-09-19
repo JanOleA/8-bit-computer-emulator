@@ -5,10 +5,12 @@
 ;! bss: none
 ;! align: 4
 
+; -- Write an ascii character to the screen. Value must be in the A register. --
+
 write_char:
-  LDD .char
+  DIA           ; writes contents of A to display data
   DIC 0
-  DIC 64
+  ; DIC 64
   DIC 192
   DIC 0
   RET

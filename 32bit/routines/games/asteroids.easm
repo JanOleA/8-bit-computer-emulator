@@ -150,7 +150,6 @@ write_bullet_loop:
   JMP write_bullet_loop
 write_bullet_end:
   LDA .bullet_symbol
-  STA .char
   JSR @write_char
   LDA .bss + 4
   STA .bss + 5              ; get position back from tmp
@@ -174,7 +173,6 @@ write_asteroid_loop:
   JMP check_bullet
 write_asteroid_character:
   LDA .asteroid_symbol
-  STA .char
   JSR @write_char
   JMP skip_advance
 check_bullet:
@@ -187,7 +185,6 @@ check_bullet:
   JMP advance_asteroid_line
 write_bullet_character:
   LDA .bullet_symbol
-  STA .char
   JSR @write_char
   JMP skip_advance
 advance_asteroid_line:
@@ -216,7 +213,6 @@ write_turret_loop:
   JMP write_turret_loop
 write_turret_end:
   LDA .turret_symbol
-  STA .char
   JSR @write_char
   LDA .bss + 4
   STA .bss                  ; get position back from tmp
@@ -395,7 +391,6 @@ set_no_input:
 
 advance_cursor:
   LDI 32
-  STA .char
   JSR @write_char
   RET
 

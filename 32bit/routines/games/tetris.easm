@@ -1098,7 +1098,6 @@ rb_loop:
   JPZ rb_done
   JSR print_indent
   LDI .border_char
-  STA .char
   JSR @write_char
   LDI 0
   STA .bss + 232
@@ -1127,7 +1126,6 @@ rb_col_loop:
 rb_check_piece:
   JSR check_active_overlay
   LDA .bss + 221
-  STA .char
   JSR @write_char
   LDA .bss + 232
   ADI 1
@@ -1135,7 +1133,6 @@ rb_check_piece:
   JMP rb_col_loop
 rb_row_end:
   LDI .border_char
-  STA .char
   JSR @write_char
   LDA .bss + 231
   CPI .last_row_index

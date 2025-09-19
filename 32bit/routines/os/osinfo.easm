@@ -100,7 +100,6 @@ print_decimal:  ; -- print a decimal number, bss + 10 = before decimal, bss + 11
   PHA
   JSR @display_number
   LDI 46
-  STA .char
   JSR @write_char
   LDA .bss + 11
   PHA
@@ -214,11 +213,10 @@ get_n_progs_end:
 
 ; -- print helpers, null terminated. Pointer to text must be in A register --
 write_40_dash:
-  LDA .linechar
-  STA .char
   LDI 0
   STA .bss
 write_char_loop:
+  LDA .linechar
   JSR @write_char
   LDA .bss
   ADI 1

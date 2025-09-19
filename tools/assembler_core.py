@@ -49,6 +49,7 @@ def build_instruction_map() -> Dict[str, int]:
         "SUM":   34,
         "LAP":   35,
         "LPA":   36,
+        "DIA":   37,
         "OUT":   254,
         "HLT":   255,
     }

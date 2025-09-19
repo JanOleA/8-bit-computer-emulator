@@ -178,7 +178,6 @@ dmp_emit_padding:
   JPZ dep_done
 dep_loop:
   LDI 32
-  STA .char
   JSR @write_char
   LDA .bss + 5
   SUI 1

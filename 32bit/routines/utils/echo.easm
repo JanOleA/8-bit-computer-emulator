@@ -38,7 +38,6 @@ echo_arg:
   JPZ end_with_nl
   ; otherwise print a space and advance to next slot
   LDI 32
-  STA .char
   JSR @write_char
   LDA .res2
   ADI 1

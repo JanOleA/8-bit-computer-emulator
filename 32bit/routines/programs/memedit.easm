@@ -155,7 +155,6 @@ me_backspace:
   STA .bss + 3
   JSR cursor_left
   LDI 32
-  STA .char
   JSR @write_char
   JSR cursor_left
 me_bs_done:
@@ -275,23 +274,18 @@ pas_done:
 ; --- UI helpers (adapted from SHELL) ---
 print_prompt:
   LDI 35              ; '#'
-  STA .char
   JSR @write_char
   LDI 32
-  STA .char
   JSR @write_char
   ; print current write pointer in brackets: "[<addr>] "
   LDI 91              ; '['
-  STA .char
   JSR @write_char
   LDA .bss + 1        ; current write address
   PHA
   JSR @display_number
   LDI 93              ; ']'
-  STA .char
   JSR @write_char
   LDI 32              ; space
-  STA .char
   JSR @write_char
   RET
 

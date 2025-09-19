@@ -137,13 +137,10 @@ do_div:
   JSR @display_number
   ; print " R "
   LDI 32
-  STA .char
   JSR @write_char
   LDI 82              ; 'R'
-  STA .char
   JSR @write_char
   LDI 32
-  STA .char
   JSR @write_char
   ; print remainder
   LDA .work3

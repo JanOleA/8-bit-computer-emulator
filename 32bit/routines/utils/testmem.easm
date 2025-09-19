@@ -145,7 +145,6 @@ display_current:
   PHA
   JSR @display_number
   LDI 32
-  STA .char
   JSR @write_char
   JSR @write_char
   JSR @write_char
@@ -154,7 +153,6 @@ display_current:
   PHA
   JSR @display_number
   LDI 32
-  STA .char
   JSR @write_char
   JSR @write_char
   JSR @write_char

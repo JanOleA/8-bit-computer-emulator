@@ -57,7 +57,6 @@ dn_print:
   JPZ dn_done
 dn_pop:
   PLA
-  STA .char
   JSR @write_char
   LDA .bss + 1
   SUI 1
@@ -67,7 +66,6 @@ dn_pop:
 
 dn_zero:
   LDI 48
-  STA .char
   JSR @write_char
   LDA .bss + 2
   RET

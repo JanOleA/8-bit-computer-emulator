@@ -254,7 +254,6 @@ cp1_got_token:
   ; classify the first token on the line to decide how to account for it
   LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
   STA .char
-  LDA .char
   CPI 73
   JPZ cp1_maybe_const
   CPI 45
@@ -407,7 +406,6 @@ cp2_got_token:
   ; branch by leading token type
   LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
   STA .char
-  LDA .char
   CPI 73
   JPZ cp2_maybe_const
   CPI 45
@@ -861,7 +859,6 @@ resolve_operand:
   JPZ ro_missing
   LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
   STA .char
-  LDA .char
   CPI 42
   JPZ ro_const
   CPI 46

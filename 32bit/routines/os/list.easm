@@ -28,7 +28,6 @@ lc_printchar:
   LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ lc_pad
-  STA .char
   JSR @write_char
   LDA .res2
   ADI 1
@@ -42,7 +41,6 @@ lc_pad:
   CPI 18
   JPZ lc_aftercol
   LDI 32
-  STA .char
   JSR @write_char
   LDA .num_digits
   ADI 1

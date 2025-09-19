@@ -116,7 +116,6 @@ hx_loop:
   JPZ hx_newline
   ; else space and continue
   LDI 32
-  STA .char
   JSR @write_char
   JMP hx_loop
 
@@ -188,7 +187,6 @@ ph_pad_loop:
   CPI 0
   JPZ ph_print
   LDI 32
-  STA .char
   JSR @write_char
   LDA .bss + 5
   SUI 1
@@ -197,7 +195,6 @@ ph_pad_loop:
 ph_print:
   ; pop and print 'digits' ASCII hex digits
   PLA
-  STA .char
   JSR @write_char
   LDA .bss + 3
   SUI 1

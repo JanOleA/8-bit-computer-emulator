@@ -177,7 +177,6 @@ handle_backspace:
 hb_after_len:
   JSR cursor_left
   LDI 32
-  STA .char
   JSR @write_char
   JSR cursor_left
 hb_done:
@@ -238,10 +237,8 @@ ret_home:
 
 print_prompt:
   LDI 62
-  STA .char
   JSR @write_char
   LDI 32
-  STA .char
   JSR @write_char
   RET
 
@@ -260,7 +257,6 @@ clear_line:
   STA .num_digits
 cl_loop:
   LDI 32
-  STA .char
   JSR @write_char
   LDA .num_digits
   SUI 1
