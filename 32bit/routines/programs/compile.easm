@@ -305,18 +305,21 @@ cp1_const_value_token:
   JSR @parse_number
   STA .work3
   JMP cp1_store_const_value
-  ; check broke after changing parse_number to stack based arg passing, TODO: fix properly
-  ; LDA .work2
-  ; MOVAB
-  ; LDA .bss + 12
-  ; SUM
-  ; STA .pow2
-  ; LDA .arg1
-  ; CMP .pow2
-  ; JPZ cp1_store_const_value
-  ; LDI .err_const_value
-  ; JSR report_error
-  ; JMP cp1_next_line
+  ; Verify that parse_number stopped at the token boundary (token start + length)
+  ; Caller pushed the token pointer before calling parse_number. parse_number
+  ; will return the pointer to the first non-digit in .arg1. We compute
+  ; expected_end = token_pointer + token_length and compare to .arg1.
+  LDA .work2      ; token pointer
+  MOVAB
+  LDA .bss + 12   ; token length
+  SUM
+  STA .pow2       ; expected_end
+  LDA .arg1       ; pointer returned by parse_number
+  CMP .pow2
+  JPZ cp1_store_const_value
+  LDI .err_const_value
+  JSR report_error
+  JMP cp1_next_line
 cp1_store_const_value:
   LDA .work4
   PHA
@@ -931,18 +934,19 @@ ro_prog_fail:
 ro_number:
   LDA .bss + 11
   STA .work2
+  ; push token pointer and parse number from that pointer
   PHA
   JSR @parse_number
   STA .work4
-  JMP ro_num_ok
-  ; check broke after changing parse_number to stack based arg passing, TODO: fix properly
-  ; LDA .bss + 12
-  ; STA .pow2
-  ; LDA .work2
-  ; ADD .pow2
-  ; STA .pow2
-  ; LDA .arg1
-  ; CMP .pow2
+  ; Verify parse_number stopped exactly at token boundary:
+  ; expected_end = token_pointer + token_length (stored in .bss + 12)
+  LDA .bss + 12
+  STA .pow2
+  LDA .work2
+  ADD .pow2
+  STA .pow2
+  LDA .arg1
+  CMP .pow2
   JPZ ro_num_ok
   LDI .err_number
   JSR report_error

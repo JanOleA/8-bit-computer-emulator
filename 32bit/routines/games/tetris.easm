@@ -204,7 +204,19 @@ fw_timer_check:
   LDA .bss + 234
   CPI 0
   JPZ fw_done
-  JSR @wait_100
+  JSR wait_100
+  ; --- Poll again right after the blocking wait to catch keys pressed during the sleep ---
+  JSR check_input
+  LDA .bss + 210
+  CPI 0
+  JPZ fw_afterwait
+  JSR handle_input_value
+  LDI 0
+  STA .bss + 210
+  LDI 0
+  STA .bss + 234
+  JMP fw_done
+fw_afterwait:
   LDA .bss + 234
   SUI 1
   STA .bss + 234
@@ -346,9 +358,12 @@ rotate_piece:
   LDA .bss + 201
   ADI 1
   STA .bss + 215
+  ; wrap rotation index to 0..3 (fix inverted condition)
   LDA .bss + 215
   CPI 4
-  JPC rp_keep
+  JPZ rp_wrap
+  JMP rp_keep
+rp_wrap:
   LDI 0
   STA .bss + 215
 rp_keep:
@@ -1407,4 +1422,56 @@ print_z:
   LDI 0
   STA .num_digits
   JSR @echon
+  RET
+
+; Local wrapper around the external @wait_100 that implements
+; input polling + repeat gating similar to asteroids.easm.
+; Uses tetris bss layout:
+;  .bss + 210 : input entered flag (set by check_input)
+;  .bss + 211 : input value
+;  .bss + 260 : last_key (for repeat)
+;  .bss + 261 : hold_count (for repeat)
+wait_100:
+  JSR check_input
+  LDA .bss + 210
+  CPI 0
+  JPZ w100_set_no_input
+  ; key present, handle repeat gating
+  LDA .bss + 211
+  CMP .bss + 260
+  JPZ w100_same_key
+  ; new key pressed -> remember it, reset hold_count, allow immediate handling
+  LDA .bss + 211
+  STA .bss + 260       ; last_key = current
+  LDI 0
+  STA .bss + 261       ; hold_count = 0
+  LDI 0
+  STA .no_input        ; allow handling now
+  JMP w100_after_gate
+w100_same_key:
+  LDA .bss + 261
+  ADI 1
+  STA .bss + 261       ; ++hold_count
+  ; allow repeat only after input_repeat_delay ticks
+  CPI .input_repeat_delay
+  JPC w100_allow_repeat
+  JMP w100_after_gate
+w100_allow_repeat:
+  LDI 0
+  STA .no_input
+w100_after_gate:
+  ; If no_input is cleared, mark it handled for this cycle and return.
+  ; Caller (frame_wait) will invoke handle_input_value after this wrapper.
+  LDA .no_input
+  CPI 1
+  JPZ w100_before_sleep
+  LDI 1
+  STA .no_input
+w100_set_no_input:
+  LDI 0
+  STA .no_input
+  JMP w100_before_sleep
+w100_before_sleep:
+  ; call the real external sleep for 100 units
+  JSR @wait_100
   RET

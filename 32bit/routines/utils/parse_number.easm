@@ -43,6 +43,10 @@ pn_ge_48:
   STA .bss + 3
   JMP pn_loop
 pn_done:
+  ; return pointer to the first non-digit character in .arg1 so callers
+  ; can verify token boundaries (maintains old behaviour expected by callers)
+  LDA .bss + 3
+  STA .arg1
   LDA .bss
   STA .res1
   RET

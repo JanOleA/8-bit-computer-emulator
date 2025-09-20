@@ -104,15 +104,22 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                     for t1 in terms_pos:
                         terms_neg = t1.split("-")
                         pos_val = terms_neg[0]
-                        if pos_val[0] == ".":
-                            val += variables[pos_val[1:]]
+                        # Support '.name', bare name, or integer literal
+                        if pos_val.startswith('.'):
+                            val += variables.get(pos_val[1:], 0)
                         else:
-                            val += int(pos_val)
+                            try:
+                                val += int(pos_val)
+                            except Exception:
+                                val += variables.get(pos_val, 0)
                         for t2 in terms_neg[1:]:
-                            if t2[0] == ".":
-                                val -= variables[t2[1:]]
+                            if t2.startswith('.'):
+                                val -= variables.get(t2[1:], 0)
                             else:
-                                val -= int(t2)
+                                try:
+                                    val -= int(t2)
+                                except Exception:
+                                    val -= variables.get(t2, 0)
                     memaddress = val
 
                     if '"' in value:
@@ -126,14 +133,33 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                     else:
                         memory[memaddress] = int(value)
                 else:
-                    # Pointer variable
+                    # Pointer variable (alias). RHS can be an expression like
+                    # 'bss + 2' or '.bss + 2' or a single integer.
                     line_ = line.strip().split("=")
                     varname = line_[0].strip()
-                    if line_[1].strip()[0] == ".":
-                        varvalue = variables[line_[1].strip()[1:]]
-                    else:
-                        varvalue = int(line_[1].strip())
-                    variables[varname] = varvalue
+                    rhs = line_[1].strip()
+                    # Evaluate RHS expression supporting + and - and names
+                    terms_pos = rhs.replace(' ', '').split('+')
+                    val = 0
+                    for t1 in terms_pos:
+                        terms_neg = t1.split('-')
+                        pos_val = terms_neg[0]
+                        if pos_val.startswith('.'):
+                            val += variables.get(pos_val[1:], 0)
+                        else:
+                            try:
+                                val += int(pos_val)
+                            except Exception:
+                                val += variables.get(pos_val, 0)
+                        for t2 in terms_neg[1:]:
+                            if t2.startswith('.'):
+                                val -= variables.get(t2[1:], 0)
+                            else:
+                                try:
+                                    val -= int(t2)
+                                except Exception:
+                                    val -= variables.get(t2, 0)
+                    variables[varname] = val
             elif ":" in line:
                 # Label
                 address_name = line.strip().split(":")[0]
@@ -162,20 +188,27 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                         program[i][0][1] = str(addresses_line[address_val])
                         mem_ins = int(address_val)
                 else:
+                    # Evaluate operand expressions: support '.name', 'name', or integer
                     terms_pos = item.split("+")
                     val = 0
                     for t1 in terms_pos:
                         terms_neg = t1.split("-")
                         pos_val = terms_neg[0]
-                        if pos_val[0] == ".":
-                            val += variables[pos_val[1:]]
+                        if pos_val.startswith('.'):
+                            val += variables.get(pos_val[1:], 0)
                         else:
-                            val += int(pos_val)
+                            try:
+                                val += int(pos_val)
+                            except Exception:
+                                val += variables.get(pos_val, 0)
                         for t2 in terms_neg[1:]:
-                            if t2[0] == ".":
-                                val -= variables[t2[1:]]
+                            if t2.startswith('.'):
+                                val -= variables.get(t2[1:], 0)
                             else:
-                                val -= int(t2)
+                                try:
+                                    val -= int(t2)
+                                except Exception:
+                                    val -= variables.get(t2, 0)
                     program[i][0][1] = str(val)
                     mem_ins = int(val)
             memory[memaddress] = mem_ins

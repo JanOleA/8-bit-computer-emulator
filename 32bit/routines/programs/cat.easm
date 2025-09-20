@@ -17,22 +17,22 @@
 ; 
 ; -- .res1 = number of characters that were printed. .res2 = number of newlines that were printed --
 
-; bss + 0   : escape mode
-; bss + 1   : chars printed on current line
-; bss + 2   : total number of printed characters
-: bss + 3   : number of printed newlines
-: bss + 4   : max lines
-: bss + 5   : If 1 truncate lines, else wrap
+escape_mode = bss + 0           ; 1 if we are in escape mode
+chars_printed = bss + 1         ; chars printed on current line
+total_chars_printed = bss + 2   ; total number of printed characters
+newlines_printed = bss + 3      ; number of printed newlines
+max_lines = bss + 4             ; max lines
+truncate_lines = bss + 5        ; If 1 truncate lines, else wrap
 
-screen_width = 40      ; screen width in characters
+screen_width = 40               ; screen width in characters
 
 cat:
   LDI 0
-  STA .bss + 0
-  STA .bss + 1
-  STA .bss + 2
+  STA .escape_mode
+  STA .chars_printed
+  STA .total_chars_printed
   LDI 1
-  STA .bss + 3          ; there will always be at least one newline (end of program)
+  STA .newlines_printed          ; there will always be at least one newline (end of program)
   LDA .argv_base
   CPI 0
   JPZ print_init
@@ -45,15 +45,15 @@ cat:
   STA .res1
 print_init:
   LDA .res1
-  STA .bss + 5
+  STA .truncate_lines
   LDA .arg2
-  STA .bss + 4
+  STA .max_lines
 print_loop:
   LPA .arg1                ; load mem[mem[.arg1]] into A
   STA .char
   CPI 0
   JPZ end
-  LDA .bss              ; check if we are in escape mode
+  LDA .escape_mode              ; check if we are in escape mode
   CPI 1
   JPZ escape_char
   LDA .char
@@ -67,12 +67,12 @@ print_loop:
 
 set_escape:
   LDI 1
-  STA .bss
+  STA .escape_mode
   JMP advance
 
 escape_char:            ; -- handle escape characters
   LDI 0
-  STA .bss              ; reset escape mode
+  STA .escape_mode              ; reset escape mode
   LDA .char
   CPI 92                ; \, print it
   JPZ escape_backslash
@@ -84,15 +84,15 @@ escape_backslash:           ; same for backslash
   JMP advance
 escape_newline:
   LDI 0
-  STA .bss + 1
-  LDA .bss + 3
+  STA .chars_printed
+  LDA .newlines_printed
   ADI 1                 ; increment number of newlines printed
-  STA .bss + 3
-  CMP .bss + 4
+  STA .newlines_printed
+  CMP .max_lines
   JPC check_max_lines
   JMP pass_check_max_lines
 check_max_lines:
-  LDA .bss + 4
+  LDA .max_lines
   CPI 0
   JPZ pass_check_max_lines
   JMP end
@@ -102,41 +102,44 @@ advance:                ; -- advance the pointer by one, also makes a newline if
   LDA .arg1
   ADI 1
   STA .arg1
-  LDA .bss + 1
+  LDA .chars_printed
   CPI .screen_width     ; if printed characters >= screen width, make a new line
   JPC wrap_or_truncate
   JMP print_loop        ; continue main loop if line not full
 wrap_or_truncate:
-  LDA .bss + 5
+  LDA .truncate_lines
   CPI 1
   JPZ truncate
   JMP newline_helper
 truncate:
   JSR @skip_line
   LDA .res1
-  ADD .bss + 2
-  STA .bss + 2
+  ADD .total_chars_printed
+  STA .total_chars_printed
+  LDA .arg1
+  SUI 1                       ; Compensate for upcoming advance which always increments .arg1; skip_line returns next-line start so step back 1 here so the shared advance landing position is correct.
+  STA .arg1
   JMP escape_newline
 newline_helper:         ; -- write a newline, but also set the characters printed on current line to 0
   LDI 0
-  STA .bss + 1
+  STA .chars_printed
   JSR @newline
   JMP print_loop
 
 write_char_wrapper:     ; -- Subroutine. Write character (in .char) and increment characters printed on current line (and total)
   JSR @write_char
-  LDA .bss + 1
+  LDA .chars_printed
   ADI 1
-  STA .bss + 1
-  LDA .bss + 2
+  STA .chars_printed
+  LDA .total_chars_printed
   ADI 1
-  STA .bss + 2
+  STA .total_chars_printed
   RET
 
 end:
-  LDA .bss + 2
+  LDA .total_chars_printed
   STA .res1
-  LDA .bss + 3
+  LDA .newlines_printed
   STA .res2
   JSR @newline
   RET
