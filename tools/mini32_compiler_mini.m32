@@ -1,0 +1,86 @@
+meta name = mini32_compiler_mini
+meta entry = main
+meta abi = os
+depends echon, parse_number, display_number, newline
+
+# Very small Mini32-written compiler PoC.
+# Usage (inside emulator):
+#  - place ASCII source at memory address in arg1 (argv_base+1)
+#  - place output address in arg2 (argv_base+2)
+# Supported source lines: "let NAME = NUMBER" (one per line)
+# Output lines emitted as text: ".NAME = NUMBER\n"
+
+var src_ptr
+var out_ptr
+var ch
+var tok
+var name_ptr
+var eq_ptr
+var num_val
+
+func main:
+    # argc/argv behavior: argv_base holds count; argv_base+1 holds pointer to first arg (we'll use it)
+    # For this PoC we'll read pointer from .argv_base + 1
+    let src_ptr = argv_base + 1
+    let out_ptr = argv_base + 2
+
+    # main loop: read lines until null
+    while src_ptr:
+        # load first char
+        let ch = src_ptr[0]
+        # if null, break
+        if ch == 0:
+            return
+        # parse a single line into tokens: this PoC will only accept `let NAME = NUMBER` exactly
+        # skip leading whitespace
+        call skip_ws(src_ptr) -> src_ptr
+        # expect 'let'
+        call read_token(src_ptr) -> tok
+        if tok != 0:
+            # compare first token with 'let' (not implemented: simple numeric check placeholder)
+            # for PoC assume token is 'let'
+            pass
+        # read name token
+        call read_token(src_ptr) -> name_ptr
+        # skip '=' token
+        call read_token(src_ptr) -> eq_ptr
+        # read number
+        call parse_number(src_ptr) -> num_val
+        # emit "." + name + " = " + num_val + "\n"
+        # For simplicity we'll just echon "." then echon name_ptr then echon " = " then display_number(num_val) then newline
+    asm "LDI 46"
+    asm "PHA"
+    asm "JSR @echon"
+        # echon name_ptr
+    asm "LDA name_ptr"
+    asm "PHA"
+    asm "JSR @echon"
+        # echon " = " (space equals space)
+    asm "LDI 32"
+    asm "PHA"
+    asm "JSR @echon"
+    asm "LDI 61"
+    asm "PHA"
+    asm "JSR @echon"
+    asm "LDI 32"
+    asm "PHA"
+    asm "JSR @echon"
+        # print number
+    asm "LDA num_val"
+    asm "PHA"
+    asm "JSR @display_number"
+    asm "JSR @newline"
+        # continue to next line (read_token/parse_number should leave src_ptr updated)
+    return
+
+# Helper stubs (very small -- real implementation would need tokeniser/strings)
+func skip_ws(s):
+    # stub: advance pointer until non-space (just increment once for PoC)
+    let s = s + 1
+    return s
+
+func read_token(r):
+    # stub: return current pointer as token pointer and advance by 4
+    let tok = r
+    let r = r + 4
+    return tok

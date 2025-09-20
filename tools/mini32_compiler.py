@@ -103,22 +103,22 @@ class Term:
     kind: str  # 'literal' or 'symbol'
     value: Optional[int] = None
     symbol: Optional[Symbol] = None
-    offset: int = 0
+    # offset can be a compile-time integer or an expression string (for dynamic indices)
+    offset: Optional[str] = None
 
     def immediate_expr(self) -> str:
         assert self.symbol is not None
         base = f".{self.symbol.name}"
-        if self.offset:
-            op = "+" if self.offset >= 0 else "-"
-            return f"{base} {op} {abs(self.offset)}"
+        if self.offset is not None and self.offset != "0":
+            # offset may be an expression string like 'i' or 'i + 1'
+            return f"{base} + {self.offset}"
         return base
 
     def address_expr(self) -> str:
         assert self.symbol is not None
         base = f".{self.symbol.name}"
-        if self.offset:
-            op = "+" if self.offset >= 0 else "-"
-            return f"{base} {op} {abs(self.offset)}"
+        if self.offset is not None and self.offset != "0":
+            return f"{base} + {self.offset}"
         return base
 
 
@@ -135,13 +135,13 @@ class Expression:
 class TargetRef:
     name: str
     symbol: Symbol
-    offset: int
+    # offset can be an integer (as string) or an expression string, or None
+    offset: Optional[str] = None
 
     def address_expr(self) -> str:
         base = f".{self.symbol.name}"
-        if self.offset:
-            op = "+" if self.offset >= 0 else "-"
-            return f"{base} {op} {abs(self.offset)}"
+        if self.offset is not None and self.offset != "0":
+            return f"{base} + {self.offset}"
         return base
 
 
@@ -435,7 +435,19 @@ class Mini32Parser:
         condition_text = condition_text[:-1].strip()
         if not condition_text:
             raise self._error(lineno, "if requires a condition expression")
-        condition = self._parse_expression(condition_text, lineno)
+        # support simple == / != comparisons
+        m_eq = re.match(r"^(.+)\s*==\s*(.+)$", condition_text)
+        m_neq = re.match(r"^(.+)\s*!=\s*(.+)$", condition_text)
+        if m_eq:
+            left = m_eq.group(1).strip()
+            right = m_eq.group(2).strip()
+            condition = self._parse_expression(f"{left} - {right}", lineno)
+        elif m_neq:
+            left = m_neq.group(1).strip()
+            right = m_neq.group(2).strip()
+            condition = self._parse_expression(f"{left} - {right}", lineno)
+        else:
+            condition = self._parse_expression(condition_text, lineno)
         then_body = self._parse_block(base_indent + 1)
         else_body: Optional[List[Statement]] = None
         if self.pos < len(self.lines):
@@ -453,7 +465,20 @@ class Mini32Parser:
         condition_text = condition_text[:-1].strip()
         if not condition_text:
             raise self._error(lineno, "while requires a condition expression")
-        condition = self._parse_expression(condition_text, lineno)
+        # Support simple equality/inequality in conditions like 'a == b' or 'a != b'
+        # by translating them into arithmetic expression (a - (b)).
+        m_eq = re.match(r"^(.+)\s*==\s*(.+)$", condition_text)
+        m_neq = re.match(r"^(.+)\s*!=\s*(.+)$", condition_text)
+        if m_eq:
+            left = m_eq.group(1).strip()
+            right = m_eq.group(2).strip()
+            condition = self._parse_expression(f"{left} - ({right})", lineno)
+        elif m_neq:
+            left = m_neq.group(1).strip()
+            right = m_neq.group(2).strip()
+            condition = self._parse_expression(f"{left} - ({right})", lineno)
+        else:
+            condition = self._parse_expression(condition_text, lineno)
         body = self._parse_block(base_indent + 1)
         return WhileStmt(condition=condition, body=body)
 
@@ -465,6 +490,12 @@ class Mini32Parser:
             return self._parse_call(text, lineno)
         if text.startswith("return"):
             return self._parse_return(text, lineno)
+        # simple 'pass' no-op
+        if text == "pass":
+            return AsmStmt(payload="")
+        # Accept raw assembly-like lines (e.g. 'LDI 46' or 'JSR @echon') as asm statements
+        if re.match(r"^[A-Z@][A-Z0-9_\.@ ]*(?:[ \t].*)?$", text):
+            return AsmStmt(payload=text)
         if text == "break":
             return BreakStmt()
         if text == "continue":
@@ -554,22 +585,37 @@ class Mini32Parser:
         return AsmStmt(payload=literal)
 
     def _parse_target(self, text: str, lineno: int) -> TargetRef:
-        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(\[(.+)\])?$", text)
+        # Accept name or name[index_expr]. Index_expr may be an integer literal
+        # (in which case we perform a static bounds check) or an arbitrary
+        # expression string which will be emitted as part of the address_expr().
+        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(?:\[(.+)\])?$", text)
         if not match:
             raise self._error(lineno, f"Invalid assignment target '{text}'")
         name = match.group(1)
-        offset = 0
-        if match.group(3):
-            idx_str = match.group(3).strip()
+        offset: Optional[str] = None
+        if match.group(2):
+            idx_raw = match.group(2).strip()
+            # Try to parse integer literal for static bounds checking; otherwise
+            # keep the raw expression string so address_expr() can emit it.
             try:
-                offset = int(idx_str, 0)
-            except ValueError as exc:
-                raise self._error(lineno, f"Invalid target index: {idx_str}") from exc
+                int_val = int(idx_raw, 0)
+            except ValueError:
+                offset = idx_raw
+            else:
+                offset = str(int_val)
         symbol = self._lookup_symbol(name, lineno)
         if not symbol.is_memory:
             raise self._error(lineno, f"Cannot assign to immediate symbol '{name}'")
-        if symbol.kind == "var" and offset >= symbol.size:
-            raise self._error(lineno, f"Index {offset} out of bounds for array '{name}'")
+        # If we have a concrete integer offset and the symbol is a var, perform
+        # a static bounds check.
+        if symbol.kind == "var":
+            if offset is not None:
+                try:
+                    off_int = int(offset, 0)
+                except ValueError:
+                    off_int = None
+                if off_int is not None and off_int >= symbol.size:
+                    raise self._error(lineno, f"Index {off_int} out of bounds for array '{name}'")
         return TargetRef(name=name, symbol=symbol, offset=offset)
 
     def _parse_expression(self, text: str, lineno: int) -> Expression:
@@ -606,16 +652,15 @@ class Mini32Parser:
         return Expression(terms=terms, source=text)
 
     def _parse_term(self, text: str, lineno: int) -> Term:
-        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(\[(.+)\])?$", text)
+        # allow index to be an expression string inside brackets: name[expr]
+        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(?:\[(.+)\])?$", text)
         if match:
             name = match.group(1)
-            offset = 0
-            if match.group(3):
-                idx_str = match.group(3).strip()
-                try:
-                    offset = int(idx_str, 0)
-                except ValueError as exc:
-                    raise self._error(lineno, f"Invalid index '{idx_str}' in term '{text}'") from exc
+            offset = None
+            if match.group(2):
+                idx_raw = match.group(2).strip()
+                # keep the raw expression (we don't evaluate it here)
+                offset = idx_raw
             symbol = self._lookup_symbol(name, lineno)
             return Term(kind="symbol", symbol=symbol, offset=offset)
         # Literal number
