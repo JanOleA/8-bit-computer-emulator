@@ -424,9 +424,8 @@ cp2_skip_line:
 cp2_instruction:
   ; look up mnemonic and write opcode, then handle optional operand
   LDA .bss + 11
-  STA .arg1
+  PHA
   JSR @get_mnemonic
-  LDA .res1
   CPI 0
   JPZ cp2_unknown_cmd
   STA .work4
@@ -897,12 +896,10 @@ ro_abi:
   JPZ ro_missing
   LDA .bss + 11
   ADI 1
-  STA .arg1
+  PHA
   JSR @get_os_abi_var
-  LDA .res1
   CPI 0
   JPZ ro_abi_fail
-  LDA .res1
   STA .res1
   LDI 1
   STA .res2
@@ -919,10 +916,8 @@ ro_prog:
   ADI 1
   STA .arg1
   JSR @get_program_address
-  LDA .res1
   CPI 0
   JPZ ro_prog_fail
-  LDA .res1
   STA .res1
   LDI 1
   STA .res2

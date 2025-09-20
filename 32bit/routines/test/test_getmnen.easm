@@ -15,9 +15,8 @@ main:
 test_go:
   ; first arg -> string to compare
   LDA .argv_base + 1
-  STA .arg1           ; res2 = pointer to string
+  PHA
   JSR @get_mnemonic
-  LDA .res1
   PHA
   JSR @display_number
   JSR @newline

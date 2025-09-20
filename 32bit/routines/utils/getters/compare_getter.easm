@@ -1,0 +1,85 @@
+;! name: COMPAREGET
+;! entry: compare_get
+;! deps: string_compare, parse_number, buffer_to_separator
+;! abi: os
+;! bss: auto
+;! align: 4
+
+.separator = ","
+
+; compares the input string (first argument) to a series of comma separated keys/values in the key_value_string (second argument) 
+
+; Call signature: compare_get(SP - 3, SP - 2) = compare_get(input_string_pointer, key_value_string_pointer)
+; Inputs:
+;   Stack Pointer - 3 = pointer to input string
+;   Stack Pointer - 2 = pointer to key_value_string (comma separated key,value pairs)
+; Returns: .res1 = result; A = result
+
+; Two input arguments:
+; 1: pointer to input string
+; 2: pointer to the key_value_string
+
+; bss       : pointer to input string
+; bss + 1   : current position in key_value_string
+
+compare_get:
+  PLA                ; get return address from stack
+  MOVAB              ; move return address to B for now
+
+  PLA                 ; get pointer to key_value_string from stack
+  STA .bss + 1
+  PLA                 ; get pointer to input string from stack
+  STA .bss
+
+  MOVBA              ; move return address back to A
+  PHA                ; push it back to stack
+compare:
+  JSR buf_to_sep
+  LDA .res1
+  PHA                     ; store pointer to buffered string as first argument
+  LDA .bss
+  PHA                     ; push pointer to input string from .bss as second argument
+  JSR @string_compare
+  CPI 1
+  JPZ match
+  ; get character at read_pointer
+  LPA .bss + 1                ; load mem[mem[.bss + 1]] into A
+  CPI 0                   ; if we reach null, end
+  JPZ end_no_match
+  JMP compare
+match:
+  JSR buf_to_sep          ; parse numeric token buffered by buffer_to_separator (pointer returned in .res1)
+  LDA .res1
+  PHA
+  JSR @parse_number
+  STA .res1               ; return memory location in .res1
+  RET
+end_no_match:
+  LDI 0
+  STA .res1
+  RET
+
+; --- helper to buffer the next string to compare ---
+buf_to_sep:          
+  LDA .separator                ; Set separator byte (dereference first char of .separator)
+  STA .arg2
+  LDA .bss + 1                  ; Start from current pointer in key_value_string
+  STA .arg1                     ; Buffer token up to separator. Pointer to buffered string in res1; length -> .res2
+  JSR @buffer_to_separator
+  LDA .res2
+  CPI 0                         ; compare with 0
+  JPZ bts_done                  ; jump to end if so
+  LDA .bss + 1
+  ADD .res2                     ; Advance current pointer by token length
+  STA .bss + 1
+  LPA .bss + 1                  ; If current char is the separator, skip it as well; if null, do not                ; load mem[mem[.bss + 1]] into A
+  ; Check if the current character is the separator
+  CMP .arg2
+  JPZ bts_skip_sep
+  JMP bts_done
+bts_skip_sep:
+  LDA .bss + 1
+  ADI 1
+  STA .bss + 1
+bts_done:
+  RET

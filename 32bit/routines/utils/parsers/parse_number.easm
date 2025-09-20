@@ -6,6 +6,7 @@
 ;! align: 4
 
 ; Parse a text decimal number from pointer (first argument) into integer in .bss (stops at first non-digit)
+; returns the number in A and the updated pointer in .arg1 (backwards compat)
 parse_number:
   PLA                 ; pull return address into A
   MOVAB               ; move it to B temporarily

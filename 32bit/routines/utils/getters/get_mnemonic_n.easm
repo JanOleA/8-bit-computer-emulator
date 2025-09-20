@@ -1,0 +1,34 @@
+;! name: GETMNEMONICN
+;! entry: get_mnemonic
+;! deps: compare_get
+;! abi:
+;! bss: auto
+;! align: 4
+
+.mnemonics = "LDA,1,ADD,2,SUB,3,STA,4,LDI,5,JMP,6,JPC,7,JPZ,8,KEI,9,ADI,10,SUI,11,CMP,12,PHA,13,PLA,14,LDS,15,JSR,16,RET,17,SAS,18,LAS,19,LDB,20,CPI,21,RSA,22,LSA,23,DIS,24,DIC,25,LDD,26,JNZ,27,STB,28,MOVBA,29,MOVAB,30,LSP,31,MVASP,32,MVBSP,33,SUM,34,LAP,35,LPA,36,DIA,37,OUT,254,HLT,255"
+; -- keep mnemonics in sync with cpu_sim.py and assembler_core.py --
+
+; Call signature: get_mnemonic(SP - 2) = get_mnemonic(input_string_pointer)
+; Inputs:
+;   Stack Pointer - 2 = pointer to input string
+; Returns: .res1 = result; A = result
+
+; --- Compare the string pointed to by the input argument to assembly mnemonics and return (in res1 and A) the corresponding instruction value, if it exists (otherwise null) ---
+
+get_mnemonic:
+  PLA                ; get return address from stack
+  MOVAB              ; move return address to B for now
+
+  PLA                ; get pointer to input string from stack
+  STA .bss
+
+  MOVBA              ; move return address back to A
+  PHA                ; push it back to stack
+
+  LDA .bss           ; load pointer-to-input (value stored in .bss)
+  PHA
+  LDI .mnemonics     ; load pointer to mnemonics string
+  PHA
+  JSR @compare_get
+  ; result in .res1 and A
+  RET

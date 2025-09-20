@@ -1,0 +1,34 @@
+;! name: OSABI
+;! entry: get_os_abi_var
+;! deps: string_compare, parse_number, buffer_to_separator
+;! abi: os
+;! bss: auto
+;! align: 4
+
+; keep abi_vars in sync with compile_routines.py and emulator_os.txt
+.abi_vars = "CHAR,2000,TEXTLOC,2001,ARG1,2002,ARG2,2003,RES1,2004,RES2,2005,RES3,2014,POW2,2006,NUM-DIGITS,2007,ASCII-START,2008,NO-INPUT,2009,WORK1,2010,WORK2,2011,WORK3,2012,WORK4,2013,INPUT-BUF,2122,INPUT-PTR,2202,CMD-LEN,2203,CMD-READY,2204,ARGV-BASE,2400,ARGV-BUF,2500,RANDOM-SEED,2600,INC-RANDOM-SEED,2601,BITS-AVAIL,2602,PROG-TABLE,3000"
+
+; Call signature: get_os_abi_var(SP - 2) = get_os_abi_var(input_string_pointer)
+; Inputs:
+;   Stack Pointer - 2 = pointer to input string
+; Returns: .res1 = result; A = result
+
+; --- Compare the string pointed to by the input argument to OS ABI variables and return (in res1 and A) the corresponding memory location, if it exists (otherwise null) ---
+
+get_os_abi_var:
+  PLA                ; get return address from stack
+  MOVAB              ; move return address to B for now
+
+  PLA                ; get pointer to input string from stack
+  STA .bss
+
+  MOVBA              ; move return address back to A
+  PHA                ; push it back to stack
+
+  LDA .bss           ; load pointer-to-input (value stored in .bss)
+  PHA
+  LDI .abi_vars      ; load pointer to abi vars string
+  PHA
+  JSR @compare_get
+  ; result in .res1 and A
+  RET

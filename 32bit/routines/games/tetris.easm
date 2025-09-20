@@ -1473,5 +1473,5 @@ w100_set_no_input:
   JMP w100_before_sleep
 w100_before_sleep:
   ; call the real external sleep for 100 units
-  JSR @wait_100
+  ;JSR @wait_100
   RET
