@@ -51,9 +51,8 @@ ted_go:
   LDI 1
   STA .bss + 12         ; initialize this as 1, so we don't get spurious inputs on startup
   LDA .argv_base + 1
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .bss + 0
   JSR count_lines
   JSR update_display

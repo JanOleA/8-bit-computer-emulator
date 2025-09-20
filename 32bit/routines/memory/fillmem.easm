@@ -20,21 +20,18 @@ start:
 
 cl_go:
   LDA .argv_base + 1
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .bss
 
   LDA .argv_base + 2
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .bss + 1
 
   LDA .argv_base + 3
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .bss + 2
 
 fill:

@@ -5,18 +5,23 @@
 ;! bss: auto
 ;! align: 4
 
-; --- 16/32 bit pseudo-randint in the range [0, .arg1) ---
+; --- 16/32 bit pseudo-randint in the range [0, argument) ---
 ; Uses a small LCG. For <32-bit A-regs uses (a=25173, c=13849).
 ; For 32-bit or larger, uses (a=1664525, c=1013904223).
 
 ; bss + 0 : upper limit of the range
 
 randint:
+  PLA
+  MOVAB
+  PLA
+  STA .bss + 0        ; upper limit of range in .bss + 0
+  MOVBA
+  PHA
   ; Guard: if range == 0, return 0
-  LDA .arg1
+  LDA .bss + 0
   CPI 0
   JPZ ri_zero
-  STA .bss
   ; Branch on available bits
   LDA .bits_avail
   CPI 32
@@ -36,8 +41,6 @@ ri_16:
   STA .arg2
   JSR @divide
   LDA .res2
-  STA .arg1
-  STA .res1
   RET
 
 ; --- 32-bit LCG path (A-reg >= 32 bits) ---
@@ -54,12 +57,8 @@ ri_32:
   STA .arg2
   JSR @divide
   LDA .res2
-  STA .arg1
-  STA .res1
   RET
 
 ri_zero:
   LDI 0
-  STA .res1
-  STA .arg1
   RET

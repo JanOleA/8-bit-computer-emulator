@@ -157,6 +157,7 @@ class CallStmt:
     callee: str
     args: List[Expression]
     extern: bool
+    returns: List[str] = field(default_factory=list) # names of return variables
 
 
 @dataclass
@@ -200,6 +201,7 @@ Statement = (LetStmt | CallStmt | ReturnStmt | IfStmt | WhileStmt |
 class FunctionDef:
     name: str
     body: List[Statement]
+    args: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -378,11 +380,33 @@ class Mini32Parser:
         header = text.rstrip(":")
         if header == text:
             raise self._error(lineno, "func header must end with ':'")
+        # check if the function has arguments
+        if "(" in header and header.endswith(")"):
+            name_part, args_part = header.split("(", 1)
+            header = name_part.strip()
+            args_str = args_part[:-1].strip()
+            if not args_str:
+                raise self._error(lineno, "Malformed function argument list")
+            raw_args = [a.strip() for a in args_str.split(",") if a.strip()]
+            if not raw_args:
+                raise self._error(lineno, "Malformed function argument list")
+            for arg in raw_args:
+                self._ensure_identifier(arg, lineno)
+                if arg in self.symbols:
+                    raise self._error(lineno, f"Duplicate symbol {arg}")
+                # Arguments are pulled from stack into bss space for the function to use
+                var_name = f"{arg}"
+                self.program.vars.append(VarDef(name=var_name, offset=self.bss_cursor, size=1))
+                self.symbols[var_name] = Symbol(name=var_name, kind="var", offset=self.bss_cursor)
+                self.bss_cursor += 1
+        else:
+            raw_args = []
+            
         _, name = header.split(" ", 1)
         name = name.strip()
         self._ensure_identifier(name, lineno)
         body = self._parse_block(indent + 1)
-        return FunctionDef(name=name, body=body)
+        return FunctionDef(name=name, body=body, args=raw_args)
 
     def _parse_block(self, base_indent: int) -> List[Statement]:
         statements: List[Statement] = []
@@ -470,6 +494,16 @@ class Mini32Parser:
         body = text[5:].strip()
         if not body:
             raise self._error(lineno, "call requires a target")
+        body, returns = body.split("->", 1) if "->" in body else (body, "")
+        returns = returns.strip().split(",") if returns else []
+        body = body.strip()
+        
+        # check that returns are valid identifiers
+        for ret in returns:
+            ret = ret.strip()
+            if ret and not IDENT_RE.match(ret):
+                raise self._error(lineno, f"Invalid return variable name: {ret}")
+
         if body.endswith(")") and "(" in body:
             name_part, args_part = body.split("(", 1)
             callee = name_part.strip()
@@ -487,7 +521,7 @@ class Mini32Parser:
             for arg in raw_args:
                 args.append(self._parse_expression(arg, lineno))
         extern = callee.startswith("@")
-        return CallStmt(callee=callee, args=args, extern=extern)
+        return CallStmt(callee=callee, args=args, extern=extern, returns=returns)
 
     def _parse_return(self, text: str, lineno: int) -> ReturnStmt:
         body = text[6:].strip()
@@ -615,6 +649,7 @@ class CodeGenerator:
             if self.lines and self.lines[-1] != "":
                 self.lines.append("")
             self._emit_label(f"{func.name}")
+            self._emit_function_prologue(func.args)
             self._emit_statements(func.name, func.body)
             self._ensure_function_ret()
         if self.lines and self.lines[-1] != "":
@@ -651,6 +686,21 @@ class CodeGenerator:
     def _emit(self, line: str) -> None:
         self.lines.append(f"  {line}")
 
+    def _emit_function_prologue(self, args: List[str]) -> None:
+        if not args:
+            return
+        # first store the return address
+        self._emit("PLA")  # pull return address from stack
+        self._emit("MOVAB")  # move to B register
+
+        # Pull arguments from stack into bss space
+        for arg in args:
+            self._emit("PLA")
+            self._emit(f"STA .{arg}")
+
+        self._emit("MOVBA") # move return address back to A register
+        self._emit("PHA")   # push return address back to stack
+
     def _emit_statements(self, func_name: str, statements: List[Statement]) -> None:
         for stmt in statements:
             if isinstance(stmt, LetStmt):
@@ -686,15 +736,23 @@ class CodeGenerator:
         self._emit(f"STA {stmt.target.address_expr()}")
 
     def _emit_call(self, stmt: CallStmt) -> None:
-        for index, expr in enumerate(stmt.args, start=1):
-            if index > 8:
-                raise Mini32Error("Calls support at most 8 arguments")
-            arg_name = f".arg{index}"
+        """  """
+        print(stmt)
+        for expr in stmt.args[::-1]: # Push arguments to stack in reverse order
             self._emit_expression(expr)
-            self._emit(f"STA {arg_name}")
+            self._emit(f"PHA")
         callee = stmt.callee
         mnemonic = f"JSR {callee}"
         self._emit(mnemonic)
+
+        if stmt.returns:
+            if len(stmt.returns) > 1:
+                for ret_var in stmt.returns[::-1]: # Pop return values from stack in reverse order
+                    self._emit(f"PLA")
+                    self._emit(f"STA .{ret_var}")
+            else: # if there's a single return variable, it will be in the A register
+                ret_var = stmt.returns[0]
+                self._emit(f"STA .{ret_var}")
 
     def _emit_return(self, stmt: ReturnStmt) -> None:
         if stmt.expr is not None:

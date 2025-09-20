@@ -6,15 +6,31 @@ depends write_char, newline
 const ZERO = 0
 var counter
 var counter2
+var result
 
 data digits = "0123456789"
 
 func main:
     let counter = 5
+    let counter2 = 2
     while counter:
         let counter -= 1
-        let work1 = digits
-        let work1 += counter
-        call @write_char(work1, work2, work3)
+        call @multiply(counter, counter2) -> result
+        call @display_number(result)
     call @newline()
+
+    call test(7, 8) -> result
     return
+
+func test(input1, input2):
+    # inputs should be pulled from stack, pull the return address first, then inputs, then push the return address back
+    # if there are multiple return values, store the return address for now, and push it to stack after the return values are pushed to stack
+    # return values should be pushed to stack in reverse order
+    let counter = 3
+    let counter2 = 4
+
+    return counter
+
+func test2(t2_input1, t2_input2):
+    let result = t2_input1 + t2_input2
+    return counter

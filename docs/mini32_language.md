@@ -8,22 +8,28 @@ A Mini32 source file is a sequence of top-level directives followed by one or mo
 
 ```
 # Comments start with '#'
-meta name = Example
+meta name = Counter
 meta entry = main
 meta abi = os
 depends write_char, newline
 
-const TEN = 10
+const ZERO = 0
 var counter
-var buffer[4]
-data hello = "Hello!"
+var counter2
+var result
+
+data digits = "0123456789"
 
 func main:
-    let counter = TEN
+    let counter = 5
+    let counter2 = 2
     while counter:
-        call @write_char(counter)
         let counter -= 1
+        call @multiply(counter, counter2) -> result
+        call @display_number(result)
+    call @newline()
     return
+
 ```
 
 ### Module metadata
@@ -48,7 +54,7 @@ Available statements inside a function:
 - `let target = expr` assigns the evaluated expression to a variable.
 - `let target += expr`, `let target -= expr` perform in-place addition or subtraction.
   - `target` can be `name` or `name[index]` for array slots.
-- `call callee(args...)` calls a routine. Before the `JSR`, arguments are stored in `.arg1`, `.arg2`, ... automatically. Use `call @name(...)` for extern calls so the assembler emits `JSR @name` (recognized by `compile_routines.py`). Parentheses are optional when there are no arguments.
+- `call callee(args...)` calls a routine. Before the `JSR`, arguments are pushed to the stack (in reverse order) automatically. Use `call @name(...)` for extern calls so the assembler emits `JSR @name` (recognized by `compile_routines.py`). Parentheses are optional when there are no arguments.
 - `return` / `return expr` emits an optional expression evaluation followed by `RET`.
 - Control flow:
   - `if expr:` followed by a block and optional `else:` block.
@@ -103,16 +109,18 @@ depends write_char, newline
 
 const ZERO = 0
 var counter
+var counter2
+var result
 
 data digits = "0123456789"
 
 func main:
     let counter = 5
+    let counter2 = 2
     while counter:
         let counter -= 1
-        let work1 = digits
-        let work1 += counter
-        call @write_char(work1)
+        call @multiply(counter, counter2) -> result
+        call @display_number(result)
     call @newline()
     return
 ```

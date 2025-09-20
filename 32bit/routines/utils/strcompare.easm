@@ -5,35 +5,44 @@
 ;! bss: auto
 ;! align: 4
 
-; compare strings
-; str1 pointer in .arg1, null-terminated
-; str2 pointer in .arg2, null-terminated
-; result stored in .res1. 1 = equal, 0 = not equal
+; compare strings for equality
+; takes pointers to strings as arguments
+; result stored in A. 1 = equal, 0 = not equal
 ; bss     : temp char1
 
 string_compare:
-  LPA .arg1     ; A <- mem[mem[.arg1]]
+  PLA               ; pull return address into A
+  MOVAB             ; move return address to B temporarily
+
+  PLA
+  STA .bss + 1
+  PLA
+  STA .bss + 2
+
+  MOVBA             ; move return address back to A
+  PHA               ; push return address back to stack
+
+compare_loop:
+  LPA .bss + 1      ; A <- mem[mem[.bss + 1]]
   ; store char1 in .bss
   STA .bss
-  LPA .arg2     ; A <- mem[mem[.arg2]]
-  CMP .bss      ; compare char1 to A (char2)
+  LPA .bss + 2      ; A <- mem[mem[.bss + 2]]
+  CMP .bss          ; compare char1 to A (char2)
   JPZ equal
   JMP not_equal
 equal:
-  CPI 0         ; if equal and zero, we've reached the end
+  CPI 0             ; if equal and zero, we've reached the end
   JPZ done_equal
-  LDA .arg1
+  LDA .bss + 1
   ADI 1
-  STA .arg1
-  LDA .arg2
+  STA .bss + 1
+  LDA .bss + 2
   ADI 1
-  STA .arg2
-  JMP string_compare
+  STA .bss + 2
+  JMP compare_loop
 not_equal:
   LDI 0
-  STA .res1
   RET
 done_equal:
   LDI 1
-  STA .res1
   RET

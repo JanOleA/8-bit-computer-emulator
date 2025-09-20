@@ -2,15 +2,24 @@
 ;! entry: parse_number
 ;! deps: 
 ;! abi: os
-;! bss: none
+;! bss: auto
 ;! align: 4
 
-; Parse a text decimal number at .arg1.. into integer in .res1 (stops at first non-digit)
+; Parse a text decimal number from pointer (first argument) into integer in .bss (stops at first non-digit)
 parse_number:
+  PLA                 ; pull return address into A
+  MOVAB               ; move it to B temporarily
+
+  PLA
+  STA .bss + 3        ; argument pointer in .bss + 3
+
+  MOVBA               ; move return address back to A
+  PHA                 ; push return address back to stack
+
   LDI 0
-  STA .res1
+  STA .bss
 pn_loop:
-  LPA .arg1                 ; A = current char                ; load mem[mem[.arg1                 ; A = current char]] into A
+  LPA .bss + 3        ; A = current char                ; load mem[mem[.bss + 3]] into A
   CPI 48              ; if A < '0' -> done
   JPC pn_ge_48
   JMP pn_done
@@ -19,19 +28,21 @@ pn_ge_48:
   JPC pn_done
   ; convert to digit and accumulate: res1 = res1*10 + digit
   SUI 48
-  STA .textloc        ; temp digit
-  LDA .res1
+  STA .bss + 2        ; temp digit
+  LDA .bss
   LSA
-  STA .pow2           ; tmp = res*2
+  STA .bss + 1        ; tmp = res*2
   LSA
   LSA                 ; A = res*8
-  ADD .pow2           ; A = res*10
-  ADD .textloc
-  STA .res1
+  ADD .bss + 1        ; A = res*10
+  ADD .bss + 2
+  STA .bss
   ; advance pointer
-  LDA .arg1
+  LDA .bss + 3
   ADI 1
-  STA .arg1
+  STA .bss + 3
   JMP pn_loop
 pn_done:
+  LDA .bss
+  STA .res1
   RET

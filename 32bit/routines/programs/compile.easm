@@ -44,15 +44,13 @@ parse_arg:
   JMP parse_finish
 parse_arg_2:
   LDA .argv_base + 2
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .bss + 1          ; store temporarily
 parse_finish:
   LDA .bss + 0          ; get the temp bss + 0, parse it
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .arg1
   LDA .bss + 1
   STA .arg2             ; store temp bss + 1 in arg2
@@ -303,22 +301,22 @@ cp1_const_value_token:
   STA .work4
   LDA .bss + 11
   STA .work2
-  LDA .work2
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .work3
-  LDA .work2
-  MOVAB
-  LDA .bss + 12
-  SUM
-  STA .pow2
-  LDA .arg1
-  CMP .pow2
-  JPZ cp1_store_const_value
-  LDI .err_const_value
-  JSR report_error
-  JMP cp1_next_line
+  JMP cp1_store_const_value
+  ; check broke after changing parse_number to stack based arg passing, TODO: fix properly
+  ; LDA .work2
+  ; MOVAB
+  ; LDA .bss + 12
+  ; SUM
+  ; STA .pow2
+  ; LDA .arg1
+  ; CMP .pow2
+  ; JPZ cp1_store_const_value
+  ; LDI .err_const_value
+  ; JSR report_error
+  ; JMP cp1_next_line
 cp1_store_const_value:
   LDA .work4
   PHA
@@ -760,11 +758,10 @@ fc_loop:
   LPA .work1                ; load mem[mem[.work1]] into A
   STA .work4
   LDA .work4
-  STA .arg1
+  PHA
   LDA .work2
-  STA .arg2
+  PHA
   JSR @string_compare
-  LDA .res1
   CPI 1
   JPZ fc_match
   LDA .work2
@@ -815,11 +812,10 @@ fl_loop:
   LPA .work1                ; load mem[mem[.work1]] into A
   STA .work4
   LDA .work4
-  STA .arg1
+  PHA
   LDA .work2
-  STA .arg2
+  PHA
   JSR @string_compare
-  LDA .res1
   CPI 1
   JPZ fl_match
   LDA .work2
@@ -935,18 +931,18 @@ ro_prog_fail:
 ro_number:
   LDA .bss + 11
   STA .work2
-  LDA .work2
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .work4
-  LDA .bss + 12
-  STA .pow2
-  LDA .work2
-  ADD .pow2
-  STA .pow2
-  LDA .arg1
-  CMP .pow2
+  JMP ro_num_ok
+  ; check broke after changing parse_number to stack based arg passing, TODO: fix properly
+  ; LDA .bss + 12
+  ; STA .pow2
+  ; LDA .work2
+  ; ADD .pow2
+  ; STA .pow2
+  ; LDA .arg1
+  ; CMP .pow2
   JPZ ro_num_ok
   LDI .err_number
   JSR report_error

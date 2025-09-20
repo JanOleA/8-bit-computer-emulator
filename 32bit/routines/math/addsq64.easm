@@ -19,6 +19,7 @@
 ;   .bss + 4 = tmp_lo
 ;   .bss + 5 = tmp_hi
 ;   .bss + 6 = multiplicand_hi
+;   .bss + 7 = temp (for shifting multiplier)
 
 add_square64:
   ; Setup multiplicand and multiplier
@@ -38,11 +39,11 @@ asq_loop:
   JPZ asq_add_to_sum
   ; Shift multiplier and branch on prior LSB
   RSA
-  STA .char
+  STA .bss + 7
   JPC asq_odd
 
 asq_store_mul:
-  LDA .char
+  LDA .bss + 7
   STA .bss + 1
 
   ; multiplicand <<= 1 (64-bit)

@@ -22,11 +22,10 @@ get_os_abi_var:
 compare:
   JSR buf_to_sep
   LDA .res1
-  STA .arg1           ; store pointer to buffered value in arg1
+  PHA                 ; store pointer to buffered string as first argument
   LDA .bss
-  STA .arg2           ; load pointer to input string from .bss into arg2
+  PHA                 ; push pointer to input string from .bss as second argument
   JSR @string_compare
-  LDA .res1
   CPI 1
   JPZ match
   ; get character at read_pointer
@@ -37,9 +36,9 @@ compare:
 match:
   JSR buf_to_sep          ; parse numeric token buffered by buffer_to_separator (pointer returned in .res1)
   LDA .res1
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
+  STA .res1               ; return memory location in .res1
   RET
 end_no_match:
   LDI 0

@@ -347,7 +347,7 @@ class Computer:
             try:
                 operations = self.assembly[operation_ID]
             except KeyError:
-                operations = [self.HLT]
+                operations = [self.ORE] # unknown instruction, do nothing
             if self.op_timestep - 2 >= len(operations):
                 operation = 0
             else:

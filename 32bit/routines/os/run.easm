@@ -19,16 +19,13 @@ run:
 
 rn_have_arg:
   ; parse argv[1] into .res1
-  LDA .argv_base + 1
-  STA .arg1
-  JSR @parse_number
-
   ; save current CALL_STUB operand (19997)
   LDA 19997
   STA .bss
 
-  ; write new target into CALL_STUB+1
-  LDA .res1
+  LDA .argv_base + 1
+  PHA
+  JSR @parse_number
   STA 19997
 
   ; call trampoline at 19996

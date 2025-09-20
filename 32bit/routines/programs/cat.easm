@@ -37,9 +37,8 @@ cat:
   CPI 0
   JPZ print_init
   LDA .argv_base + 1
-  STA .arg1
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .arg1
   LDI 0
   STA .arg2

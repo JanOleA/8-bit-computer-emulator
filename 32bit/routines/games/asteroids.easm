@@ -34,9 +34,9 @@ main:
   JSR @toggle_display_enable
   JSR clear_display
   LDI .screen_width
-  STA .arg1
+  PHA
   JSR @randint
-  LDA .res1             ; get random value in [0,40)
+  ; get random value in [0,40)
   STA .bss              ; turret position
   LDI 1
   STA .bss + 3          ; current line we are drawing
@@ -45,9 +45,9 @@ main:
 
 new_asteroid:
   LDI .screen_width
-  STA .arg1
+  PHA
   JSR @randint
-  LDA .res1             ; get random value in [0,40)
+  ; get random value in [0,40)
   STA .bss + 1          ; asteroid X position
   LDI 0
   STA .bss + 2          ; asteroid Y position

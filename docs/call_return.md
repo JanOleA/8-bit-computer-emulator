@@ -6,7 +6,7 @@ These variables remain for backward compatability, but to avoid clobbering them 
 The convention also allows for arbitrary amounts of arguments and return values (but it's up to the user to make sure the correct number of arguments are pushed to the stack, and the correct number popped on return). Otherwise there _will_ be weird bugs.
 
 ## Subroutines that only return one value
-These can return the value in the A register, avoiding using the stack on return.
+These return the value in the A register, avoiding using the stack on return.
 
 ## Subroutines that return multiple values
 These can return values in the stack, but the caller _must_ remember to pop all of them for bookkeeping to be intact.
@@ -15,7 +15,8 @@ These can return values in the stack, but the caller _must_ remember to pop all 
 READ SUBROUTINE DOCS when using them. All of them should have a string at the top that specifies how many arguments it expects on the stack, as well as how many values it returns.
 
 ## Exceptions:
-- [write_char.easm](../32bit/routines/utils/write_char.easm) displays the ascii character stored in .char. This is used often and needs to be performant.
+- [write_char.easm](../32bit/routines/utils/write_char.easm) displays the ascii character corresponding to the value stored in the A register.
+  - The reason for this is that this needs to be performant, as it's used often for updating the display.
 
 # Convention
 ## When there's only one return value

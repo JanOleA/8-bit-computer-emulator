@@ -22,9 +22,8 @@ calc:
 cl_go:
   ; parse first number -> work1
   LDA .argv_base + 1
-  STA .arg1           ; arg1 = pointer to first number string
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .work1
 
   ; read operator char -> .char
@@ -42,9 +41,8 @@ cl_go:
 get_second_num:
   ; parse second number -> work2
   LDA .argv_base + 3
-  STA .arg1           ; arg1 = pointer to second number string
+  PHA
   JSR @parse_number
-  LDA .res1
   STA .work2
 
   ; dispatch by operator

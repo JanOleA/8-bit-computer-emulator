@@ -18,12 +18,14 @@ get_program_address:
 compare_loop:
   LDI .prog_table
   ADD .bss + 1
-  STA .arg1             ; store in arg1 to use in string_compare later
+  STA .bss + 2          ; store in bss + 2 to use in string_compare later
   LAP                   ; push memory address to stack, load value at memory address
   CPI 0                 ; if the name starts with null, we reached the end of the program table
   JPZ no_match
+  LDA .bss + 2
+  PHA
   LDA .bss
-  STA .arg2             ; store input string in arg2
+  PHA
   JSR @string_compare
                         ; result is in res1 and in A register
   CPI 1

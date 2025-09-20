@@ -141,9 +141,8 @@ cb_done:
 
 spawn_new_piece:
   LDI 7
-  STA .arg1
+  PHA
   JSR @randint
-  LDA .res1
   STA .bss + 200
   LDI 0
   STA .bss + 201
