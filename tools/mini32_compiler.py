@@ -162,7 +162,7 @@ class CallStmt:
 
 @dataclass
 class ReturnStmt:
-    expr: Optional[Expression]
+    exprs: List[Expression] = field(default_factory=list)
 
 
 @dataclass
@@ -495,13 +495,18 @@ class Mini32Parser:
         if not body:
             raise self._error(lineno, "call requires a target")
         body, returns = body.split("->", 1) if "->" in body else (body, "")
-        returns = returns.strip().split(",") if returns else []
+        # normalize return names (strip whitespace) and ignore empty entries
+        if returns:
+            returns = [r.strip() for r in returns.strip().split(",") if r.strip()]
+        else:
+            returns = []
         body = body.strip()
         
-        # check that returns are valid identifiers
+        # check that returns are valid identifiers (allow '_' as placeholder)
         for ret in returns:
-            ret = ret.strip()
-            if ret and not IDENT_RE.match(ret):
+            if ret == "_":
+                continue
+            if not IDENT_RE.match(ret):
                 raise self._error(lineno, f"Invalid return variable name: {ret}")
 
         if body.endswith(")") and "(" in body:
@@ -526,9 +531,15 @@ class Mini32Parser:
     def _parse_return(self, text: str, lineno: int) -> ReturnStmt:
         body = text[6:].strip()
         if not body:
-            return ReturnStmt(expr=None)
-        expr = self._parse_expression(body, lineno)
-        return ReturnStmt(expr=expr)
+            return ReturnStmt(exprs=[])
+        # allow multiple return expressions separated by commas
+        parts = [p.strip() for p in body.split(",") if p.strip()]
+        if not parts:
+            return ReturnStmt(exprs=[])
+        exprs: List[Expression] = []
+        for part in parts:
+            exprs.append(self._parse_expression(part, lineno))
+        return ReturnStmt(exprs=exprs)
 
     def _parse_asm(self, text: str, lineno: int) -> AsmStmt:
         payload = text[4:].strip()
@@ -737,7 +748,6 @@ class CodeGenerator:
 
     def _emit_call(self, stmt: CallStmt) -> None:
         """  """
-        print(stmt)
         for expr in stmt.args[::-1]: # Push arguments to stack in reverse order
             self._emit_expression(expr)
             self._emit(f"PHA")
@@ -746,23 +756,65 @@ class CodeGenerator:
         self._emit(mnemonic)
 
         if stmt.returns:
+            # Multiple returns are delivered on the stack by the callee.
+            # Caller must pop them in reverse order. Support '_' as a
+            # placeholder to discard a returned value.
             if len(stmt.returns) > 1:
-                for ret_var in stmt.returns[::-1]: # Pop return values from stack in reverse order
-                    self._emit(f"PLA")
-                    self._emit(f"STA .{ret_var}")
-            else: # if there's a single return variable, it will be in the A register
+                # Pop returned values in forward order so the first returned value
+                # maps to the first variable. The callee pushes values in reverse
+                # order so the first logical return is on top of the stack.
+                for ret_var in stmt.returns:
+                    if ret_var == "_":
+                        # discard one value from stack
+                        self._emit(f"PLA")
+                    else:
+                        self._emit(f"PLA")
+                        self._emit(f"STA .{ret_var}")
+            else:  # single return value: A register contains it
                 ret_var = stmt.returns[0]
-                self._emit(f"STA .{ret_var}")
+                if ret_var == "_":
+                    # If caller doesn't care about the single return, just ignore A
+                    # nothing to emit (value already in A)
+                    pass
+                else:
+                    self._emit(f"STA .{ret_var}")
 
     def _emit_return(self, stmt: ReturnStmt) -> None:
-        if stmt.expr is not None:
-            self._emit_expression(stmt.expr)
+        # No expressions: normal RET
+        if not stmt.exprs:
+            self._emit("RET")
+            return
+
+        # Single return expression: leave value in A (legacy fast path)
+        if len(stmt.exprs) == 1:
+            self._emit_expression(stmt.exprs[0])
+            self._emit("RET")
+            return
+
+        # Multiple return values: use stack-based return sequence.
+        # Save return address: pull it from stack and hold it in B
+        self._emit("PLA")
+        self._emit("MOVAB")
+
+        # Evaluate and push return values in reverse order so that the
+        # first listed return value is on top of the stack after push.
+        for expr in stmt.exprs[::-1]:
+            self._emit_expression(expr)
+            self._emit("PHA")
+
+        # Finally push the saved return address back so that RET will pop it.
+        self._emit("MOVBA")
+        self._emit("PHA")
         self._emit("RET")
 
     def _emit_if(self, func_name: str, stmt: IfStmt) -> None:
         end_label = self._next_label(func_name, "ENDIF")
         else_label = self._next_label(func_name, "ELSE") if stmt.else_body else end_label
         self._emit_expression(stmt.condition)
+        # LDA and arithmetic instructions may not set the CPU flags as
+        # expected for conditional branches, so compare against zero to
+        # set flags (zero/negative) for JPZ/JPC/etc.
+        self._emit("CPI 0")
         self._emit(f"JPZ {else_label}")
         self._emit_nested_statements(func_name, stmt.then_body)
         if stmt.else_body:
@@ -779,6 +831,8 @@ class CodeGenerator:
         end_label = self._next_label(func_name, "WHILE_END")
         self.lines.append(f"{start_label}:")
         self._emit_expression(stmt.condition)
+        # Ensure flags are set for the conditional jump
+        self._emit("CPI 0")
         self._emit(f"JPZ {end_label}")
         self.loop_stack.append(LoopContext(start_label=start_label, end_label=end_label))
         self._emit_nested_statements(func_name, stmt.body)

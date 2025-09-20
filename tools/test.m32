@@ -1,12 +1,13 @@
 meta name = Counter
 meta entry = main
 meta abi = os
-depends write_char, newline
+depends newline, multiply, display_number
 
 const ZERO = 0
 var counter
 var counter2
 var result
+var result2
 
 data digits = "0123456789"
 
@@ -19,18 +20,23 @@ func main:
         call @display_number(result)
     call @newline()
 
-    call test(7, 8) -> result
+    call test(7, 8) -> result, result2
+    call @display_number(result)
+    call @newline()
+    call @display_number(result2)
+    call @newline()
+
+    call test2(10, 20) -> result
+    call @display_number(result)
+    call @newline()
     return
 
 func test(input1, input2):
-    # inputs should be pulled from stack, pull the return address first, then inputs, then push the return address back
-    # if there are multiple return values, store the return address for now, and push it to stack after the return values are pushed to stack
-    # return values should be pushed to stack in reverse order
-    let counter = 3
-    let counter2 = 4
+    let counter = 3 + input1
+    let counter2 = 4 + input2
 
-    return counter
+    return counter, counter2
 
 func test2(t2_input1, t2_input2):
     let result = t2_input1 + t2_input2
-    return counter
+    return result
