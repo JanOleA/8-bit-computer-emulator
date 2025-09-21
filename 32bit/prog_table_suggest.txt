@@ -45,14 +45,15 @@ Entries (NAME → BASE, SIZE, BSS, DATA):
   SQRT             → 12244 (len 57)  BSS 22656+4  DATA —
   STRCOMPARE       → 12304 (len 46)  BSS 22660+3  DATA —
   TED              → 12352 (len 1103)  BSS 22663+13  DATA 29088+55
-  TGETMNEMONIC     → 13456 (len 18)  BSS —  DATA —
-  TGETOSVAR        → 13476 (len 18)  BSS —  DATA —
-  TGETPROG         → 13496 (len 21)  BSS —  DATA —
-  TESTLSA          → 13520 (len 9)  BSS —  DATA —
-  TESTMEM          → 13532 (len 224)  BSS 22676+6  DATA 29168+48
-  TETRIS           → 13756 (len 2307)  BSS 22682+262  DATA 29232+620
-  TOGGLEDIS        → 16064 (len 7)  BSS —  DATA —
-  WAIT100          → 16072 (len 7)  BSS —  DATA —
-  WAIT1600         → 16080 (len 20)  BSS —  DATA —
-  WAIT3200         → 16100 (len 5)  BSS —  DATA —
-  WRITECHAR        → 16108 (len 8)  BSS —  DATA —
+  TESTALL          → 13500 (len 239)  BSS 22676+21  DATA 29168+6
+  TGETMNEMONIC     → 13740 (len 18)  BSS —  DATA —
+  TGETOSVAR        → 13760 (len 18)  BSS —  DATA —
+  TGETPROG         → 13780 (len 21)  BSS —  DATA —
+  TESTLSA          → 13804 (len 9)  BSS —  DATA —
+  TESTMEM          → 13816 (len 224)  BSS 22697+6  DATA 29200+48
+  TETRIS           → 14040 (len 2307)  BSS 22703+262  DATA 29264+620
+  TOGGLEDIS        → 16348 (len 7)  BSS —  DATA —
+  WAIT100          → 16356 (len 7)  BSS —  DATA —
+  WAIT1600         → 16364 (len 20)  BSS —  DATA —
+  WAIT3200         → 16384 (len 5)  BSS —  DATA —
+  WRITECHAR        → 16392 (len 8)  BSS —  DATA —

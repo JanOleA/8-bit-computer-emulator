@@ -170,12 +170,14 @@ class IfStmt:
     condition: Expression
     then_body: List["Statement"]
     else_body: Optional[List["Statement"]] = None
+    invert: bool = False
 
 
 @dataclass
 class WhileStmt:
     condition: Expression
     body: List["Statement"]
+    invert: bool = False
 
 
 @dataclass
@@ -223,6 +225,11 @@ class Mini32Parser:
         self.program = Program()
         self.bss_cursor = 0
         self.symbols: Dict[str, Symbol] = {}
+        # scope stack holds dicts mapping local names -> previous Symbol (or None)
+        # when entering a function scope we push a new dict so locals can shadow
+        # globals and be restored when exiting the scope.
+        self._scope_stack: List[Dict[str, Optional[Symbol]]] = []
+        self._current_function: Optional[str] = None
         for name, kind in PREDEFINED_SYMBOLS.items():
             mapped_kind = "abi_mem" if kind == "memory" else "abi_const"
             self.symbols[name] = Symbol(name=name, kind=mapped_kind)
@@ -341,13 +348,62 @@ class Mini32Parser:
         else:
             name = body
         self._ensure_identifier(name, lineno)
-        if name in self.symbols:
-            raise self._error(lineno, f"Duplicate symbol {name}")
-        offset = self.bss_cursor
-        self.program.vars.append(VarDef(name=name, offset=offset, size=size))
-        self.symbols[name] = Symbol(name=name, kind="var", offset=offset, size=size)
-        self.bss_cursor += size
+        # If we're inside a function, allocate as a local variable.
+        if self._current_function is not None:
+            internal = self._add_var(name, size=size, lineno=lineno, local=True, func_name=self._current_function)
+            # store VarDef with the external visible name mapping to internal BSS name
+            # but keep program.vars for global emission; locals are still emitted as .<internal>
+        else:
+            if name in self.symbols:
+                raise self._error(lineno, f"Duplicate symbol {name}")
+            offset = self.bss_cursor
+            self.program.vars.append(VarDef(name=name, offset=offset, size=size))
+            self.symbols[name] = Symbol(name=name, kind="var", offset=offset, size=size)
+            self.bss_cursor += size
         self.pos += 1
+
+    def _enter_function_scope(self, func_name: Optional[str] = None) -> None:
+        # push an empty scope frame; caller should set _current_function
+        self._scope_stack.append({})
+        if func_name is not None:
+            self._current_function = func_name
+
+    def _exit_function_scope(self) -> None:
+        # pop scope and restore shadowed symbols
+        if not self._scope_stack:
+            return
+        frame = self._scope_stack.pop()
+        for local_name, prev in frame.items():
+            if prev is None:
+                # remove the local symbol
+                self.symbols.pop(local_name, None)
+            else:
+                # restore previous symbol
+                self.symbols[local_name] = prev
+        self._current_function = None
+
+    def _add_var(self, name: str, size: int, lineno: int, local: bool, func_name: Optional[str] = None) -> str:
+        # create and register a var, local vars get an internal unique name
+        if local:
+            assert func_name is not None
+            internal_name = f"{func_name}.{name}"
+            # record previous symbol (if any) so we can restore it on scope exit
+            prev = self.symbols.get(name)
+            self._scope_stack[-1][name] = prev
+            # allocate internal bss slot
+            offset = self.bss_cursor
+            self.program.vars.append(VarDef(name=internal_name, offset=offset, size=size))
+            self.symbols[name] = Symbol(name=internal_name, kind="var", offset=offset, size=size)
+            self.bss_cursor += size
+            return internal_name
+        else:
+            if name in self.symbols:
+                raise self._error(lineno, f"Duplicate symbol {name}")
+            offset = self.bss_cursor
+            self.program.vars.append(VarDef(name=name, offset=offset, size=size))
+            self.symbols[name] = Symbol(name=name, kind="var", offset=offset, size=size)
+            self.bss_cursor += size
+            return name
 
     def _parse_data(self, text: str, lineno: int) -> None:
         try:
@@ -380,33 +436,47 @@ class Mini32Parser:
         header = text.rstrip(":")
         if header == text:
             raise self._error(lineno, "func header must end with ':'")
-        # check if the function has arguments
+        # check if the function has arguments; accept empty parentheses
+        raw_args: List[str]
         if "(" in header and header.endswith(")"):
             name_part, args_part = header.split("(", 1)
             header = name_part.strip()
             args_str = args_part[:-1].strip()
             if not args_str:
-                raise self._error(lineno, "Malformed function argument list")
-            raw_args = [a.strip() for a in args_str.split(",") if a.strip()]
-            if not raw_args:
-                raise self._error(lineno, "Malformed function argument list")
-            for arg in raw_args:
-                self._ensure_identifier(arg, lineno)
-                if arg in self.symbols:
-                    raise self._error(lineno, f"Duplicate symbol {arg}")
-                # Arguments are pulled from stack into bss space for the function to use
-                var_name = f"{arg}"
-                self.program.vars.append(VarDef(name=var_name, offset=self.bss_cursor, size=1))
-                self.symbols[var_name] = Symbol(name=var_name, kind="var", offset=self.bss_cursor)
-                self.bss_cursor += 1
+                raw_args = []
+            else:
+                raw_args = [a.strip() for a in args_str.split(",") if a.strip()]
+                if not raw_args:
+                    raise self._error(lineno, "Malformed function argument list")
         else:
             raw_args = []
-            
+
         _, name = header.split(" ", 1)
         name = name.strip()
         self._ensure_identifier(name, lineno)
+
+        # Now that we know the function name, enter the function-local scope so
+        # arguments and any local 'var' declarations do not become global
+        # symbols. Locals will be allocated in BSS using an internal name
+        # prefixed by the function name (e.g. "func.arg").
+        self._enter_function_scope(func_name=name)
+
+        # register arguments as local vars (allocated in BSS with a unique
+        # internal name). Store the internal names in the FunctionDef.args
+        # so codegen will emit STA .<internal-name> in the prologue.
+        internal_args: List[str] = []
+        for arg in raw_args:
+            self._ensure_identifier(arg, lineno)
+            internal = self._add_var(arg, size=1, lineno=lineno, local=True, func_name=name)
+            internal_args.append(internal)
+
+        # parse function body (within the current local scope)
         body = self._parse_block(indent + 1)
-        return FunctionDef(name=name, body=body, args=raw_args)
+
+        # exit function scope, restoring any shadowed symbols
+        self._exit_function_scope()
+
+        return FunctionDef(name=name, body=body, args=internal_args)
 
     def _parse_block(self, base_indent: int) -> List[Statement]:
         statements: List[Statement] = []
@@ -438,14 +508,20 @@ class Mini32Parser:
         # support simple == / != comparisons
         m_eq = re.match(r"^(.+)\s*==\s*(.+)$", condition_text)
         m_neq = re.match(r"^(.+)\s*!=\s*(.+)$", condition_text)
+        invert_flag = False
         if m_eq:
             left = m_eq.group(1).strip()
             right = m_eq.group(2).strip()
+            # For equality, we translate to (left - right) but mark invert=True
+            # so the codegen will invert the JPZ/ JNZ branch direction.
             condition = self._parse_expression(f"{left} - {right}", lineno)
+            invert_flag = True
         elif m_neq:
             left = m_neq.group(1).strip()
             right = m_neq.group(2).strip()
+            # For inequality, (left - right) semantics work with default branching
             condition = self._parse_expression(f"{left} - {right}", lineno)
+            invert_flag = False
         else:
             condition = self._parse_expression(condition_text, lineno)
         then_body = self._parse_block(base_indent + 1)
@@ -455,7 +531,7 @@ class Mini32Parser:
             if indent2 == base_indent and text2 == "else:":
                 self._next()
                 else_body = self._parse_block(base_indent + 1)
-        return IfStmt(condition=condition, then_body=then_body, else_body=else_body)
+        return IfStmt(condition=condition, then_body=then_body, else_body=else_body, invert=invert_flag)
 
     def _parse_while(self, base_indent: int) -> WhileStmt:
         indent, text, lineno = self._next()
@@ -469,18 +545,22 @@ class Mini32Parser:
         # by translating them into arithmetic expression (a - (b)).
         m_eq = re.match(r"^(.+)\s*==\s*(.+)$", condition_text)
         m_neq = re.match(r"^(.+)\s*!=\s*(.+)$", condition_text)
+        invert_flag = False
         if m_eq:
             left = m_eq.group(1).strip()
             right = m_eq.group(2).strip()
-            condition = self._parse_expression(f"{left} - ({right})", lineno)
+            # Keep same translation as in _parse_if (no extra parentheses)
+            condition = self._parse_expression(f"{left} - {right}", lineno)
+            invert_flag = True
         elif m_neq:
             left = m_neq.group(1).strip()
             right = m_neq.group(2).strip()
-            condition = self._parse_expression(f"{left} - ({right})", lineno)
+            condition = self._parse_expression(f"{left} - {right}", lineno)
+            invert_flag = False
         else:
             condition = self._parse_expression(condition_text, lineno)
         body = self._parse_block(base_indent + 1)
-        return WhileStmt(condition=condition, body=body)
+        return WhileStmt(condition=condition, body=body, invert=invert_flag)
 
     def _parse_statement(self, base_indent: int) -> Statement:
         indent, text, lineno = self._next()
@@ -557,7 +637,24 @@ class Mini32Parser:
             for arg in raw_args:
                 args.append(self._parse_expression(arg, lineno))
         extern = callee.startswith("@")
-        return CallStmt(callee=callee, args=args, extern=extern, returns=returns)
+        # Ensure return variables exist and convert them to internal names
+        resolved_returns: List[str] = []
+        for ret in returns:
+            if ret == "_":
+                resolved_returns.append("_")
+                continue
+            sym = self.symbols.get(ret)
+            if not sym:
+                if self._current_function is not None:
+                    internal = self._add_var(ret, size=1, lineno=lineno, local=True, func_name=self._current_function)
+                    resolved_returns.append(internal)
+                else:
+                    raise self._error(lineno, f"Unknown return variable: {ret}")
+            else:
+                # use the symbol's internal name (may be same as ret for globals)
+                resolved_returns.append(sym.name)
+
+        return CallStmt(callee=callee, args=args, extern=extern, returns=resolved_returns)
 
     def _parse_return(self, text: str, lineno: int) -> ReturnStmt:
         body = text[6:].strip()
@@ -603,7 +700,17 @@ class Mini32Parser:
                 offset = idx_raw
             else:
                 offset = str(int_val)
-        symbol = self._lookup_symbol(name, lineno)
+        try:
+            symbol = self._lookup_symbol(name, lineno)
+        except Mini32Error:
+            # If we're inside a function, implicitly create a local scalar for
+            # simple assignments like 'let r = ...'. For other contexts this
+            # remains an error.
+            if self._current_function is not None and (match.group(2) is None):
+                internal = self._add_var(name, size=1, lineno=lineno, local=True, func_name=self._current_function)
+                symbol = self._lookup_symbol(name, lineno)
+            else:
+                raise
         if not symbol.is_memory:
             raise self._error(lineno, f"Cannot assign to immediate symbol '{name}'")
         # If we have a concrete integer offset and the symbol is a var, perform
@@ -701,6 +808,20 @@ class CodeGenerator:
     def generate(self) -> str:
         self._emit_headers()
         self._emit_globals()
+        # Emit a startup jump. If the source provided a 'meta entry = NAME'
+        # directive use that name; otherwise fall back to 'main' when present.
+        entry = None
+        if "entry" in self.program.meta:
+            raw = self.program.meta["entry"].strip()
+            # strip optional surrounding quotes
+            if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+                raw = raw[1:-1]
+            entry = raw
+        elif any(f.name == "main" for f in self.program.functions):
+            entry = "main"
+        if entry:
+            # Use _emit so the instruction is indented like other instructions
+            self._emit(f"JMP {entry}")
         for func in self.program.functions:
             if self.lines and self.lines[-1] != "":
                 self.lines.append("")
@@ -858,9 +979,12 @@ class CodeGenerator:
         self._emit_expression(stmt.condition)
         # LDA and arithmetic instructions may not set the CPU flags as
         # expected for conditional branches, so compare against zero to
-        # set flags (zero/negative) for JPZ/JPC/etc.
+        # set flags (zero/negative) for JPZ/JPC/etc. For equality tests we
+        # mark stmt.invert and flip the jump opcode so zero is treated as
+        # true.
         self._emit("CPI 0")
-        self._emit(f"JPZ {else_label}")
+        jump_op = "JPZ" if not getattr(stmt, "invert", False) else "JNZ"
+        self._emit(f"{jump_op} {else_label}")
         self._emit_nested_statements(func_name, stmt.then_body)
         if stmt.else_body:
             self._emit(f"JMP {end_label}")
@@ -876,9 +1000,12 @@ class CodeGenerator:
         end_label = self._next_label(func_name, "WHILE_END")
         self.lines.append(f"{start_label}:")
         self._emit_expression(stmt.condition)
-        # Ensure flags are set for the conditional jump
+        # Ensure flags are set for the conditional jump. If the condition
+        # was parsed as an equality (invert=True) then flip the jump so
+        # zero is treated as true.
         self._emit("CPI 0")
-        self._emit(f"JPZ {end_label}")
+        jump_op = "JPZ" if not getattr(stmt, "invert", False) else "JNZ"
+        self._emit(f"{jump_op} {end_label}")
         self.loop_stack.append(LoopContext(start_label=start_label, end_label=end_label))
         self._emit_nested_statements(func_name, stmt.body)
         self.loop_stack.pop()

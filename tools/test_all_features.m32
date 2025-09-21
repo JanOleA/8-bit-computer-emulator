@@ -1,0 +1,84 @@
+# Mini32 feature-exercise test program
+# Save this as tools/test_all_features.m32 and run the Python compiler to produce .easm
+
+meta name = TESTALL
+meta author = "auto-generated"
+meta entry = main
+meta abi = os
+depends echon, display_number, newline
+
+const MAGIC = 0x42
+var buf[8]
+var i
+var sum
+data hello = "Hello"
+
+func print_buf():
+    # Example of raw asm and pass
+    asm "JSR @echon"
+    pass
+
+func add_and_return(a, b):
+    let r = a + b
+    return r
+
+func multi_return_example(x, y):
+    let s = x + y
+    let d = x - y
+    return s, d
+
+func test_exprs():
+    # arithmetic and compound assignment
+    let i = 0
+    let sum = 0
+    while i != 8:
+        let sum += i
+        let i += 1
+    # equality check
+    if sum == 28:
+        asm "LDI 1\nOUT"
+        call @display_number(sum)
+    else:
+        asm "LDI 0\nOUT"
+        call @display_number(sum)
+    call @newline
+
+func test_arrays_and_calls():
+    # store values into buf using index expressions
+    let buf[0] = 10
+    let buf[1] = 20
+    let buf[2] = 30
+    let idx = 1
+    # dynamic index expression (raw bracket expr is allowed)
+    let buf[idx] = 99
+    # call a function with single return
+    call add_and_return(3, 4) -> r
+    # call a function with multiple returns
+    call multi_return_example(9, 5) -> s, d
+    asm "LDI 0\nSTA .num_digits\nLDI 3000\nSTA .arg1"
+    # call an external routine
+    call @echon() -> _
+
+func control_flow():
+    let i = 0
+    while i != 5:
+        if i == 3:
+            let i += 1
+            continue
+        if i == 4:
+            break
+        let i += 1
+
+func raw_asm_and_pass():
+    asm "LDI 8\nPHA\nJSR @display_number\nJSR @newline"
+    pass
+
+func main():
+    call test_exprs()
+    call test_arrays_and_calls()
+    call control_flow()
+    call raw_asm_and_pass()
+    # use data and const
+    asm "LDA .hello"
+    asm "LDI MAGIC"
+    return

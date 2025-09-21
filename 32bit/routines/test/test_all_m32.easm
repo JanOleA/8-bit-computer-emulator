@@ -1,0 +1,186 @@
+;! name: TESTALL
+;! author: "auto-generated"
+;! entry: main
+;! abi: os
+;! deps: echon, display_number, newline
+
+MAGIC = 0x42
+buf = .bss
+i = .bss + 8
+sum = .bss + 9
+add_and_return.a = .bss + 10
+add_and_return.b = .bss + 11
+add_and_return.r = .bss + 12
+multi_return_example.x = .bss + 13
+multi_return_example.y = .bss + 14
+multi_return_example.s = .bss + 15
+multi_return_example.d = .bss + 16
+test_arrays_and_calls.idx = .bss + 17
+test_arrays_and_calls.r = .bss + 18
+test_arrays_and_calls.s = .bss + 19
+test_arrays_and_calls.d = .bss + 20
+.hello = "Hello"
+
+  JMP main
+
+print_buf:
+  JSR @echon
+  RET
+
+add_and_return:
+  PLA
+  MOVAB
+  PLA
+  STA .add_and_return.a
+  PLA
+  STA .add_and_return.b
+  MOVBA
+  PHA
+  LDA .add_and_return.a
+  ADD .add_and_return.b
+  STA .add_and_return.r
+  LDA .add_and_return.r
+  RET
+
+multi_return_example:
+  PLA
+  MOVAB
+  PLA
+  STA .multi_return_example.x
+  PLA
+  STA .multi_return_example.y
+  MOVBA
+  PHA
+  LDA .multi_return_example.x
+  ADD .multi_return_example.y
+  STA .multi_return_example.s
+  LDA .multi_return_example.x
+  SUB .multi_return_example.y
+  STA .multi_return_example.d
+  PLA
+  MOVAB
+  LDA .multi_return_example.d
+  PHA
+  LDA .multi_return_example.s
+  PHA
+  MOVBA
+  PHA
+  RET
+
+test_exprs:
+  LDI 0
+  STA .i
+  LDI 0
+  STA .sum
+TEST_EXPRS__WHILE_START_1:
+  LDA .i
+  SUI 8
+  CPI 0
+  JPZ TEST_EXPRS__WHILE_END_2
+  LDA .sum
+  ADD .i
+  STA .sum
+  LDA .i
+  ADI 1
+  STA .i
+  JMP TEST_EXPRS__WHILE_START_1
+TEST_EXPRS__WHILE_END_2:
+  LDA .sum
+  SUI 28
+  CPI 0
+  JNZ TEST_EXPRS__ELSE_4
+  LDI 1
+  OUT
+  LDA .sum
+  PHA
+  JSR @display_number
+  JMP TEST_EXPRS__ENDIF_3
+TEST_EXPRS__ELSE_4:
+  LDI 0
+  OUT
+  LDA .sum
+  PHA
+  JSR @display_number
+TEST_EXPRS__ENDIF_3:
+  JSR @newline
+  RET
+
+test_arrays_and_calls:
+  LDI 10
+  STA .buf
+  LDI 20
+  STA .buf + 1
+  LDI 30
+  STA .buf + 2
+  LDI 1
+  STA .test_arrays_and_calls.idx
+  LDI 99
+  STA .buf + idx
+  LDI 4
+  PHA
+  LDI 3
+  PHA
+  JSR add_and_return
+  STA .test_arrays_and_calls.r
+  LDI 5
+  PHA
+  LDI 9
+  PHA
+  JSR multi_return_example
+  PLA
+  STA .test_arrays_and_calls.s
+  PLA
+  STA .test_arrays_and_calls.d
+  LDI 0
+  STA .num_digits
+  LDI 3000
+  STA .arg1
+  JSR @echon
+  RET
+
+control_flow:
+  LDI 0
+  STA .i
+CONTROL_FLOW__WHILE_START_5:
+  LDA .i
+  SUI 5
+  CPI 0
+  JPZ CONTROL_FLOW__WHILE_END_6
+  LDA .i
+  SUI 3
+  CPI 0
+  JNZ CONTROL_FLOW__ENDIF_7
+  LDA .i
+  ADI 1
+  STA .i
+  JMP CONTROL_FLOW__WHILE_START_5
+CONTROL_FLOW__ENDIF_7:
+  LDA .i
+  SUI 4
+  CPI 0
+  JNZ CONTROL_FLOW__ENDIF_8
+  JMP CONTROL_FLOW__WHILE_END_6
+CONTROL_FLOW__ENDIF_8:
+  LDA .i
+  ADI 1
+  STA .i
+  JMP CONTROL_FLOW__WHILE_START_5
+CONTROL_FLOW__WHILE_END_6:
+  RET
+
+raw_asm_and_pass:
+  LDI 8
+  PHA
+  JSR @display_number
+  JSR @newline
+  RET
+
+main:
+  JSR test_exprs
+  JSR test_arrays_and_calls
+  JSR control_flow
+  JSR raw_asm_and_pass
+  LDA .hello
+  LDI MAGIC
+  RET
+
