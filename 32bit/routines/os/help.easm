@@ -19,13 +19,17 @@ help:
   STA .bss
   STA .bss + 1
 hp_advance:
-  LDA .separator
-  STA .arg2
   LDI .help_items
   ADD .bss + 1
-  STA .arg1
+  PHA
+  LDA .separator
+  PHA
   JSR @buffer_to_separator
-  LDA .res3
+  PLA
+  STA .res1
+  PLA
+  STA .res2
+  PLA
   STA .bss + 2
   LDA .res2
   CPI 0

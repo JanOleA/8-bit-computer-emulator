@@ -61,11 +61,17 @@ end_no_match:
 
 ; --- helper to buffer the next string to compare ---
 buf_to_sep:          
-  LDA .separator                ; Set separator byte (dereference first char of .separator)
-  STA .arg2
   LDA .bss + 1                  ; Start from current pointer in key_value_string
-  STA .arg1                     ; Buffer token up to separator. Pointer to buffered string in res1; length -> .res2
+  PHA                           ; Buffer token up to separator.
+  LDA .separator                ; Set separator byte
+  PHA
   JSR @buffer_to_separator
+  PLA                           ; buffer pointer
+  STA .res1                     ; return buffer pointer in .res1
+  PLA                           ; length
+  STA .res2                     ; return length in .res2
+  PLA                           ; end_on_null
+  STA .res3                     ; return end_on_null in .res3
   LDA .res2
   CPI 0                         ; compare with 0
   JPZ bts_done                  ; jump to end if so
@@ -74,7 +80,7 @@ buf_to_sep:
   STA .bss + 1
   LPA .bss + 1                  ; If current char is the separator, skip it as well; if null, do not                ; load mem[mem[.bss + 1]] into A
   ; Check if the current character is the separator
-  CMP .arg2
+  CMP .separator
   JPZ bts_skip_sep
   JMP bts_done
 bts_skip_sep:

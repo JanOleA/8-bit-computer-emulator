@@ -288,20 +288,25 @@ sksp_inc:
 
 dispatch_program:
   LDA .bss + 1609
-  STA .arg1
+  PHA
   LDI 32
-  STA .arg2                 ; buffer to first space
+  PHA                       ; buffer to first space
   JSR @buffer_to_separator
+  PLA                       ; buffer pointer
+  STA .res1
+  PLA                       ; length
+  STA .res2
+  PLA                       ; end_on_null                   ; not needed here
   LDA .res2
   CPI 0
   JPZ dp_nomatch            ; jump to no match if buffer returns empty string (0 length)
   LDI .input_buf
   ADD .res2                 ; add length of command to input buffer to get to start of arguments
-  STA .bss + 1608        ; store memory location for start of argument buffer
+  STA .bss + 1608           ; store memory location for start of argument buffer
   LDA .res1
   STA .arg1
   JSR @get_program_address
-  STA .bss + 1619       ; store resolved program entry
+  STA .bss + 1619           ; store resolved program entry
   CPI 0
   JPZ dp_nomatch
   

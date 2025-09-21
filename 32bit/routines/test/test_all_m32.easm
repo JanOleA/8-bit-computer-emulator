@@ -31,9 +31,9 @@ add_and_return:
   PLA
   MOVAB
   PLA
-  STA .add_and_return.a
-  PLA
   STA .add_and_return.b
+  PLA
+  STA .add_and_return.a
   MOVBA
   PHA
   LDA .add_and_return.a
@@ -46,9 +46,9 @@ multi_return_example:
   PLA
   MOVAB
   PLA
-  STA .multi_return_example.x
-  PLA
   STA .multi_return_example.y
+  PLA
+  STA .multi_return_example.x
   MOVBA
   PHA
   LDA .multi_return_example.x
@@ -116,15 +116,15 @@ test_arrays_and_calls:
   STA .test_arrays_and_calls.idx
   LDI 99
   STA .buf + idx
-  LDI 4
-  PHA
   LDI 3
+  PHA
+  LDI 4
   PHA
   JSR add_and_return
   STA .test_arrays_and_calls.r
-  LDI 5
-  PHA
   LDI 9
+  PHA
+  LDI 5
   PHA
   JSR multi_return_example
   PLA

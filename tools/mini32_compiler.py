@@ -871,7 +871,10 @@ class CodeGenerator:
         self._emit("MOVAB")  # move to B register
 
         # Pull arguments from stack into bss space
-        for arg in args:
+        # Arguments are pushed by the caller left-to-right. The callee must
+        # therefore pop them in reverse order so the first argument maps to
+        # the first parameter slot.
+        for arg in args[::-1]:
             self._emit("PLA")
             self._emit(f"STA .{arg}")
 
@@ -914,7 +917,10 @@ class CodeGenerator:
 
     def _emit_call(self, stmt: CallStmt) -> None:
         """  """
-        for expr in stmt.args[::-1]: # Push arguments to stack in reverse order
+        # Push arguments in left-to-right order so they appear on the stack
+        # in the same order as the call syntax. The callee will pop them in
+        # reverse order.
+        for expr in stmt.args:
             self._emit_expression(expr)
             self._emit(f"PHA")
         callee = stmt.callee

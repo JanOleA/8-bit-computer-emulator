@@ -8,7 +8,7 @@ The convention also allows for arbitrary amounts of arguments and return values 
 Arguments are pushed to the stack in the order they appear in the call, with the first argument (leftmost) being pushed first, and the last argument being pushed last (so it will be popped first in the callee).
 
 ## Order of return values
-Return values are pushed to the stack (by the callee) in the reverse order, with the first return value (leftmost) being pushed last, and the last return value being pushed first (so it will be popped first in the caller).
+Return values are pushed to the stack (by the callee) in the reverse order, with the first return value (leftmost) being pushed last (so it will be popped first in the caller).
 
 ## Subroutines that only return one value
 These return the value in the A register, avoiding using the stack on return.

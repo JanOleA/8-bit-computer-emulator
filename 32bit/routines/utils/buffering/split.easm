@@ -1,0 +1,92 @@
+;! name: SPLIT
+;! entry: split
+;! deps:
+;! abi: os
+;! bss: auto
+;! align: 4
+
+; --- Return all locations of the separator character in the input string ---
+
+; Call signature: split(SP - 3, SP - 2) = split(input_string_pointer, character)
+; Inputs:
+;   Stack Pointer - 3 = pointer to input string
+;   Stack Pointer - 2 = character to use as separator
+; Returns:
+;   Stack Pointer - 1 = pointer to array of indices (each index is 1 word)
+;   Stack Pointer - 2 = number of indices
+;  values on stack after return (caller *must* pop) -> [ ..., num_indices, indices_pointer ]
+
+array       = .bss + 0      ; bss + 0 ..  + 159     : buffer
+counter     = .bss + 160    ; steps we've taken through the input string
+write_ptr   = .bss + 161    ; write pointer
+sep_char    = .bss + 162    ; separator character
+read_ptr    = .bss + 163    ; read pointer (input string pointer)
+return_addr = .bss + 164    ; return address storage
+entries     = .bss + 165    ; number of entries written
+
+split: 
+  LDI 0
+  STA .counter
+  LDI .array            ; set write pointer to start of array
+  STA .write_ptr
+  LDI 0
+  STA .entries
+
+get_args:
+  PLA                ; get return address from stack
+  STA .return_addr   ; store return address in .return_addr
+
+  PLA                ; get separator character from stack
+  STA .sep_char      ; store separator character in .sep_char
+  PLA                ; get pointer to input string from stack
+  STA .read_ptr      ; store input string pointer in .read_ptr
+
+buf_loop:
+  ; get character at read_pointer
+  LPA .read_ptr               ; load mem[mem[.read_ptr]] into A
+  CPI 0
+  JPZ end                     ; if we reach null, return immediately
+  CMP .sep_char               ; compare with separator character
+  JNZ buf_continue            ; if not equal, skip the match call
+  JSR match                   ; call match subroutine when equal
+
+  ; continue loop after possible match
+buf_continue:
+  LDA .read_ptr              ; get read pointer
+  ADI 1
+  STA .read_ptr              ; increment read pointer
+
+  LDA .counter
+  ADI 1
+  STA .counter
+  JMP buf_loop
+
+
+match:
+  LDA .entries
+  CPI 160
+  JPZ match_skip         ; if we've filled the buffer, skip writing
+
+  LDA .write_ptr
+  PHA                         ; push write pointer to stack
+  LDA .counter
+  SAS                         ; use pointer to write the counter to the array (SAS uses and pops the pointer from the stack)
+  LDA .write_ptr
+  ADI 1                       ; add 1 to write pointer
+  STA .write_ptr
+  LDA .entries
+  ADI 1
+  STA .entries
+  RET
+
+match_skip:
+  RET
+
+end:
+  LDA .entries
+  PHA
+  LDI .array                  ; load the location of the array
+  PHA
+  LDA .return_addr
+  PHA
+  RET

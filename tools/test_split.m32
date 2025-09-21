@@ -1,0 +1,28 @@
+meta name = TESTSPLIT
+meta entry = main
+meta abi = os
+depends split, display_number, newline
+
+data text_in = "hello,world,this,is,a,test"
+
+func main:
+    let sep = 44  # ASCII code for comma ','
+    call @split(text_in, sep) -> indices_ptr, num_indices
+    
+    # Display the number of indices found
+    call @display_number(num_indices)
+    call @newline()
+
+    let i = 0
+    while num_indices:
+        # Load the start index of the current substring
+        let start_idx = indices_ptr[i]
+        
+        call @display_number(start_idx)
+        call @newline()
+
+        # Move to the next index
+        let i += 1
+        let num_indices = num_indices - 1
+
+    return

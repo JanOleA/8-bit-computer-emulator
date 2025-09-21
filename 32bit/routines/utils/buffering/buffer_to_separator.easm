@@ -1,66 +1,95 @@
 ;! name: BUFFTOSEP
 ;! entry: buffer_to_separator
-;! deps: 
+;! deps:
 ;! abi: os
 ;! bss: auto
 ;! align: 4
 
-; --- Loop through the string pointed to by .arg1 until reaching the character stored in .arg2, fill buffer from .bss + 0, up to 160 characters ---
-; -- memory address to buffer returned in .res1, number of characters in .res2, .res3=1 if we ended on null, else 0 --
+; --- Loop through the string pointed to by the first argument until reaching the character stored in the second argument, fill buffer from .bss + 0, up to 160 characters ---
 
-; .bss + 0 .. 159     : buffer
-; .bss + 160          : null terminator
-; .bss + 162          : write pointer
-; .bss + 163          : counter
+; Call signature: buffer_to_separator(SP - 3, SP - 2) = buffer_to_separator(input_string_pointer, character)
+; Inputs:
+;   Stack Pointer - 3 = pointer to input string
+;   Stack Pointer - 2 = character to use as separator
+; Returns:
+;   Stack Pointer - 1 = pointer to buffer
+;   Stack Pointer - 2 = number of characters in buffer
+;   Stack Pointer - 3 = 1 if we ended on null, else 0
+;  values on stack after return (caller *must* pop) -> [ ..., end_on_null, num_characters, buffer_pointer ]
+
+buffer      = .bss + 0      ; bss + 0 ..  + 159     : buffer
+buffer_pad  = .bss + 160    ; pad for the buffer with null
+end_on_null = .bss + 161    ; 1 if we ended on null, else 0
+write_ptr   = .bss + 162    ; write pointer
+counter     = .bss + 163    ; counter
+tmp_char    = .bss + 164    ; temporary char storage
+sep_char    = .bss + 165    ; separator character
+read_ptr    = .bss + 166    ; read pointer (input string pointer)
+return_addr = .bss + 167    ; return address storage
 
 buffer_to_separator:  ; fill the buffer from current read pointer until first occurence of the separator
   LDI 0
-  STA .res3
-  STA .bss + 160
-  STA .bss + 163
-  LDI .bss            ; set write pointer to start of buffer
-  STA .bss + 162
-  
+  STA .end_on_null
+  STA .buffer_pad
+  STA .counter
+  LDI .buffer            ; set write pointer to start of buffer
+  STA .write_ptr
+
+get_args:
+  PLA                ; get return address from stack
+  STA .return_addr   ; store return address in .return_addr
+
+  PLA                ; get separator character from stack
+  STA .sep_char      ; store separator character in .sep_char
+  PLA                ; get pointer to input string from stack
+  STA .read_ptr      ; store input string pointer in .read_ptr
+
 buf_loop:
   ; get character at read_pointer
-  LPA .arg1                ; load mem[mem[.arg1]] into A
-  CMP .arg2
-  JPZ buf_end         ; if we reach the separator, jump to buf_end
+  LPA .read_ptr               ; load mem[mem[.read_ptr]] into A
+  CMP .sep_char               ; compare with separator character
+  JPZ buf_end                 ; if we reach the separator, jump to buf_end
   CPI 0
-  JPZ buf_end_null    ; if we reach null, return immediately
-  STA .char           ; store character at read pointer in .char for now
-  
-  LDA .bss + 162      ; get write pointer
-  PHA                 ; push write pointer to stack
-  LDA .char           ; get the character again
-  SAS                 ; use pointer to write the character to the buffer
+  JPZ buf_end_null            ; if we reach null, return immediately
+  STA .tmp_char               ; store character at read pointer in .tmp_char for now
 
-  LDA .bss + 163
-  ADI 1               ; add 1 to counter
-  STA .bss + 163
+  LDA .write_ptr              ; get write pointer
+  PHA                         ; push write pointer to stack
+  LDA .tmp_char               ; get the character again
+  SAS                         ; use pointer to write the character to the buffer (SAS uses and pops the pointer from the stack)
+
+  LDA .counter
+  ADI 1                       ; add 1 to counter
+  STA .counter
   CPI 160
   JPZ buf_end
 
-  LDA .bss + 162
-  ADI 1               ; add 1 to write pointer
-  STA .bss + 162
+  LDA .write_ptr
+  ADI 1                       ; add 1 to write pointer
+  STA .write_ptr
 
-  LDA .arg1
-  ADI 1               ; add 1 to read pointer
-  STA .arg1
+  LDA .read_ptr
+  ADI 1                       ; add 1 to read pointer
+  STA .read_ptr
 
   JMP buf_loop
 buf_end_null:
   LDI 1
-  STA .res3
+  STA .end_on_null
 buf_end:
-  LDA .bss + 163
-  STA .res2
-  LDI .bss
-  STA .res1
-  ADD .bss + 163
+  LDA .end_on_null
   PHA
-  LDI 0               ; ensure buffer is null-terminated
+  LDA .counter
+  PHA
+  LDI .buffer                 ; load the location of the buffer
+  PHA
+  ADD .counter
+
+  PHA
+  LDI 0                       ; ensure buffer is null-terminated
   SAS
+
+  LDA .return_addr
+  PHA
   RET
   
