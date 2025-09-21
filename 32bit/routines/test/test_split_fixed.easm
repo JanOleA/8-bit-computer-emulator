@@ -1,0 +1,53 @@
+;! name: TESTSPLIT
+;! entry: main
+;! abi: os
+;! deps: split, display_number, newline
+
+main.sep = .bss
+main.indices_ptr = .bss + 1
+main.num_indices = .bss + 2
+main.i = .bss + 3
+main.start_idx = .bss + 4
+.text_in = "hello,world,this,is,a,test"
+
+  JMP main
+
+main:
+  LDI 44
+  STA .main.sep
+  LDI .text_in
+  PHA
+  LDA .main.sep
+  PHA
+  JSR @split
+  PLA
+  STA .main.indices_ptr
+  PLA
+  STA .main.num_indices
+  LDA .main.num_indices
+  PHA
+  JSR @display_number
+  JSR @newline
+  LDI 0
+  STA .main.i
+MAIN__WHILE_START_1:
+  LDA .main.num_indices
+  CPI 0
+  JPZ MAIN__WHILE_END_2
+  LDA .main.indices_ptr
+  ADD .main.i
+  STA .main.start_idx
+  LPA .main.start_idx     ; load mem[mem[.main.start_idx]] into A
+  PHA
+  JSR @display_number
+  JSR @newline
+  LDA .main.i
+  ADI 1
+  STA .main.i
+  LDA .main.num_indices
+  SUI 1
+  STA .main.num_indices
+  JMP MAIN__WHILE_START_1
+MAIN__WHILE_END_2:
+  RET
+

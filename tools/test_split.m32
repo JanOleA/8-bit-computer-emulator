@@ -17,8 +17,12 @@ func main:
     while num_indices:
         # Load the start index of the current substring
         let start_idx = indices_ptr[i]
+        # TODO: Discuss how to properly interpret the bracketing expressions.
         
         call @display_number(start_idx)
+        # need to implement a way to dereference
+        # i.e. instead of LDA start_idx, do LPA start_idx
+
         call @newline()
 
         # Move to the next index
