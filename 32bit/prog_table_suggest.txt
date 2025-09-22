@@ -51,12 +51,11 @@ Entries (NAME → BASE, SIZE, BSS, DATA):
   TGETOSVAR        → 13860 (len 18)  BSS —  DATA —
   TGETPROG         → 13880 (len 21)  BSS —  DATA —
   TESTLSA          → 13904 (len 9)  BSS —  DATA —
-  TESTSPLIT        → 14000 (len 65)  BSS 22867+5  DATA 29200+27
-  TESTSPLITWRONG   → 14100 (len 63)  BSS 22872+5  DATA 29248+27
-  TESTMEM          → 14164 (len 224)  BSS 22877+6  DATA 29296+48
-  TETRIS           → 14388 (len 2307)  BSS 22883+262  DATA 29360+620
-  TOGGLEDIS        → 16696 (len 7)  BSS —  DATA —
-  WAIT100          → 16704 (len 7)  BSS —  DATA —
-  WAIT1600         → 16712 (len 20)  BSS —  DATA —
-  WAIT3200         → 16732 (len 5)  BSS —  DATA —
-  WRITECHAR        → 16740 (len 8)  BSS —  DATA —
+  TESTMEM          → 13916 (len 224)  BSS 22867+6  DATA 29200+48
+  TESTSPLIT        → 14200 (len 148)  BSS 22873+10  DATA 29264+27
+  TETRIS           → 14348 (len 2307)  BSS 22883+262  DATA 29312+620
+  TOGGLEDIS        → 16656 (len 7)  BSS —  DATA —
+  WAIT100          → 16664 (len 7)  BSS —  DATA —
+  WAIT1600         → 16672 (len 20)  BSS —  DATA —
+  WAIT3200         → 16692 (len 5)  BSS —  DATA —
+  WRITECHAR        → 16700 (len 8)  BSS —  DATA —

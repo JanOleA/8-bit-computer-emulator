@@ -8,22 +8,45 @@ data text_in = "hello,world,this,is,a,test"
 func main:
     let sep = 44  # ASCII code for comma ','
     call @split(text_in, sep) -> indices_ptr, num_indices
+
+    # indices_ptr now points to an array of start indices of substrings in text_in
+    # num_indices contains the number of such substrings
     
     # Display the number of indices found
     call @display_number(num_indices)
     call @newline()
+    call @newline()
+    
+    let first_string_end = indices_ptr[0]
+
+    LDI .text_in
+    STA .arg1
+    LDI 0
+    STA .arg2  # Print newline after the string
+    LDA .main.first_string_end
+    STA .num_digits
+    call @echon
 
     let i = 0
     while num_indices:
         # Load the start index of the current substring
         let start_idx = indices_ptr[i]
-        # TODO: Discuss how to properly interpret the bracketing expressions.
-        
-        call @display_number(start_idx)
-        # need to implement a way to dereference
-        # i.e. instead of LDA start_idx, do LPA start_idx
+        if num_indices != 1:
+            let end_idx = indices_ptr[i + 1]
+        else:
+            let end_idx = 26
 
-        call @newline()
+        let string_length = end_idx - start_idx - 1
+        # print the substring using ECHON
+        LDI .text_in
+        ADD .main.start_idx
+        ADI 1
+        STA .arg1
+        LDI 0
+        STA .arg2  # Print newline after the string
+        LDA .main.string_length
+        STA .num_digits
+        call @echon
 
         # Move to the next index
         let i += 1

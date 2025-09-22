@@ -37,7 +37,6 @@ BSS regions:
   STRCOMPARE       BSS [22830,22833) size=3
   TED              BSS [22833,22846) size=13
   TESTALL          BSS [22846,22867) size=21
-  TESTSPLIT        BSS [22867,22872) size=5
-  TESTSPLITWRONG   BSS [22872,22877) size=5
-  TESTMEM          BSS [22877,22883) size=6
+  TESTMEM          BSS [22867,22873) size=6
+  TESTSPLIT        BSS [22873,22883) size=10
   TETRIS           BSS [22883,23145) size=262

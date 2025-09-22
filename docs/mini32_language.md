@@ -68,7 +68,50 @@ Expressions are limited to addition and subtraction of terms:
 
 ```
 expr := term {("+"|"-") term}
-term := literal | IDENT | IDENT[NUMBER]
+term := literal | IDENT | IDENT[INDEX]
+
+INDEX can be:
+- A decimal/hex/binary integer literal (static index)
+- A simple + / - expression of literals and variable names (dynamic index) (current implementation: only supported when the indexed term is the first term in a larger expression)
+
+### Indexing semantics
+
+Mini32 distinguishes two cases when you write `name[idx]`:
+
+1. `name` declared as `var name[SIZE]` (array):
+  - `name[k]` loads the element at `(base_address(name) + k)`.
+  - Static integer `k` becomes a direct `LDA .name + k`.
+  - Dynamic `k` (e.g. `i`, `i+1`) generates a sequence that computes the effective address and then dereferences it via `LPA`.
+
+2. `name` declared as a scalar `var name` (size = 1) and used with brackets: pointer semantics.
+  - The variable holds a pointer (address). `name[k]` loads the element at `(mem[name] + k)`; i.e. it first reads the pointer stored in `name`, adds the offset, then dereferences.
+  - Implemented with a sequence using temporary hidden variables `__tmp_base` / `__tmp_addr` and `LPA`.
+
+Limitations (current):
+- Indexed term must be the first term in an expression; `a = 3 + arr[i]` will raise an error (workaround: split into `let tmp = arr[i]` then `let a = 3 + tmp`).
+- Negative sign directly on an indexed term is supported by an extra negate step but chained arithmetic afterward is limited.
+- Dynamic index expressions allow only `+` and `-` combining literals and simple variable names (no nested brackets inside the index expression yet).
+
+These restrictions may be relaxed in future iterations. Writing through an index (e.g. `let arr[i] = v`) is not yet supported; use raw assembly if needed.
+
+### Explicit dereference operator `*`
+
+You can force pointer dereferencing explicitly:
+
+```
+let value = *ptr        # one level dereference (value = mem[mem[ptr]])
+let value2 = **ptr      # two levels
+let first = *indices_ptr    # same as indices_ptr[0] under pointer semantics
+let nth  = *(indices_ptr[i])  # combine with indexing (index must be first term in expression)
+```
+
+Rules:
+- `*` may precede a symbol (optionally with `[index]`). Multiple `*` stack.
+- Not allowed on literals.
+- Currently only supported when the dereferenced term is the first term in an expression.
+- Combined with indexing, the indexing happens first, then dereference chain applies.
+
+If you want the pointer value itself, omit `*`. If you want the element pointed to, use one `*` (or rely on implicit pointer indexing with `[k]`).
 ```
 
 - Literals can be decimal (`42`), hexadecimal (`0x2A`), or binary (`0b101010`).

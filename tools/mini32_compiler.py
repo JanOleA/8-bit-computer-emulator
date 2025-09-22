@@ -105,6 +105,8 @@ class Term:
     symbol: Optional[Symbol] = None
     # offset can be a compile-time integer or an expression string (for dynamic indices)
     offset: Optional[str] = None
+    # number of pointer dereference operations requested via leading '*'
+    deref_depth: int = 0
 
     def immediate_expr(self) -> str:
         assert self.symbol is not None
@@ -759,6 +761,11 @@ class Mini32Parser:
         return Expression(terms=terms, source=text)
 
     def _parse_term(self, text: str, lineno: int) -> Term:
+        # Support leading '*' dereference operators: *name, **name[idx]
+        deref_depth = 0
+        while text.startswith('*'):
+            deref_depth += 1
+            text = text[1:].lstrip()
         # allow index to be an expression string inside brackets: name[expr]
         match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(?:\[(.+)\])?$", text)
         if match:
@@ -769,12 +776,14 @@ class Mini32Parser:
                 # keep the raw expression (we don't evaluate it here)
                 offset = idx_raw
             symbol = self._lookup_symbol(name, lineno)
-            return Term(kind="symbol", symbol=symbol, offset=offset)
+            return Term(kind="symbol", symbol=symbol, offset=offset, deref_depth=deref_depth)
         # Literal number
         try:
             value = int(text, 0)
         except ValueError as exc:
             raise self._error(lineno, f"Unknown symbol or literal '{text}'") from exc
+        if deref_depth:
+            raise self._error(lineno, "Cannot dereference a literal")
         return Term(kind="literal", value=value)
 
     def _lookup_symbol(self, name: str, lineno: int) -> Symbol:
@@ -804,6 +813,25 @@ class CodeGenerator:
         self.lines: List[str] = []
         self.label_counter = 0
         self.loop_stack: List[LoopContext] = []
+        self.current_function: Optional[str] = None
+        # Reserve scratch variables for dynamic / pointer indexing if not already present.
+        # We append them at the end so existing offsets remain valid.
+        existing = {v.name for v in self.program.vars}
+        if "__tmp_addr" not in existing:
+            max_off = 0
+            for v in self.program.vars:
+                end = v.offset + v.size
+                if end > max_off:
+                    max_off = end
+            self.program.vars.append(VarDef(name="__tmp_addr", offset=max_off, size=1))
+            existing.add("__tmp_addr")
+        if "__tmp_base" not in existing:
+            max_off = 0
+            for v in self.program.vars:
+                end = v.offset + v.size
+                if end > max_off:
+                    max_off = end
+            self.program.vars.append(VarDef(name="__tmp_base", offset=max_off, size=1))
 
     def generate(self) -> str:
         self._emit_headers()
@@ -823,12 +851,14 @@ class CodeGenerator:
             # Use _emit so the instruction is indented like other instructions
             self._emit(f"JMP {entry}")
         for func in self.program.functions:
+            self.current_function = func.name
             if self.lines and self.lines[-1] != "":
                 self.lines.append("")
             self._emit_label(f"{func.name}")
             self._emit_function_prologue(func.args)
             self._emit_statements(func.name, func.body)
             self._ensure_function_ret()
+        self.current_function = None
         if self.lines and self.lines[-1] != "":
             self.lines.append("")
         return "\n".join(self.lines)
@@ -1061,11 +1091,18 @@ class CodeGenerator:
         if not t.symbol:
             raise Mini32Error("Symbol term missing symbol")
         if t.symbol.is_memory:
-            if term.sign == 1:
-                self._emit(f"LDA {t.address_expr()}")
+            # If an offset is present, treat as indexing (array or pointer semantics)
+            if t.offset is not None:
+                self._emit_indexed_symbol_term(term, first_term=True)
             else:
-                self._emit("LDI 0")
-                self._emit(f"SUB {t.address_expr()}")
+                if term.sign == 1:
+                    self._emit(f"LDA {t.address_expr()}")
+                else:
+                    self._emit("LDI 0")
+                    self._emit(f"SUB {t.address_expr()}")
+            # Apply dereferencing if requested
+            if t.deref_depth:
+                self._emit_dereference_chain(t.deref_depth)
         else:
             if term.sign == 1:
                 self._emit(f"LDI {t.immediate_expr()}")
@@ -1085,15 +1122,189 @@ class CodeGenerator:
         if not t.symbol:
             raise Mini32Error("Symbol term missing symbol")
         if t.symbol.is_memory:
-            if term.sign == 1:
-                self._emit(f"ADD {t.address_expr()}")
+            if t.offset is not None:
+                self._emit_indexed_symbol_term(term, first_term=False)
             else:
-                self._emit(f"SUB {t.address_expr()}")
+                if term.sign == 1:
+                    self._emit(f"ADD {t.address_expr()}")
+                else:
+                    self._emit(f"SUB {t.address_expr()}")
+                if t.deref_depth:
+                    raise Mini32Error("Dereferenced term not allowed as follow-up (split expression)")
         else:
             if term.sign == 1:
                 self._emit(f"ADI {t.immediate_expr()}")
             else:
                 self._emit(f"SUI {t.immediate_expr()}")
+
+    def _emit_dereference_chain(self, depth: int) -> None:
+        """Apply one or more pointer dereferences to current A value.
+        A holds a base address (or value). For each depth level:
+          - Store A into __tmp_addr
+          - LPA __tmp_addr (A = mem[mem[__tmp_addr]])
+        """
+        for _ in range(depth):
+            self._emit("STA .__tmp_addr")
+            self._emit("LPA .__tmp_addr                ; deref *")
+
+    def _emit_indexed_symbol_term(self, expr_term: ExprTerm, first_term: bool) -> None:
+        """Emit code for symbol[offset].
+
+        Heuristic:
+          - symbol.size > 1 => direct array: element = mem[ base + offset ]
+          - symbol.size == 1 => pointer: element = mem[ mem[symbol] + offset ]
+
+        Dynamic offsets (non-integer) require computing offset, adding base/pointer, storing
+        effective address into __tmp_addr and then using LPA to load value.
+        """
+        term = expr_term.term
+        sym = term.symbol  # type: ignore[assignment]
+        offset_expr = term.offset or "0"
+        sign = expr_term.sign
+        tmp_addr = ".__tmp_addr"
+        tmp_base = ".__tmp_base"
+
+        # Try parse static integer offset
+        static_int: Optional[int] = None
+        try:
+            static_int = int(offset_expr, 0)
+        except Exception:
+            static_int = None
+
+        if sym.size > 1:
+            # Array semantics
+            if static_int is not None:
+                # Simple static offset: just load LDA base+offset
+                base_expr = f".{sym.name} + {static_int}" if static_int else f".{sym.name}"
+                if first_term:
+                    if sign == 1:
+                        self._emit(f"LDA {base_expr}")
+                    else:
+                        self._emit("LDI 0")
+                        self._emit(f"SUB {base_expr}")
+                else:
+                    if sign == 1:
+                        self._emit(f"ADD {base_expr}")
+                    else:
+                        self._emit(f"SUB {base_expr}")
+                return
+            # Dynamic offset: compute base+offset into A then indirect load
+            # Strategy: compute offset into A, add base address (as immediate via ADI) then build effective pointer.
+            self._emit_compute_simple_expression(offset_expr)
+            # Add base address immediate (we know base symbol absolute address is known via its name)
+            # We can't ADI with symbolic address; so load base into B via LDA then ADD pattern:
+            self._emit(f"ADD .{sym.name}")
+            # Store effective address
+            self._emit(f"STA {tmp_addr}")
+            # Indirect load
+            self._emit(f"LPA {tmp_addr}                ; array element load")
+        else:
+            # Pointer semantics: pointer variable holds address of array
+            # Load pointer value
+            self._emit(f"LDA .{sym.name}")
+            self._emit(f"STA {tmp_base}")
+            if static_int is not None and static_int == 0:
+                # No offset
+                self._emit(f"STA {tmp_addr}")  # reuse A value as base
+            else:
+                if static_int is not None:
+                    # Add constant offset
+                    if static_int != 0:
+                        self._emit(f"ADI {static_int}")
+                else:
+                    # Dynamic offset expression: compute into A then add saved base
+                    self._emit_compute_simple_expression(offset_expr)
+                    self._emit(f"ADD {tmp_base}")
+                self._emit(f"STA {tmp_addr}")
+            # Now tmp_addr holds effective element address
+            self._emit(f"LPA {tmp_addr}                ; pointer element load")
+
+        if sign == -1:
+            # Negate A (A = -A)
+            self._emit("STA .__tmp_base")  # reuse tmp_base for value
+            self._emit("LDI 0")
+            self._emit("SUB .__tmp_base")
+
+        # If this is a follow-up term in an expression (not first) and sign was +/- we already produced the value.
+        # For follow-up addition/subtraction we needed ADD/SUB sequences, but we turned the term into a standalone value in A.
+        # To integrate into ongoing expression (when not first_term), we convert it into ADD/SUB relative to previous A:
+        if not first_term:
+            # Value of indexed term currently in A. We need to combine with previous accumulator value which we lost.
+            # Simpler fallback (limitation): For now, only support indexed term as first term or raise.
+            # Proper implementation would require saving previous A, loading term, then performing ADD.
+            raise Mini32Error("Indexed terms currently only supported as the first term in an expression or alone")
+
+    def _emit_compute_simple_expression(self, text: str) -> None:
+        """Compute a simple + / - expression of literals or memory symbols into A.
+        This is a limited helper (no nested brackets)."""
+        # Split while keeping delimiters
+        tokens: List[str] = []
+        cur = []
+        for ch in text:
+            if ch in "+-":
+                if cur:
+                    tokens.append(''.join(cur).strip())
+                    cur = []
+                tokens.append(ch)
+            else:
+                cur.append(ch)
+        if cur:
+            tokens.append(''.join(cur).strip())
+        first = True
+        pending_sign = 1
+        for tok in tokens:
+            if tok == '+':
+                pending_sign = 1
+                continue
+            if tok == '-':
+                pending_sign = -1
+                continue
+            # term token
+            try:
+                val = int(tok, 0)
+                if first:
+                    self._emit(f"LDI {val if pending_sign==1 else -val}")
+                else:
+                    if pending_sign == 1:
+                        self._emit(f"ADI {val}")
+                    else:
+                        self._emit(f"SUI {val}")
+            except Exception:
+                # symbol token; resolve local vs global internal name
+                sym_ref = self._resolve_symbol_token(tok)
+                if first:
+                    if pending_sign == 1:
+                        self._emit(f"LDA {sym_ref}")
+                    else:
+                        self._emit("LDI 0")
+                        self._emit(f"SUB {sym_ref}")
+                else:
+                    if pending_sign == 1:
+                        self._emit(f"ADD {sym_ref}")
+                    else:
+                        self._emit(f"SUB {sym_ref}")
+            first = False
+
+    def _resolve_symbol_token(self, token: str) -> str:
+        """Map a user-level variable name in an offset expression to its internal symbol.
+
+        Preference order:
+          1. Exact match of internal name (already contains a dot or unique) -> .token
+          2. Current function local (.func.token) if exists
+          3. Fallback to .token (may produce assembler error if truly undefined)
+        """
+        # Gather sets lazily
+        var_names = {v.name for v in self.program.vars}
+        # If token already exactly matches a var name
+        if token in var_names:
+            return f".{token}"
+        # If current function context and composed name exists
+        if self.current_function:
+            candidate = f"{self.current_function}.{token}"
+            if candidate in var_names:
+                return f".{candidate}"
+        # Fallback
+        return f".{token}"
 
     def _ensure_function_ret(self) -> None:
         # Ensure functions end with RET to match assembly expectations.
