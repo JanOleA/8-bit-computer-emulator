@@ -1,6 +1,6 @@
 ;! name: TETRIS
 ;! entry: main
-;! deps: write_char, newline, display_number, echon, randint, wait_100, toggle_display_enable
+;! deps: write_char, newline, display_number, randint, wait_100, toggle_display_enable, print, printez
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -59,9 +59,9 @@ border_char = 124
 .z_rot2 = "XX...XX........."
 .z_rot3 = ".X..XX..X......."
 .j_rot0 = "X...XXX........."
-.j_rot1 = "XX...X...X......"
-.j_rot2 = "..X.XXX........."
-.j_rot3 = "X...X...XX......"
+.j_rot1 = ".X...X..XX......" 
+.j_rot2 = "XXX...X........."  
+.j_rot3 = "XX..X...X......."
 .l_rot0 = "..X.XXX........."
 .l_rot1 = "X...X...XX......"
 .l_rot2 = "XXX.X..........."
@@ -1221,44 +1221,36 @@ render_scoreboard:
   DIS 2
   JSR @toggle_display_enable
   LDI .title_text
-  STA .arg1
   JSR print_z
   JSR @newline
   LDI .score_text
-  STA .arg1
   JSR print_z
   LDA .bss + 204
   PHA
   JSR @display_number
   JSR @newline
   LDI .lines_text
-  STA .arg1
   JSR print_z
   LDA .bss + 205
   PHA
   JSR @display_number
   JSR @newline
   LDI .level_text
-  STA .arg1
   JSR print_z
   LDA .bss + 206
   PHA
   JSR @display_number
   JSR @newline
   LDI .controls_line1
-  STA .arg1
   JSR print_z
   JSR @newline
   LDI .controls_line2
-  STA .arg1
   JSR print_z
   JSR @newline
   LDI .controls_line3
-  STA .arg1
   JSR print_z
   JSR @newline
   LDI .controls_line4
-  STA .arg1
   JSR print_z
   JSR @newline
   RET
@@ -1278,18 +1270,15 @@ clear_display:
 render_game_over:
   JSR clear_display
   LDI .game_over_text
-  STA .arg1
-  JSR print_z
-  JSR @newline
+  PHA
+  JSR @printez
   LDI .final_score_text
-  STA .arg1
   JSR print_z
   LDA .bss + 204
   PHA
   JSR @display_number
   JSR @newline
   LDI .exit_text
-  STA .arg1
   JSR print_z
   JSR wait_for_exit
   RET
@@ -1305,6 +1294,7 @@ wfe_loop:
   LDA .bss + 210
   CPI 0
   JPZ wfe_loop
+  JSR @newline
   RET
 
 handle_input_value:
@@ -1417,11 +1407,12 @@ ci_fire_repeat:
   RET
 
 print_z:
+  PHA
   LDI 1
-  STA .arg2
+  PHA
   LDI 0
-  STA .num_digits
-  JSR @echon
+  PHA
+  JSR @print
   RET
 
 ; Local wrapper around the external @wait_100 that implements

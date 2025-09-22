@@ -156,7 +156,7 @@ class Computer:
         self.assembly[0b00100001] = [BO|SPI|ORE]                                                                            # MVBSP 33      Move B to stack pointer
         self.assembly[0b00100010] = [EO|AI|FI|ORE]                                                                          # SUM   34      Take the sum from A and B, move to A, sets flags
         self.assembly[0b00100011] = [AO|MI,         RO|AI|ORE]                                                              # LAP   35      Load to A from memory-address in A (A <- mem[A])
-        self.assembly[0b00100100] = [CO|MI,         RO|MI|CE,       RO|AI,          AO|MI,         RO|AI|ORE]               # LPA   36      Load to A from memory-address in another memory address (A <- mem[mem[arg]])
+        self.assembly[0b00100100] = [CO|MI,         RO|MI|CE,       RO|AI,          AO|MI,         RO|AI|ORE]               # LPA   36      Load to A from memory-address in another memory address (A <- mem[mem[operand]])
         self.assembly[0b00100101] = [AO|DDI|ORE]                                                                            # DIA   37      Load to display data from the A register
         self.assembly[0b11111110] = [AO|OI|ORE]                                                                             # OUT   254     display the value from A on the output display
         self.assembly[0b11111111] = [HLT]                                                                                   # HLT   255     halt operation

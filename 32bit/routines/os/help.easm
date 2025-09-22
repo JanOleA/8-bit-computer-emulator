@@ -1,6 +1,6 @@
 ;! name: HELP
 ;! entry: help
-;! deps: newline, write_char, echon, buffer_to_separator, wait_3200
+;! deps: newline, write_char, printez, print, buffer_to_separator, wait_3200
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -36,13 +36,12 @@ hp_advance:
   JPZ hp_done                 ; end if length of returned string is 0
   ADD .bss + 1                ; add current string length to pointer
   ADI 1                       ; add one for the separator
+
   STA .bss + 1
-  LDI 0
-  STA .num_digits
-  STA .arg2
   LDA .res1
-  STA .arg1
-  JSR @echon
+  PHA
+  JSR @printez
+
   LDA .bss + 2                   
   CPI 1                       ; end if buffer ended on a null
   JPZ hp_done
@@ -55,13 +54,13 @@ hp_newline:
   JMP hp_advance
 hp_more:
   ; print "--- more ---"
-  LDI 0
-  STA .num_digits
-  LDI 1
-  STA .arg2
   LDI .more_text
-  STA .arg1
-  JSR @echon
+  PHA
+  LDI 1
+  PHA       ; skip newline
+  LDI 0
+  PHA       ; max length = 0 (unbounded)
+  JSR @print
   ; wait for any key
 hp_wait_key:
   KEI

@@ -1,9 +1,12 @@
 meta name = TESTSPLIT
 meta entry = main
 meta abi = os
-depends split, display_number, newline
 
 data text_in = "hello,world,this,is,a,test"
+
+func print_substring(start_idx, end_idx):
+    let string_length = end_idx - start_idx
+    call @print(text_in + start_idx, 0, string_length)
 
 func main:
     let sep = 44  # ASCII code for comma ','
@@ -19,34 +22,19 @@ func main:
     
     let first_string_end = indices_ptr[0]
 
-    LDI .text_in
-    STA .arg1
-    LDI 0
-    STA .arg2  # Print newline after the string
-    LDA .main.first_string_end
-    STA .num_digits
-    call @echon
+    call print_substring(0, first_string_end)
 
     let i = 0
     while num_indices:
-        # Load the start index of the current substring
+        # Load the start index of the current substring, including the separator (from the start of text_in)
         let start_idx = indices_ptr[i]
         if num_indices != 1:
             let end_idx = indices_ptr[i + 1]
         else:
             let end_idx = 26
 
-        let string_length = end_idx - start_idx - 1
-        # print the substring using ECHON
-        LDI .text_in
-        ADD .main.start_idx
-        ADI 1
-        STA .arg1
-        LDI 0
-        STA .arg2  # Print newline after the string
-        LDA .main.string_length
-        STA .num_digits
-        call @echon
+        # Print the substring between start_idx and end_idx
+        call print_substring(start_idx + 1, end_idx)
 
         # Move to the next index
         let i += 1

@@ -1,6 +1,6 @@
 ;! name: LIST
 ;! entry: list_commands
-;! deps: write_char, newline, echon
+;! deps: write_char, newline, print
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -65,13 +65,13 @@ lc_newline:
   JMP lc_advance
 lc_more:
   ; print "--- more ---"
-  LDI 0
-  STA .num_digits
-  LDI 1
-  STA .arg2
   LDI .more_text
-  STA .arg1
-  JSR @echon
+  PHA
+  LDI 1
+  PHA       ; skip newline
+  LDI 0
+  PHA       ; max length = 0 (unbounded)
+  JSR @print
   ; wait for any key
 lc_wait_key:
   KEI

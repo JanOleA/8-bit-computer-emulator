@@ -1,6 +1,6 @@
 ;! name: CALC
 ;! entry: calc
-;! deps: display_number, divide, mult, parse_number, newline, write_char, pow, sqrt, echon
+;! deps: display_number, divide, mult, parse_number, newline, write_char, pow, sqrt, print, printez
 ;! abi: os
 ;! bss: none
 ;! align: 4
@@ -9,7 +9,7 @@
 ; Computes num1 <op> num2 where op is one of + - * /
 ; Prints the result in decimal using display_number
 
-.residual_text = " Residual="
+.residual_text = "Residual="
 .distance_text = "Distance to next square="
 
 calc:
@@ -155,18 +155,15 @@ do_print:
 
 ; -- print helpers, null terminated. Pointer to text must be in A register --
 print_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
-  STA .arg2
-  JSR @echon
+  PHA
+  JSR @printez
   RET
 
 print_no_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
+  PHA
   LDI 1
-  STA .arg2
-  JSR @echon
+  PHA
+  LDI 0
+  PHA
+  JSR @print
   RET

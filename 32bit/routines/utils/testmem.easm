@@ -1,6 +1,6 @@
 ;! name: TESTMEM
 ;! entry: testmem
-;! deps: display_number, echon, newline, write_char
+;! deps: display_number, print, printez, newline, write_char
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -122,22 +122,19 @@ print_largest:
   RET
 
 
-; -- print helpers, null temrinated. Pointer to text must be in A register --
+; -- print helpers, null terminated. Pointer to text must be in A register --
 print_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
-  STA .arg2
-  JSR @echon
+  PHA
+  JSR @printez
   RET
 
 print_no_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
+  PHA
   LDI 1
-  STA .arg2
-  JSR @echon
+  PHA
+  LDI 0
+  PHA
+  JSR @print
   RET
 
 display_current:

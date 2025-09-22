@@ -1,0 +1,71 @@
+;! name: PRINT
+;! entry: print
+;! deps: newline, write_char
+;! abi: os
+;! bss: auto
+;! align: 4
+
+; Prints the string at the given input_string_pointer, followed by a newline unless skip_newline is 1.
+
+; Call signature: print(SP - 4, SP - 3, SP - 2) = print(input_string_pointer, skip_newline, max_length)
+; Inputs:
+;   Stack Pointer - 4 = pointer to input string
+;   Stack Pointer - 3 = if 1, skip newline. Else print it.
+;   Stack Pointer - 2 = maximum length to print
+; Returns: A = number of characters printed
+
+input_string_pointer = .bss + 0
+print_skip_newline   = .bss + 1
+max_length           = .bss + 2
+chars_printed        = .bss + 3
+
+print:
+  PLA                       ; get return address from stack
+  MOVAB                     ; move return address to B for now
+
+  PLA                       ; get max_length from stack
+  STA .max_length           ; store max_length in .max_length
+  PLA                       ; get skip_newline from stack
+  STA .print_skip_newline   ; store skip_newline in .print_skip_newline
+  PLA                       ; get pointer to input string from stack
+  STA .input_string_pointer ; store input string pointer in .input_string_pointer
+
+  MOVBA                     ; move return address back to A
+  PHA                       ; push it back to stack
+
+  LDI 0
+  STA .chars_printed
+
+lp:
+  ; load *input_string_pointer into A
+  LPA .input_string_pointer                 ; load mem[mem[.input_string_pointer]] into A
+  CPI 0
+  JPZ end                                   ; if we reach null, return
+  CPI 10
+  JPZ print_newline                         ; if newline character, print newline
+  CPI 13
+  JPZ print_newline                         ; if carriage return character, print newline
+  JSR @write_char
+  JMP print_next
+print_newline:
+  JSR @newline
+print_next:
+  ; advance input_string_pointer and increment chars_printed
+  LDA .input_string_pointer
+  ADI 1
+  STA .input_string_pointer
+  LDA .chars_printed
+  ADI 1
+  STA .chars_printed 
+  CMP .max_length       ; If max_length == 0 we treat it as unbounded (print until null).
+  JPZ end               ; Otherwise stop when chars_printed == max_length.
+  JMP lp
+
+end:
+  LDA .print_skip_newline
+  CPI 1
+  JPZ return
+  JSR @newline
+return:
+  LDA .chars_printed
+  RET

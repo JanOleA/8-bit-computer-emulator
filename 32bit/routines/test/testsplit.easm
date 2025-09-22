@@ -1,21 +1,44 @@
 ;! name: TESTSPLIT
 ;! entry: main
 ;! abi: os
-;! deps: split, display_number, newline
 
-main.sep = .bss
-main.indices_ptr = .bss + 1
-main.num_indices = .bss + 2
-main.first_string_end = .bss + 3
-main.i = .bss + 4
-main.start_idx = .bss + 5
-main.end_idx = .bss + 6
-main.string_length = .bss + 7
-__tmp_addr = .bss + 8
-__tmp_base = .bss + 9
+print_substring.start_idx = .bss
+print_substring.end_idx = .bss + 1
+print_substring.string_length = .bss + 2
+main.sep = .bss + 3
+main.indices_ptr = .bss + 4
+main.num_indices = .bss + 5
+main.first_string_end = .bss + 6
+main.i = .bss + 7
+main.start_idx = .bss + 8
+main.end_idx = .bss + 9
+__tmp_addr = .bss + 10
+__tmp_base = .bss + 11
 .text_in = "hello,world,this,is,a,test"
 
   JMP main
+
+print_substring:
+  PLA
+  MOVAB
+  PLA
+  STA .print_substring.end_idx
+  PLA
+  STA .print_substring.start_idx
+  MOVBA
+  PHA
+  LDA .print_substring.end_idx
+  SUB .print_substring.start_idx
+  STA .print_substring.string_length
+  LDI .text_in
+  ADD .print_substring.start_idx
+  PHA
+  LDI 0
+  PHA
+  LDA .print_substring.string_length
+  PHA
+  JSR @print
+  RET
 
 main:
   LDI 44
@@ -29,7 +52,6 @@ main:
   STA .main.indices_ptr
   PLA
   STA .main.num_indices
-  LDA .main.num_indices
   PHA
   JSR @display_number
   JSR @newline
@@ -37,15 +59,13 @@ main:
   LDA .main.indices_ptr
   STA .__tmp_base
   STA .__tmp_addr
-  LPA .__tmp_addr                ; pointer element load
+  LAP ; pointer element load
   STA .main.first_string_end
-  LDI .text_in
-  STA .arg1
   LDI 0
-  STA .arg2
+  PHA
   LDA .main.first_string_end
-  STA .num_digits
-  JSR @echon
+  PHA
+  JSR print_substring
   LDI 0
   STA .main.i
 MAIN__WHILE_START_1:
@@ -57,7 +77,7 @@ MAIN__WHILE_START_1:
   LDA .main.i
   ADD .__tmp_base
   STA .__tmp_addr
-  LPA .__tmp_addr                ; pointer element load
+  LAP ; pointer element load
   STA .main.start_idx
   LDA .main.num_indices
   SUI 1
@@ -69,26 +89,19 @@ MAIN__WHILE_START_1:
   ADI 1
   ADD .__tmp_base
   STA .__tmp_addr
-  LPA .__tmp_addr                ; pointer element load
+  LAP ; pointer element load
   STA .main.end_idx
   JMP MAIN__ENDIF_3
 MAIN__ELSE_4:
   LDI 26
   STA .main.end_idx
 MAIN__ENDIF_3:
-  LDA .main.end_idx
-  SUB .main.start_idx
-  SUI 1
-  STA .main.string_length
-  LDI .text_in
-  ADD .main.start_idx
+  LDA .main.start_idx
   ADI 1
-  STA .arg1
-  LDI 0
-  STA .arg2
-  LDA .main.string_length
-  STA .num_digits
-  JSR @echon
+  PHA
+  LDA .main.end_idx
+  PHA
+  JSR print_substring
   LDA .main.i
   ADI 1
   STA .main.i

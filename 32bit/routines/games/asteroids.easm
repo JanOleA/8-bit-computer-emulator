@@ -1,6 +1,6 @@
 ;! name: ASTEROIDS
 ;! entry: main
-;! deps: randint, write_char, newline, display_number, echon, wait_100, toggle_display_enable
+;! deps: randint, write_char, newline, display_number, wait_100, toggle_display_enable, print, printez
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -96,7 +96,6 @@ update_display:
   JSR clear_display
   ; print "SCORE: " without newline
   LDI .score_text
-  STA .arg1
   JSR print_z
   LDA .bss + 9
   PHA
@@ -400,12 +399,9 @@ end:
   DIS 15            ; set on, display cursor, cursor blink
   JSR @toggle_display_enable
   JSR @newline
-  LDI 0
-  STA .num_digits
-  STA .arg2
   LDI .game_over_text
-  STA .arg1
-  JSR @echon
+  PHA
+  JSR @printez
   LDA .bss + 9
   PHA
   JSR @display_number
@@ -417,13 +413,13 @@ clear_display:
   JSR @toggle_display_enable
   RET
 
-; Local: print null-terminated string at .arg1 (no newline)
+; Local: print null-terminated string in A (no newline)
 print_z:
+  PHA
   LDI 1
-  STA .arg2
+  PHA
   LDI 0
-  STA .num_digits
-  LDA .arg1
-  JSR @echon
+  PHA
+  JSR @print
 pz_done:
   RET

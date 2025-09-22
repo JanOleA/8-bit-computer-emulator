@@ -1,0 +1,898 @@
+;! name: M32C0
+;! entry: main
+;! abi: os
+
+NEWLINE = 10
+SPACE = 32
+TK_IDENT = 1
+TK_NUM = 2
+TK_SYM = 3
+out_len = .bss
+out_buf = .bss + 1
+tmp = .bss + 1025
+ch = .bss + 1026
+src_ptr = .bss + 1027
+pos = .bss + 1028
+tcount = .bss + 1029
+tkind = .bss + 1030
+tstart = .bss + 1286
+tlen = .bss + 1542
+append_char.c = .bss + 1798
+append_cstr.ptr = .bss + 1799
+is_alpha.c = .bss + 1800
+is_digit.c = .bss + 1801
+add_token.kind = .bss + 1802
+add_token.start = .bss + 1803
+add_token.length = .bss + 1804
+__tmp_addr = .bss + 1805
+__tmp_base = .bss + 1806
+.lit_ldi0 = "  LDI 0\n"
+.sample_src = "var x\nvar y\nfunc main:\n  return\n"
+
+  JMP main
+
+append_char:
+  PLA
+  MOVAB
+  PLA
+  STA .append_char.c
+  MOVBA
+  PHA
+  LDA .append_char.c
+  STA .__tmp_base
+  LDA .out_len
+  ADD .out_buf
+  STA .__tmp_addr
+  PHA
+  LDA .__tmp_base
+  SAS
+  LDA .out_len
+  ADI 1
+  STA .out_len
+  RET
+
+append_cstr:
+  PLA
+  MOVAB
+  PLA
+  STA .append_cstr.ptr
+  MOVBA
+  PHA
+  LDI 0
+  STA .tmp
+APPEND_CSTR__WHILE_START_1:
+  LDI 1
+  CPI 0
+  JPZ APPEND_CSTR__WHILE_END_2
+  LDA .append_cstr.ptr
+  STA .__tmp_base
+  LDA .tmp
+  ADD .__tmp_base
+  STA .__tmp_addr
+  LAP ; pointer element load
+  STA .ch
+  CPI 0
+  JNZ APPEND_CSTR__ENDIF_3
+  JMP APPEND_CSTR__WHILE_END_2
+APPEND_CSTR__ENDIF_3:
+  LDA .ch
+  PHA
+  JSR append_char
+  LDA .tmp
+  ADI 1
+  STA .tmp
+  JMP APPEND_CSTR__WHILE_START_1
+APPEND_CSTR__WHILE_END_2:
+  RET
+
+emit_ldi0:
+  LDI .lit_ldi0
+  STA .tmp
+  PHA
+  JSR append_cstr
+  RET
+
+is_alpha:
+  PLA
+  MOVAB
+  PLA
+  STA .is_alpha.c
+  MOVBA
+  PHA
+  LDA .is_alpha.c
+  SUI 95
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_4
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_4:
+  LDA .is_alpha.c
+  SUI 65
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_5
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_5:
+  LDA .is_alpha.c
+  SUI 66
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_6
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_6:
+  LDA .is_alpha.c
+  SUI 67
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_7
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_7:
+  LDA .is_alpha.c
+  SUI 68
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_8
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_8:
+  LDA .is_alpha.c
+  SUI 69
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_9
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_9:
+  LDA .is_alpha.c
+  SUI 70
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_10
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_10:
+  LDA .is_alpha.c
+  SUI 71
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_11
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_11:
+  LDA .is_alpha.c
+  SUI 72
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_12
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_12:
+  LDA .is_alpha.c
+  SUI 73
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_13
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_13:
+  LDA .is_alpha.c
+  SUI 74
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_14
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_14:
+  LDA .is_alpha.c
+  SUI 75
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_15
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_15:
+  LDA .is_alpha.c
+  SUI 76
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_16
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_16:
+  LDA .is_alpha.c
+  SUI 77
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_17
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_17:
+  LDA .is_alpha.c
+  SUI 78
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_18
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_18:
+  LDA .is_alpha.c
+  SUI 79
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_19
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_19:
+  LDA .is_alpha.c
+  SUI 80
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_20
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_20:
+  LDA .is_alpha.c
+  SUI 81
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_21
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_21:
+  LDA .is_alpha.c
+  SUI 82
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_22
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_22:
+  LDA .is_alpha.c
+  SUI 83
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_23
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_23:
+  LDA .is_alpha.c
+  SUI 84
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_24
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_24:
+  LDA .is_alpha.c
+  SUI 85
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_25
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_25:
+  LDA .is_alpha.c
+  SUI 86
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_26
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_26:
+  LDA .is_alpha.c
+  SUI 87
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_27
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_27:
+  LDA .is_alpha.c
+  SUI 88
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_28
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_28:
+  LDA .is_alpha.c
+  SUI 89
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_29
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_29:
+  LDA .is_alpha.c
+  SUI 90
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_30
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_30:
+  LDA .is_alpha.c
+  SUI 97
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_31
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_31:
+  LDA .is_alpha.c
+  SUI 98
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_32
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_32:
+  LDA .is_alpha.c
+  SUI 99
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_33
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_33:
+  LDA .is_alpha.c
+  SUI 100
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_34
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_34:
+  LDA .is_alpha.c
+  SUI 101
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_35
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_35:
+  LDA .is_alpha.c
+  SUI 102
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_36
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_36:
+  LDA .is_alpha.c
+  SUI 103
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_37
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_37:
+  LDA .is_alpha.c
+  SUI 104
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_38
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_38:
+  LDA .is_alpha.c
+  SUI 105
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_39
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_39:
+  LDA .is_alpha.c
+  SUI 106
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_40
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_40:
+  LDA .is_alpha.c
+  SUI 107
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_41
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_41:
+  LDA .is_alpha.c
+  SUI 108
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_42
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_42:
+  LDA .is_alpha.c
+  SUI 109
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_43
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_43:
+  LDA .is_alpha.c
+  SUI 110
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_44
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_44:
+  LDA .is_alpha.c
+  SUI 111
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_45
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_45:
+  LDA .is_alpha.c
+  SUI 112
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_46
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_46:
+  LDA .is_alpha.c
+  SUI 113
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_47
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_47:
+  LDA .is_alpha.c
+  SUI 114
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_48
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_48:
+  LDA .is_alpha.c
+  SUI 115
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_49
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_49:
+  LDA .is_alpha.c
+  SUI 116
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_50
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_50:
+  LDA .is_alpha.c
+  SUI 117
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_51
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_51:
+  LDA .is_alpha.c
+  SUI 118
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_52
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_52:
+  LDA .is_alpha.c
+  SUI 119
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_53
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_53:
+  LDA .is_alpha.c
+  SUI 120
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_54
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_54:
+  LDA .is_alpha.c
+  SUI 121
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_55
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_55:
+  LDA .is_alpha.c
+  SUI 122
+  STA .tmp
+  CPI 0
+  JNZ IS_ALPHA__ENDIF_56
+  LDI 1
+  RET
+IS_ALPHA__ENDIF_56:
+  LDI 0
+  RET
+
+is_digit:
+  PLA
+  MOVAB
+  PLA
+  STA .is_digit.c
+  MOVBA
+  PHA
+  LDA .is_digit.c
+  SUI 48
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_57
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_57:
+  LDA .is_digit.c
+  SUI 49
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_58
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_58:
+  LDA .is_digit.c
+  SUI 50
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_59
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_59:
+  LDA .is_digit.c
+  SUI 51
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_60
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_60:
+  LDA .is_digit.c
+  SUI 52
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_61
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_61:
+  LDA .is_digit.c
+  SUI 53
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_62
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_62:
+  LDA .is_digit.c
+  SUI 54
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_63
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_63:
+  LDA .is_digit.c
+  SUI 55
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_64
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_64:
+  LDA .is_digit.c
+  SUI 56
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_65
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_65:
+  LDA .is_digit.c
+  SUI 57
+  STA .tmp
+  CPI 0
+  JNZ IS_DIGIT__ENDIF_66
+  LDI 1
+  RET
+IS_DIGIT__ENDIF_66:
+  LDI 0
+  RET
+
+add_token:
+  PLA
+  MOVAB
+  PLA
+  STA .add_token.length
+  PLA
+  STA .add_token.start
+  PLA
+  STA .add_token.kind
+  MOVBA
+  PHA
+  LDA .add_token.kind
+  STA .__tmp_base
+  LDA .tcount
+  ADD .tkind
+  STA .__tmp_addr
+  PHA
+  LDA .__tmp_base
+  SAS
+  LDA .add_token.start
+  STA .__tmp_base
+  LDA .tcount
+  ADD .tstart
+  STA .__tmp_addr
+  PHA
+  LDA .__tmp_base
+  SAS
+  LDA .add_token.length
+  STA .__tmp_base
+  LDA .tcount
+  ADD .tlen
+  STA .__tmp_addr
+  PHA
+  LDA .__tmp_base
+  SAS
+  LDA .tcount
+  ADI 1
+  STA .tcount
+  RET
+
+tokenize:
+  LDI 0
+  STA .pos
+  LDI 0
+  STA .tcount
+TOKENIZE__WHILE_START_67:
+  LDI 1
+  CPI 0
+  JPZ TOKENIZE__WHILE_END_68
+  LDA .src_ptr
+  STA .__tmp_base
+  LDA .pos
+  ADD .__tmp_base
+  STA .__tmp_addr
+  LAP ; pointer element load
+  STA .ch
+  CPI 0
+  JNZ TOKENIZE__ENDIF_69
+  JMP TOKENIZE__WHILE_END_68
+TOKENIZE__ENDIF_69:
+  LDA .ch
+  SUI .SPACE
+  STA .tmp
+  CPI 0
+  JNZ TOKENIZE__ENDIF_70
+  LDA .pos
+  ADI 1
+  STA .pos
+  JMP TOKENIZE__WHILE_START_67
+TOKENIZE__ENDIF_70:
+  LDA .ch
+  SUI .NEWLINE
+  STA .tmp
+  CPI 0
+  JNZ TOKENIZE__ENDIF_71
+  LDA .pos
+  ADI 1
+  STA .pos
+  JMP TOKENIZE__WHILE_START_67
+TOKENIZE__ENDIF_71:
+  LDA .ch
+  PHA
+  JSR is_alpha
+  STA .tmp
+  SUI 1
+  CPI 0
+  JNZ TOKENIZE__ENDIF_72
+  LDA .pos
+  STA .tmp
+  LDA .pos
+  ADI 1
+  STA .pos
+TOKENIZE__WHILE_START_73:
+  LDI 1
+  CPI 0
+  JPZ TOKENIZE__WHILE_END_74
+  LDA .src_ptr
+  STA .__tmp_base
+  LDA .pos
+  ADD .__tmp_base
+  STA .__tmp_addr
+  LAP ; pointer element load
+  STA .ch
+  PHA
+  JSR is_alpha
+  STA .ch
+  SUI 1
+  CPI 0
+  JNZ TOKENIZE__ENDIF_75
+  LDA .pos
+  ADI 1
+  STA .pos
+  JMP TOKENIZE__WHILE_START_73
+TOKENIZE__ENDIF_75:
+  LDA .src_ptr
+  STA .__tmp_base
+  LDA .pos
+  ADD .__tmp_base
+  STA .__tmp_addr
+  LAP ; pointer element load
+  STA .ch
+  PHA
+  JSR is_digit
+  STA .ch
+  SUI 1
+  CPI 0
+  JNZ TOKENIZE__ENDIF_76
+  LDA .pos
+  ADI 1
+  STA .pos
+  JMP TOKENIZE__WHILE_START_73
+TOKENIZE__ENDIF_76:
+  JMP TOKENIZE__WHILE_END_74
+  JMP TOKENIZE__WHILE_START_73
+TOKENIZE__WHILE_END_74:
+  LDA .pos
+  SUB .tmp
+  STA .ch
+  LDI .TK_IDENT
+  PHA
+  LDA .tmp
+  PHA
+  LDA .ch
+  PHA
+  JSR add_token
+  JMP TOKENIZE__WHILE_START_67
+TOKENIZE__ENDIF_72:
+  LDA .ch
+  PHA
+  JSR is_digit
+  STA .tmp
+  SUI 1
+  CPI 0
+  JNZ TOKENIZE__ENDIF_77
+  LDA .pos
+  STA .tmp
+  LDA .pos
+  ADI 1
+  STA .pos
+TOKENIZE__WHILE_START_78:
+  LDI 1
+  CPI 0
+  JPZ TOKENIZE__WHILE_END_79
+  LDA .src_ptr
+  STA .__tmp_base
+  LDA .pos
+  ADD .__tmp_base
+  STA .__tmp_addr
+  LAP ; pointer element load
+  STA .ch
+  PHA
+  JSR is_digit
+  STA .ch
+  SUI 1
+  CPI 0
+  JNZ TOKENIZE__ENDIF_80
+  LDA .pos
+  ADI 1
+  STA .pos
+  JMP TOKENIZE__WHILE_START_78
+TOKENIZE__ENDIF_80:
+  JMP TOKENIZE__WHILE_END_79
+  JMP TOKENIZE__WHILE_START_78
+TOKENIZE__WHILE_END_79:
+  LDA .pos
+  SUB .tmp
+  STA .ch
+  LDI .TK_NUM
+  PHA
+  LDA .tmp
+  PHA
+  LDA .ch
+  PHA
+  JSR add_token
+  JMP TOKENIZE__WHILE_START_67
+TOKENIZE__ENDIF_77:
+  LDI .TK_SYM
+  PHA
+  LDA .pos
+  PHA
+  LDI 1
+  PHA
+  JSR add_token
+  LDA .pos
+  ADI 1
+  STA .pos
+  JMP TOKENIZE__WHILE_START_67
+TOKENIZE__WHILE_END_68:
+  RET
+
+dump_tokens:
+  LDI 0
+  STA .tmp
+DUMP_TOKENS__WHILE_START_81:
+  LDA .tmp
+  SUB .tcount
+  CPI 0
+  JPZ DUMP_TOKENS__WHILE_END_82
+  LDA .tmp
+  ADD .tkind
+  STA .__tmp_addr
+  LAP ; array element load
+  STA .ch
+  SUI .TK_IDENT
+  STA .ch
+  CPI 0
+  JNZ DUMP_TOKENS__ENDIF_83
+  LDI 73
+  PHA
+  JSR append_char
+  LDA .tmp
+  ADI 1
+  STA .tmp
+  JMP DUMP_TOKENS__WHILE_START_81
+DUMP_TOKENS__ENDIF_83:
+  LDA .tmp
+  ADD .tkind
+  STA .__tmp_addr
+  LAP ; array element load
+  SUI .TK_NUM
+  STA .ch
+  CPI 0
+  JNZ DUMP_TOKENS__ENDIF_84
+  LDI 78
+  PHA
+  JSR append_char
+  LDA .tmp
+  ADI 1
+  STA .tmp
+  JMP DUMP_TOKENS__WHILE_START_81
+DUMP_TOKENS__ENDIF_84:
+  LDI 83
+  PHA
+  JSR append_char
+  LDA .tmp
+  ADI 1
+  STA .tmp
+  JMP DUMP_TOKENS__WHILE_START_81
+DUMP_TOKENS__WHILE_END_82:
+  LDI .NEWLINE
+  PHA
+  JSR append_char
+  RET
+
+main:
+  LDI 0
+  STA .out_len
+  LDI .sample_src
+  STA .src_ptr
+  JSR tokenize
+  JSR dump_tokens
+  LDA .out_buf
+  PHA
+  LDI 0
+  PHA
+  LDI 0
+  PHA
+  JSR @print
+  RET
+

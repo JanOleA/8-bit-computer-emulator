@@ -1,6 +1,6 @@
 ;! name: ESH
 ;! entry: start
-;! deps: osinfo, newline, write_char, echon, toggle_display_enable, get_program_address, buffer_to_separator
+;! deps: osinfo, newline, write_char, toggle_display_enable, get_program_address, buffer_to_separator, print, printez
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -213,20 +213,17 @@ handle_enter:
 
 ; -- print helpers, null terminated. Pointer to text must be in A register --
 print_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
-  STA .arg2
-  JSR @echon
+  PHA
+  JSR @printez
   RET
 
 print_no_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
+  PHA
   LDI 1
-  STA .arg2
-  JSR @echon
+  PHA
+  LDI 0
+  PHA
+  JSR @print
   RET
 
 ret_home:

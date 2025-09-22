@@ -1,0 +1,178 @@
+meta name = M32C0
+meta entry = main
+meta abi = os
+
+# Stage-0 Mini32 self-hosting compiler skeleton.
+# Phase now: add a naive tokenizer and dump token kinds into output buffer.
+# Supported tokens: identifiers, numbers (decimal only), single-char symbols '()=,:', newline terminator ignored.
+# Limitations: no strings, no comments, no operators beyond '+' '-' captured as single-char tokens.
+
+const NEWLINE = 10
+const SPACE = 32
+
+var out_len
+var out_buf[1024]
+var tmp
+var ch
+var src_ptr         # pointer to source buffer (data string)
+var pos             # current index into source
+var tcount          # number of tokens
+var tkind[256]      # token kinds (simple small integers)
+var tstart[256]     # start offset in src
+var tlen[256]       # length
+
+const TK_IDENT = 1
+const TK_NUM = 2
+const TK_SYM = 3
+
+# Append a single character in A to out_buf
+func append_char(c):
+    let out_buf[out_len] = c
+    let out_len += 1
+    return
+
+# Append a null-terminated data string whose address is in A (ptr semantics)
+# NOTE: This is an inefficient placeholder; optimized versions can reuse registers.
+func append_cstr(ptr):
+    let tmp = 0
+    while 1:
+        let ch = ptr[tmp]
+        if ch == 0:
+            break
+        call append_char(ch)
+        let tmp += 1
+    return
+
+# Append literal "  LDI 0\n"
+# We store it as data and iterate.
+data lit_ldi0 = "  LDI 0\n"
+
+func emit_ldi0():
+    let tmp = lit_ldi0  # pointer value
+    call append_cstr(tmp)
+    return
+
+data alpha_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
+
+data digit_chars = "0123456789"
+
+func is_alpha(c):
+    # Table-driven membership test. Returns 1 if c in alpha_chars or '_'.
+    # Linear scan (sufficient for stage-0). Stops at null terminator.
+    let tmp = alpha_chars  # base pointer
+    while 1:
+        let ch = *tmp
+        if ch == 0:
+            return 0
+        if ch == c:
+            return 1
+        let tmp += 1
+    return 0
+
+func is_digit(c):
+    # Table-driven digit test '0'-'9'. Linear scan.
+    let tmp = digit_chars
+    while 1:
+        let ch = *tmp
+        if ch == 0:
+            return 0
+        if ch == c:
+            return 1
+        let tmp += 1
+    return 0
+
+func add_token(kind, start, length):
+    let tkind[tcount] = kind
+    let tstart[tcount] = start
+    let tlen[tcount] = length
+    let tcount += 1
+    return
+
+func tokenize():
+    let pos = 0
+    let tcount = 0
+    while 1:
+        let ch = src_ptr[pos]
+        if ch == 0:
+            break
+        # skip spaces and newlines
+        let tmp = ch - SPACE
+        if tmp == 0:
+            let pos += 1
+            continue
+        let tmp = ch - NEWLINE
+        if tmp == 0:
+            let pos += 1
+            continue
+        # identifier
+        call is_alpha(ch) -> tmp
+        if tmp == 1:
+            let tmp = pos
+            let pos += 1
+            while 1:
+                let ch = src_ptr[pos]
+                call is_alpha(ch) -> ch
+                if ch == 1:
+                    let pos += 1
+                    continue
+                let ch = src_ptr[pos]
+                call is_digit(ch) -> ch
+                if ch == 1:
+                    let pos += 1
+                    continue
+                break
+            let ch = pos - tmp
+            call add_token(TK_IDENT, tmp, ch)
+            continue
+        # number
+        call is_digit(ch) -> tmp
+        if tmp == 1:
+            let tmp = pos
+            let pos += 1
+            while 1:
+                let ch = src_ptr[pos]
+                call is_digit(ch) -> ch
+                if ch == 1:
+                    let pos += 1
+                    continue
+                break
+            let ch = pos - tmp
+            call add_token(TK_NUM, tmp, ch)
+            continue
+        # single-char symbol
+        call add_token(TK_SYM, pos, 1)
+        let pos += 1
+    return
+
+data sample_src = "var x\nvar y\nfunc main:\n  return\n"
+
+func dump_tokens():
+    # Append one letter per token kind: I/N/S then newline.
+    let tmp = 0
+    while tmp - tcount:
+        let ch = tkind[tmp]
+        let ch = ch - TK_IDENT
+        if ch == 0:
+            call append_char(73)  # 'I'
+            let tmp += 1
+            continue
+        let ch = tkind[tmp] - TK_NUM
+        if ch == 0:
+            call append_char(78)  # 'N'
+            let tmp += 1
+            continue
+        call append_char(83)      # 'S'
+        let tmp += 1
+    call append_char(NEWLINE)
+    return
+
+func main():
+    # Reset length
+    let out_len = 0
+    # Set source pointer and tokenize sample
+    let src_ptr = sample_src
+    call tokenize()
+    call dump_tokens()
+
+    call @print(out_buf, 0, 0)  # 0 = print with newline, 0 = print until null
+    return

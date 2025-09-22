@@ -254,13 +254,49 @@ def _load_routine_base(name: str, json_path: str) -> int:
     return int(mod['base'])
 
 
-def call_subroutine(game, target, arg1=None, arg2=None, trampoline_base=15000, json_path=None,
-                    max_cycles=200000, reset_after=True, boot_cycles=30000, clear_outputs=True):
-    """Inject .arg1/.arg2, JSR to target, run until HLT, return A, .res1, .res2.
+def call_subroutine(
+        game,
+        target,
+        arg1=None,
+        arg2=None,
+        trampoline_base=40000,
+        json_path=None,
+        max_cycles=200000,
+        reset_after=True,
+        boot_cycles=30000,
+        clear_outputs=True,
+        abi='memory',
+        args=None,
+        returns=0,
+        stack_init=None,
+        scratch_base=None,
+    ):
+    """Generic subroutine invocation helper supporting two ABIs.
 
-    - target: int absolute address or str routine name (requires json_path).
-    - Writes a tiny trampoline: [JSR target][HLT] at trampoline_base.
-    - Returns a dict: { 'A': areg, 'res1': mem[2004], 'res2': mem[2005] }.
+    abi='memory' (default):
+        - Emulates legacy OS ABI: arguments in .arg1/.arg2 (2002/2003), outputs in .res1/.res2 (2004/2005),
+          primary return also in A. Builds trampoline [JSR target][HLT].
+        - Parameters arg1/arg2 honored. 'args' ignored.
+
+    abi='stack':
+        - Pushes argument values onto the machine stack left→right using [LDI imm][PHA] per argument.
+        - Optionally sets stack pointer via LSP if stack_init provided.
+        - Issues JSR target.
+        - After return, pops `returns` values using PLA, storing each into memory at consecutive addresses
+          starting at `scratch_base` (default: trampoline_base + 256). Order: first popped = index 0.
+        - Returns list under key 'stack_returns'. A register after final PLA (or post-return if returns=0)
+          also included under 'A'.
+
+    Common parameters:
+        - target: absolute address or routine name (requires json_path for name resolution)
+        - max_cycles: safety run cap
+        - reset_after: reboot OS after call (memory ABI tests often rely on this)
+        - clear_outputs: zero .res1/.res2 before call (memory ABI only)
+
+    Notes / Limitations:
+        - For stack ABI, caller responsibility to ensure callee pops its own arguments (convention assumed).
+        - If callee leaves return values on stack, specify 'returns' to capture them; otherwise they remain.
+        - No automatic restoration of original stack pointer value beyond what RET performs.
     """
     comp = game.computer
     mem = comp.memory
@@ -273,26 +309,68 @@ def call_subroutine(game, target, arg1=None, arg2=None, trampoline_base=15000, j
         addr = _load_routine_base(target, json_path)
     else:
         addr = int(target)
+    if abi not in ('memory', 'stack'):
+        raise ValueError(f"Unsupported abi '{abi}', expected 'memory' or 'stack'")
 
-    # Inject inputs
-    if arg1 is not None:
-        mem[2002] = int(arg1) & mask
-    if arg2 is not None:
-        mem[2003] = int(arg2) & mask
-    # Clear outputs, unless caller provided a needed value (e.g. modulus in .res1)
-    if clear_outputs:
-        mem[2004] = 0
-        mem[2005] = 0
+    trampoline_len = 0  # number of words written
+    scratch_base = scratch_base if scratch_base is not None else (trampoline_base + 256)
 
-    # Build trampoline: JSR #addr; HLT
-    mem[trampoline_base + 0] = 16   # JSR
-    mem[trampoline_base + 1] = int(addr) & mask
-    mem[trampoline_base + 2] = 255  # HLT
-
-    s = ""
-    for l, name in enumerate(["arg1", "arg2", "res1", "res2"]):
-        s += f"{name}={mem[l+2002]:<10d}  "
-    print(s)
+    if abi == 'memory':
+        # Inject inputs into fixed argument slots
+        if arg1 is not None:
+            mem[2002] = int(arg1) & mask
+        if arg2 is not None:
+            mem[2003] = int(arg2) & mask
+        if clear_outputs:
+            mem[2004] = 0
+            mem[2005] = 0
+        # Trampoline: JSR target; HLT
+        mem[trampoline_base + 0] = 16   # JSR
+        mem[trampoline_base + 1] = int(addr) & mask
+        mem[trampoline_base + 2] = 255  # HLT
+        trampoline_len = 3
+        s = ""
+        for l, name in enumerate(["arg1", "arg2", "res1", "res2"]):
+            s += f"{name}={mem[l+2002]:<10d}  "
+        print(s)
+    else:  # stack ABI
+        arg_values = []
+        if args is not None:
+            arg_values = list(args)
+        else:
+            for v in [arg1, arg2]:
+                if v is not None:
+                    arg_values.append(v)
+        cursor = trampoline_base
+        # Optional initialize stack pointer
+        if stack_init is not None:
+            mem[cursor + 0] = 31  # LSP
+            mem[cursor + 1] = int(stack_init) & mask
+            cursor += 2
+        # Push arguments left→right
+        for v in arg_values:
+            mem[cursor + 0] = 5      # LDI
+            mem[cursor + 1] = int(v) & mask
+            mem[cursor + 2] = 13     # PHA
+            cursor += 3
+        # Call target
+        mem[cursor + 0] = 16         # JSR
+        mem[cursor + 1] = int(addr) & mask
+        cursor += 2
+        # Capture A immediately after return (pre-pop) at scratch_base
+        mem[cursor + 0] = 4          # STA
+        mem[cursor + 1] = scratch_base & mask
+        cursor += 2
+        # Pop return values (if any) storing to scratch
+        for i in range(int(max(0, returns))):
+            mem[cursor + 0] = 14      # PLA -> A
+            mem[cursor + 1] = 4       # STA
+            mem[cursor + 2] = (scratch_base + 1 + i) & mask
+            cursor += 3
+        mem[cursor + 0] = 255         # HLT
+        cursor += 1
+        trampoline_len = cursor - trampoline_base
+        print(f"[stack ABI] args={arg_values} wrote {trampoline_len} words; returns={returns} -> scratch {scratch_base}")
 
     # Set PC to trampoline and run until HLT
     comp.prog_count = trampoline_base
@@ -307,20 +385,103 @@ def call_subroutine(game, target, arg1=None, arg2=None, trampoline_base=15000, j
         comp.clock_low()
         ran += 1
 
-    result = {
-        'A': int(comp.areg) & mask,
-        'res1': int(mem[2004]) & mask,
-        'res2': int(mem[2005]) & mask,
-        'cycles': ran,
-        'halted': bool(comp.halting),
-        'pc': int(comp.prog_count) & mask,
-    }
+    if abi == 'memory':
+        result = {
+            'A': int(comp.areg) & mask,
+            'res1': int(mem[2004]) & mask,
+            'res2': int(mem[2005]) & mask,
+            'cycles': ran,
+            'halted': bool(comp.halting),
+            'pc': int(comp.prog_count) & mask,
+            'abi': 'memory',
+            'trampoline_len': trampoline_len,
+        }
+    else:
+        stack_returns = []
+        for i in range(int(max(0, returns))):
+            stack_returns.append(int(mem[scratch_base + 1 + i]) & mask)
+        a_call = int(mem[scratch_base]) & mask  # A right after callee returned (before pops)
+        a_final = int(comp.areg) & mask         # A after pops (or same if none)
+        result = {
+            'A': a_call,              # Preserve legacy expectation: A=primary return
+            'A_call': a_call,
+            'A_final': a_final,
+            'stack_returns': stack_returns,
+            'cycles': ran,
+            'halted': bool(comp.halting),
+            'pc': int(comp.prog_count) & mask,
+            'abi': 'stack',
+            'trampoline_len': trampoline_len,
+            'scratch_base': scratch_base,
+        }
 
     # Optionally reset back to OS boot so the machine isn't left halted.
     if reset_after:
         reboot_os(game, boot_cycles=boot_cycles, reenter_keyboard=True)
 
     return result
+
+
+def call_subroutine_memory(game, target, arg1=None, arg2=None, **kwargs):
+    """Convenience wrapper for legacy memory ABI calls.
+
+    Parameters mirror `call_subroutine` but default to abi='memory'. Any extra keyword
+    arguments are forwarded (e.g. json_path, trampoline_base, max_cycles, reset_after,...).
+    """
+    return call_subroutine(
+        game,
+        target,
+        arg1=arg1,
+        arg2=arg2,
+        abi='memory',
+        **kwargs,
+    )
+
+
+def call_subroutine_stack(
+        game,
+        target,
+        *args,
+        returns=0,
+        stack_init=None,
+        scratch_base=None,
+        json_path=None,
+        trampoline_base=40000,
+        max_cycles=200000,
+        reset_after=True,
+        boot_cycles=30000,
+        **kwargs,
+    ):
+    """Convenience wrapper for stack-based ABI calls.
+
+    Usage examples:
+        call_subroutine_stack(game, 'foo', 1, 2, 3)
+        call_subroutine_stack(game, 'bar', 10, returns=2, stack_init=0xE0)
+
+    Arguments:
+        *args: positional argument values pushed left→right.
+        returns: number of values to PLA+store after return.
+        stack_init: optional initial stack pointer value (passed to LSP before pushes).
+        scratch_base: base address to store captured return values.
+        json_path: for name-based target resolution.
+        trampoline_base/max_cycles/reset_after/boot_cycles: forwarded to underlying helper.
+        **kwargs: forwarded (e.g., you could still pass clear_outputs but it is ignored for stack ABI).
+    """
+    return call_subroutine(
+        game,
+        target,
+        abi='stack',
+        args=list(args),
+        returns=returns,
+        stack_init=stack_init,
+        scratch_base=scratch_base,
+        json_path=json_path,
+        trampoline_base=trampoline_base,
+        max_cycles=max_cycles,
+        reset_after=reset_after,
+        boot_cycles=boot_cycles,
+        **kwargs,
+    )
 
 
 def diagnose_modmul(game, json_path, arg1, arg2, mod):
@@ -368,6 +529,83 @@ def diagnose_rem64(game, json_path, lo, hi, mod):
         print(f"WARNING: mod_copy mismatch: {vals['mod_copy']} vs expected {mod}")
     return res
 
+def diag_tetris_rotations(json_path, show_L=True):
+    """Diagnose J (and optionally L) piece rotation patterns by scanning the TETRIS module image.
+
+    Looks for the literal 16-char rotation mask strings (row-major 4x4, '.' padding) inside the module's
+    word list. Prints each as a 4x4 grid and derived occupied cell coordinates. Warns on missing patterns.
+
+    This does not execute Tetris code; it verifies the baked data strings that drive rotation logic.
+    """
+    try:
+        base, length, words, _ = _load_module_from_json(json_path, 'TETRIS')
+    except Exception:
+        try:
+            base, length, words, _ = _load_module_from_json(json_path, 'tetris')
+        except Exception as e:
+            print(f"TETRIS module not found in {json_path}: {e}")
+            return
+
+    # Convert words slice to byte values (mask to 0-255)
+    bytes_list = [w & 0xFF for w in words]
+
+    patterns_J = {
+        'j_rot0': "X...XXX.........",
+        'j_rot1': "XX...X...X......",   # current image; canonical might be '.XX..X...X......'
+        'j_rot2': "XXX...X.........",   # after modification; original was '..X.XXX.........'
+        'j_rot3': "..X...X..XX......",  # after modification; original was 'X...X...XX......'
+    }
+    patterns_L = {
+        'l_rot0': "..X.XXX.........",
+        'l_rot1': "X...X...XX......",
+        'l_rot2': "XXX.X...........",
+        'l_rot3': "XX...X...X......",
+    }
+
+    def find_pattern(pat):
+        seq = [ord(c) for c in pat]
+        for i in range(len(bytes_list) - len(seq)):
+            if bytes_list[i:i+len(seq)] == seq:
+                return base + i  # approximate absolute address of first char
+        return None
+
+    def print_grid(name, pat, addr):
+        print(f"{name}: addr={addr if addr is not None else '??'} pattern='{pat}'")
+        for r in range(4):
+            row = pat[r*4:(r+1)*4]
+            print('  ' + row.replace('.', '·'))
+        coords = [(x, y) for y in range(4) for x in range(4) if pat[y*4 + x] == 'X']
+        print(f"  cells: {coords}\n")
+
+    print("--- TETRIS J piece rotations (raw data scan) ---")
+    for k, v in patterns_J.items():
+        a = find_pattern(v)
+        print_grid(k, v, a)
+    if show_L:
+        print("--- TETRIS L piece rotations (raw data scan) ---")
+        for k, v in patterns_L.items():
+            a = find_pattern(v)
+            print_grid(k, v, a)
+    # Heuristic inconsistency checks
+    print("Diagnostics:")
+    # Count X's per rotation (should be 4)
+    for name, pat in {**patterns_J, **patterns_L}.items():
+        cnt = pat.count('X')
+        if cnt != 4:
+            print(f"  WARNING: {name} has {cnt} filled cells (expected 4)")
+    # Check symmetry: J and L should not share identical patterns except 180 flips mirrored; flag duplicates
+    dupes = []
+    all_items = list(patterns_J.items()) + list(patterns_L.items())
+    for i in range(len(all_items)):
+        for j in range(i+1, len(all_items)):
+            if all_items[i][1] == all_items[j][1]:
+                dupes.append((all_items[i][0], all_items[j][0]))
+    if dupes:
+        print("  NOTE: duplicate pattern strings:", dupes)
+    else:
+        print("  No duplicate rotation patterns across J/L sets.")
+    print("Done.")
+
 
 def main():
     # Import the 32-bit monitor variant
@@ -403,25 +641,42 @@ def main():
     press_key(game, pygame.K_k)
     run_frames(game, frames=4)
 
-    # Try some commands and snapshot after each
-    for cmd in ["LIST", "HELP", "CLS", "ECHO HELLO"]:
-        type_string(game, cmd)
-        press_enter(game)
-        # Process a few frames to consume events
-        run_frames(game, frames=6)
-        # Then run CPU hard to execute the command
-        if cmd in ["LIST", "HELP"]:
-            run_cycles(game, cycles=300000)
-            press_enter(game)                   # some of these require pressing twice
-            run_cycles(game, cycles=100000)
-        else:
-            run_cycles(game, cycles=80000)
-        # Capture and print a few lines of the monitor text buffer for verification
+    # # Try some commands and snapshot after each
+    # for cmd in ["LIST", "HELP", "CLS", "ECHO HELLO"]:
+    #     type_string(game, cmd)
+    #     press_enter(game)
+    #     # Process a few frames to consume events
+    #     run_frames(game, frames=6)
+    #     # Then run CPU hard to execute the command
+    #     if cmd in ["LIST", "HELP"]:
+    #         run_cycles(game, cycles=300000)
+    #         press_enter(game)                   # some of these require pressing twice
+    #         run_cycles(game, cycles=100000)
+    #     else:
+    #         run_cycles(game, cycles=80000)
+    #     # Capture and print a few lines of the monitor text buffer for verification
+    #     lines = capture_monitor_text(game, rows=20)
+    #     print(f"--- After: {cmd} ---")
+    #     for ln in lines:
+    #         print(ln)
+    #     print("\n\n")
+
+    run_cycles(game, cycles=10000)
+    type_string(game, "PUZZLE")
+    press_enter(game)
+    run_frames(game, frames=6)
+    run_cycles(game, cycles=100_000)
+    lines = capture_monitor_text(game, rows=20)
+    for ln in lines[-5::]:
+        print(ln)
+    while True:
+        run_cycles(game, cycles=1_000_000)
         lines = capture_monitor_text(game, rows=20)
-        print(f"--- After: {cmd} ---")
-        for ln in lines:
+        for ln in lines[-5:]:
             print(ln)
+
         print("\n\n")
+        print(game.computer.out_regist)
 
     # Demonstrate direct subroutine call: DIVIDE (A=res1=quotient, res2=remainder)
     try:
@@ -430,6 +685,7 @@ def main():
         print(f"A={r['A']} res1={r['res1']} res2={r['res2']}")
     except Exception as e:
         print(f"Subroutine test failed: {e}")
+
 
     # ----- Routine unit tests -----
     try:
@@ -457,17 +713,18 @@ def main():
         check(r['A'] == 6 and r['res1'] == 6, f"gcd 48,18 A={r['A']} res1={r['res1']}")
 
         # mult: 7*9 -> 63
-        r = call_subroutine(game, 'multiply', arg1=7, arg2=9, json_path=json_img, reset_after=False)
-        check(r['A'] == 63 and r['res1'] == 63, f"mult 7*9 A={r['A']} res1={r['res1']}")
+        r = call_subroutine_stack(game, 'multiply', 7, 9, returns=0, json_path=json_img, reset_after=False) # no returns, A = result
+        check(r['A'] == 63, f"mult 7*9 A={r['A']}")
 
         # pow: 3^5 -> 243
-        r = call_subroutine(game, 'pow', arg1=3, arg2=5, json_path=json_img, reset_after=False)
+        r = call_subroutine_stack(game, 'pow', 3, 5, returns=0, json_path=json_img, reset_after=False)
         exp = (3 ** 5) & mask32
-        check(r['A'] == exp and r['res1'] == exp, f"pow 3^5 A={r['A']} res1={r['res1']}")
+        check(r['A'] == exp, f"pow 3^5 A={r['A']} exp={exp}")
 
         # sqrt: floor sqrt(81) -> 9
-        r = call_subroutine(game, 'sqrt', arg1=81, json_path=json_img, reset_after=False)
-        check(r['A'] == 9 and r['res1'] == 9, f"sqrt 81 A={r['A']} res1={r['res1']}")
+        r = call_subroutine_stack(game, 'sqrt', 82, returns=3, json_path=json_img, reset_after=False)
+        expected = [18, 1, 9]
+        check(r["stack_returns"] == expected, f"sqrt(82) -> {r['stack_returns']}. exp: next_square_dist=18, residual=1, floor(sqrt(82))=9")
 
         # modmul: (123*45) % 97, modulus in .res1
         game.computer.memory[2004] = 97
@@ -558,21 +815,21 @@ def main():
         s2_addr = 61064
         write_c_string(s1_addr, "HELLO")
         write_c_string(s2_addr, "HELLO")
-        r = call_subroutine(game, 'string_compare', arg1=s1_addr, arg2=s2_addr, json_path=json_img, reset_after=False)
-        check(r['res1'] == 1, f"strsing_compare HELLO==HELLO res1={r['res1']}")
+        r = call_subroutine_stack(game, 'string_compare', s1_addr, s2_addr, returns=0, json_path=json_img, reset_after=False)
+        check(r['A'] == 1, f"string_compare HELLO==HELLO A={r['A']}")
         write_c_string(s2_addr, "WORLD")
-        r = call_subroutine(game, 'string_compare', arg1=s1_addr, arg2=s2_addr, json_path=json_img, reset_after=False)
-        check(r['res1'] == 0, f"string_compare HELLO!=WORLD res1={r['res1']}")
+        r = call_subroutine_stack(game, 'string_compare', s1_addr, s2_addr, returns=0, json_path=json_img, reset_after=False)
+        check(r['A'] == 0, f"string_compare HELLO!=WORLD A={r['A']}")
 
         # get_mnemonic: lookups
         def test_getmnen(text, expect):
             base = 61128
             write_c_string(base, text)
-            r = call_subroutine(game, 'get_mnemonic', arg1=base, json_path=json_img, reset_after=False)
+            r = call_subroutine_stack(game, 'get_mnemonic', base, json_path=json_img, reset_after=False)
             if expect is None:
-                check(r['res1'] == 0, f"get_mnemonic('{text}') -> 0 res1={r['res1']}")
+                check(r['A'] == 0, f"get_mnemonic('{text}') -> 0 A={r['A']}")
             else:
-                check(r['A'] == expect and r['res1'] == expect, f"get_mnemonic('{text}') -> {expect} A={r['A']} res1={r['res1']}")
+                check(r['A'] == expect, f"get_mnemonic('{text}') -> {expect} A={r['A']}")
 
         test_getmnen('LDA', 1)
         test_getmnen('JSR', 16)

@@ -1,0 +1,33 @@
+;! name: PRINTEZ
+;! entry: printez
+;! deps: print
+;! abi: os
+;! bss: auto
+;! align: 4
+
+; Prints the string at the given input_string_pointer, until null, followed by a newline.
+; Convenience wrapper around print() with max_length=0 (print until null) and skip_newline=0.
+
+; Call signature: print(SP - 2) = print(input_string_pointer)
+; Inputs:
+;   Stack Pointer - 2 = pointer to input string
+; Returns: A = number of characters printed
+
+input_string_pointer = .bss + 0
+
+print:
+  PLA                       ; get return address from stack
+  MOVAB                     ; move return address to B for now
+  PLA                       ; get pointer to input string from stack
+  STA .input_string_pointer ; store input string pointer in .input_string_pointer
+  MOVBA                     ; move return address back to A
+  PHA                       ; push it back to stack
+
+  LDA .input_string_pointer
+  PHA                       ; push input string pointer
+  LDI 0                     ; load skip_newline = 0 and max_length = 0 (print until null)
+  PHA                       ; push skip_newline
+  PHA                       ; push max_length
+  JSR @print
+  ; result (chars printed) in A
+  RET

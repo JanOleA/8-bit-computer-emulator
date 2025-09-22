@@ -4,6 +4,15 @@
 The Mini32 language is described in docs/mini32_language.md.  This script parses the
 structured source, allocates BSS storage, and emits assembly compatible with
 `tools/compile_routines.py`.
+
+The code generator performs a lightweight peephole optimization pass on the
+final assembly to remove a few common redundant instruction patterns produced
+by straightforward code emission. Current optimizations (conservative):
+    - STA X; LDA X  -> drop the redundant LDA (A already holds value)
+    - STA .__tmp_addr; LPA .__tmp_addr -> replace second with LAP
+    - LDI 0; ADI n -> LDI n (constant fold)
+    - ADI 0 / SUI 0 -> removed
+The pass is textual and order preserving; if in doubt it leaves code unchanged.
 """
 
 from __future__ import annotations
@@ -514,14 +523,11 @@ class Mini32Parser:
         if m_eq:
             left = m_eq.group(1).strip()
             right = m_eq.group(2).strip()
-            # For equality, we translate to (left - right) but mark invert=True
-            # so the codegen will invert the JPZ/ JNZ branch direction.
             condition = self._parse_expression(f"{left} - {right}", lineno)
             invert_flag = True
         elif m_neq:
             left = m_neq.group(1).strip()
             right = m_neq.group(2).strip()
-            # For inequality, (left - right) semantics work with default branching
             condition = self._parse_expression(f"{left} - {right}", lineno)
             invert_flag = False
         else:
@@ -551,7 +557,6 @@ class Mini32Parser:
         if m_eq:
             left = m_eq.group(1).strip()
             right = m_eq.group(2).strip()
-            # Keep same translation as in _parse_if (no extra parentheses)
             condition = self._parse_expression(f"{left} - {right}", lineno)
             invert_flag = True
         elif m_neq:
@@ -861,7 +866,9 @@ class CodeGenerator:
         self.current_function = None
         if self.lines and self.lines[-1] != "":
             self.lines.append("")
-        return "\n".join(self.lines)
+        # Apply a peephole optimization pass before returning
+        optimized = self._peephole_optimize(self.lines)
+        return "\n".join(optimized)
 
     def _emit_headers(self) -> None:
         meta_items = self.program.meta.copy()
@@ -933,17 +940,82 @@ class CodeGenerator:
                 raise Mini32Error(f"Unhandled statement type: {stmt}")
 
     def _emit_let(self, stmt: LetStmt) -> None:
-        if stmt.op == "=":
-            self._emit_expression(stmt.expr)
-        elif stmt.op == "+=":
-            self._emit(f"LDA {stmt.target.address_expr()}")
-            self._emit_expression(stmt.expr, initial_loaded=True)
-        elif stmt.op == "-=":
-            self._emit(f"LDA {stmt.target.address_expr()}")
-            self._emit_expression(stmt.expr.negated(), initial_loaded=True)
-        else:
-            raise Mini32Error(f"Unsupported let operation {stmt.op}")
-        self._emit(f"STA {stmt.target.address_expr()}")
+        # Support direct variable/array element assignment. If target has a dynamic
+        # offset expression (contains non-digit / plus/minus) we must compute the
+        # effective address and use SAS to store.
+        addr_expr = stmt.target.address_expr()
+        dynamic_index = ('+' in addr_expr) or any(ch.isalpha() for ch in addr_expr.split() if ch not in {'.', '+'})
+
+        if not dynamic_index:
+            # Simple static addressable store.
+            if stmt.op == "=":
+                self._emit_expression(stmt.expr)
+            elif stmt.op == "+=":
+                self._emit(f"LDA {addr_expr}")
+                self._emit_expression(stmt.expr, initial_loaded=True)
+            elif stmt.op == "-=":
+                self._emit(f"LDA {addr_expr}")
+                self._emit_expression(stmt.expr.negated(), initial_loaded=True)
+            else:
+                raise Mini32Error(f"Unsupported let operation {stmt.op}")
+            self._emit(f"STA {addr_expr}")
+            return
+
+        # Dynamic index path: we do not yet support += / -= directly on dynamic
+        # indices without an additional load (load current value, adjust, store).
+        # Implement both forms.
+        if stmt.op in {"+=", "-="}:
+            # Load current value first via existing address computation.
+            # Strategy: compute address into __tmp_addr then LPA -> value.
+            self._emit_indexed_store_address_setup(stmt)
+            self._emit("LPA .__tmp_addr")
+            if stmt.op == "+=":
+                self._emit_expression(stmt.expr, initial_loaded=True)
+            else:  # -=
+                self._emit_expression(stmt.expr.negated(), initial_loaded=True)
+            # A now holds result to store.
+            self._emit("STA .__tmp_base")  # save value
+            self._emit("LDA .__tmp_addr")  # reload address
+            self._emit("PHA")
+            self._emit("LDA .__tmp_base")
+            self._emit("SAS")
+            return
+
+        # '=' dynamic index assignment.
+        self._emit_expression(stmt.expr)
+        # Save value.
+        self._emit("STA .__tmp_base")
+        # Compute address into __tmp_addr
+        self._emit_indexed_store_address_setup(stmt)
+        # Push address and restore value for SAS store.
+        self._emit("LDA .__tmp_addr")
+        self._emit("PHA")
+        self._emit("LDA .__tmp_base")
+        self._emit("SAS")
+
+    def _emit_indexed_store_address_setup(self, stmt: LetStmt) -> None:
+        """Compute effective address for a dynamic indexed store into .__tmp_addr.
+
+        The target.address_expr() returns patterns like '.arr + i' or '.ptr + idx'.
+        We evaluate the offset expression part and add base.
+        Assumptions: Only '+' separated base + offset; offset expression limited
+        to + / - of symbols and literals. Reuse _emit_compute_simple_expression.
+        """
+        addr_expr = stmt.target.address_expr()
+        # Split at the first '+' into base and offset (base starts with '.').
+        if '+' not in addr_expr:
+            # Should not happen for dynamic path; fall back to direct store.
+            self._emit(f"LDA {addr_expr}")
+            self._emit("STA .__tmp_addr")
+            return
+        base_part, offset_part = addr_expr.split('+', 1)
+        base_part = base_part.strip()
+        offset_part = offset_part.strip()
+        # Compute offset expression into A
+        self._emit_compute_simple_expression(offset_part)
+        # Add base address
+        self._emit(f"ADD {base_part}")
+        self._emit("STA .__tmp_addr")
 
     def _emit_call(self, stmt: CallStmt) -> None:
         """  """
@@ -1013,11 +1085,7 @@ class CodeGenerator:
         end_label = self._next_label(func_name, "ENDIF")
         else_label = self._next_label(func_name, "ELSE") if stmt.else_body else end_label
         self._emit_expression(stmt.condition)
-        # LDA and arithmetic instructions may not set the CPU flags as
-        # expected for conditional branches, so compare against zero to
-        # set flags (zero/negative) for JPZ/JPC/etc. For equality tests we
-        # mark stmt.invert and flip the jump opcode so zero is treated as
-        # true.
+        # Original equality-only logic
         self._emit("CPI 0")
         jump_op = "JPZ" if not getattr(stmt, "invert", False) else "JNZ"
         self._emit(f"{jump_op} {else_label}")
@@ -1036,9 +1104,6 @@ class CodeGenerator:
         end_label = self._next_label(func_name, "WHILE_END")
         self.lines.append(f"{start_label}:")
         self._emit_expression(stmt.condition)
-        # Ensure flags are set for the conditional jump. If the condition
-        # was parsed as an equality (invert=True) then flip the jump so
-        # zero is treated as true.
         self._emit("CPI 0")
         jump_op = "JPZ" if not getattr(stmt, "invert", False) else "JNZ"
         self._emit(f"{jump_op} {end_label}")
@@ -1322,6 +1387,96 @@ class CodeGenerator:
     def _next_label(self, func_name: str, hint: str) -> str:
         self.label_counter += 1
         return f"{func_name.upper()}__{hint}_{self.label_counter}"
+
+    # --- Peephole Optimization -------------------------------------------------
+    def _peephole_optimize(self, lines: List[str]) -> List[str]:
+        """Perform local peephole optimizations on the emitted assembly.
+
+        Patterns implemented (conservative, order preserving):
+          1. Redundant reload after store:
+                STA <addr>; LDA <addr>  -->  STA <addr>
+             (Only when no label or blank between and <addr> textual match.)
+          2. Store then indirect load via temp address:
+                STA .__tmp_addr; LPA .__tmp_addr  -->  STA .__tmp_addr; LAP
+             Rationale: LAP already performs stack push of address + load.
+          3. Neutral arithmetic removal:
+                ADI 0 / SUI 0  --> (removed)
+          4. Combine immediate zero + add immediate:
+                LDI 0; ADI n  --> LDI n
+             (n integer literal)
+          5. Remove add/sub zero on memory:
+                ADD <addr> where <addr> is a constant zero symbol not currently tracked is skipped (not applied now to avoid risk).
+
+        Additional patterns can be appended easily; we keep this pass simple
+        and purely textual with minimal regex to avoid altering semantics.
+        """
+        optimized: List[str] = []
+        i = 0
+        # Precompile regexes
+        r_sta = re.compile(r"^\s*STA\s+(.+?)\s*(;.*)?$")
+        r_lda = re.compile(r"^\s*LDA\s+(.+?)\s*(;.*)?$")
+        r_lpa = re.compile(r"^\s*LPA\s+(.+?)\s*(;.*)?$")
+        r_adi = re.compile(r"^\s*ADI\s+(-?\d+)\s*(;.*)?$")
+        r_sui = re.compile(r"^\s*SUI\s+(-?\d+)\s*(;.*)?$")
+        r_ldi = re.compile(r"^\s*LDI\s+(-?\d+)\s*(;.*)?$")
+        while i < len(lines):
+            line = lines[i]
+            stripped = line.strip()
+            # Skip empty lines or labels (ending with ':') unchanged
+            if not stripped or stripped.endswith(":") or stripped.startswith(";!") or stripped.startswith(";"):
+                optimized.append(line)
+                i += 1
+                continue
+
+            # Pattern 1: STA X followed immediately by LDA X
+            m_sta = r_sta.match(line)
+            if m_sta and i + 1 < len(lines):
+                next_line = lines[i + 1]
+                m_lda = r_lda.match(next_line)
+                if m_lda and m_lda.group(1) == m_sta.group(1):
+                    # Drop the LDA (comment if any retained via appended comment)
+                    optimized.append(line)  # keep STA
+                    # Optionally we could merge comments; for simplicity discard redundant LDA line
+                    i += 2
+                    continue
+
+            # Pattern 2: STA .__tmp_addr; LPA .__tmp_addr -> STA .__tmp_addr; LAP
+            if m_sta and m_sta.group(1).strip() == ".__tmp_addr" and i + 1 < len(lines):
+                next_line = lines[i + 1]
+                m_lpa = r_lpa.match(next_line)
+                if m_lpa and m_lpa.group(1).strip() == ".__tmp_addr":
+                    # Replace next line with LAP (preserve any trailing comment after LPA)
+                    comment = next_line.split(";", 1)[1] if ";" in next_line else ""
+                    optimized.append(line)
+                    lap_line = "  LAP" + (" ;" + comment if comment else "")
+                    optimized.append(lap_line.rstrip())
+                    i += 2
+                    continue
+
+            # Pattern 4: LDI 0 ; ADI n -> LDI n
+            m_ldi = r_ldi.match(line)
+            if m_ldi and m_ldi.group(1) == '0' and i + 1 < len(lines):
+                m_adi_next = r_adi.match(lines[i + 1])
+                if m_adi_next:
+                    n_val = m_adi_next.group(1)
+                    optimized.append(re.sub(r"LDI\s+0", f"LDI {n_val}", line))
+                    i += 2
+                    continue
+
+            # Pattern 3: Remove ADI 0 / SUI 0
+            m_adi = r_adi.match(line)
+            if m_adi and m_adi.group(1) == '0':
+                i += 1
+                continue
+            m_sui = r_sui.match(line)
+            if m_sui and m_sui.group(1) == '0':
+                i += 1
+                continue
+
+            optimized.append(line)
+            i += 1
+
+        return optimized
 
 
 def compile_text(text: str, source_name: str = "<string>") -> str:

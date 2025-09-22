@@ -1,6 +1,6 @@
 ;! name: OSINFO
 ;! entry: osinfo
-;! deps: newline, echon, display_number, divide, write_char
+;! deps: newline, print, printez, display_number, divide, write_char
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -229,18 +229,15 @@ end_wc_loop:
   RET
 
 print_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
-  STA .arg2
-  JSR @echon
+  PHA
+  JSR @printez
   RET
 
 print_no_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
+  PHA
   LDI 1
-  STA .arg2
-  JSR @echon
+  PHA
+  LDI 0
+  PHA
+  JSR @print
   RET

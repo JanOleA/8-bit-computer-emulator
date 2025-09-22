@@ -1,6 +1,6 @@
 ;! name: COMPILE
 ;! entry: compile_start
-;! deps: parse_number, display_number, newline, skip_line, echon, get_os_abi_var, get_mnemonic, get_program_address
+;! deps: parse_number, display_number, newline, skip_line, print, printez, get_os_abi_var, get_mnemonic, get_program_address
 ;! abi: os
 ;! bss: auto
 ;! align: 4
@@ -63,20 +63,17 @@ compile_init:
 
 ; -- print helpers, null terminated. Pointer to text must be in A register --
 print_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
-  STA .arg2
-  JSR @echon
+  PHA
+  JSR @printez
   RET
 
 print_no_newline:
-  STA .arg1
-  LDI 0
-  STA .num_digits
+  PHA
   LDI 1
-  STA .arg2
-  JSR @echon
+  PHA
+  LDI 0
+  PHA
+  JSR @print
   RET
 
 
