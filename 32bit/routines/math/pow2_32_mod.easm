@@ -1,14 +1,15 @@
 ;! name: POW232
 ;! entry: pow2_32_mod
 ;! deps:
-;! abi: args
+;! abi:
 ;! bss: auto
 ;! align: 4
 
-; Compute 2^32 mod .arg1. Returns A.
-; Locals:
-;   .bss = mod
-;   .bss+1 = r
+; Call signature: pow2_32_mod(SP - 2) = pow2_32_mod(input_mod)
+; Inputs:
+;   Stack Pointer - 2 = input_mod
+; Returns: A = (2^32) % input_mod
+; Compute 2^32 % input_mod. Returns result in A.
 
 mod =     bss + 0
 r =       bss + 1

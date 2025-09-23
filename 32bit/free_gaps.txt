@@ -49,10 +49,10 @@
 26145,26176,31 ; between emu_data and esh_data
 26227,26256,29 ; between esh_data and getmnemonicn_data
 26530,26560,30 ; between getmnemonicn_data and osabi_data
-26891,26912,21 ; between osabi_data and help_data
-28581,28608,27 ; between help_data and hexdump_data
-28625,28656,31 ; between hexdump_data and list_data
-28683,28704,21 ; between list_data and osinfo_data
-29039,29056,17 ; between osinfo_data and ted_data
-29111,29136,25 ; between ted_data and testmem_data
-29184,29200,16 ; between testmem_data and tetris_data
+26928,26944,16 ; between osabi_data and help_data
+28613,28640,27 ; between help_data and hexdump_data
+28657,28688,31 ; between hexdump_data and list_data
+28715,28736,21 ; between list_data and osinfo_data
+29071,29088,17 ; between osinfo_data and ted_data
+29143,29168,25 ; between ted_data and testmem_data
+29216,29232,16 ; between testmem_data and tetris_data

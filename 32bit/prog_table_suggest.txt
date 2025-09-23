@@ -19,17 +19,17 @@ Entries (NAME → BASE, SIZE, BSS, DATA):
   FILLMEM          → 9468 (len 69)  BSS 22567+3  DATA —
   GCD              → 9540 (len 41)  BSS 22570+2  DATA —
   GETMNEMONICN     → 9584 (len 16)  BSS 22572+2  DATA 26256+274
-  OSABI            → 9600 (len 16)  BSS 22574+2  DATA 26560+331
+  OSABI            → 9600 (len 16)  BSS 22574+2  DATA 26560+368
   GETPROGADDR      → 9616 (len 54)  BSS 22576+3  DATA —
-  HELP             → 9672 (len 97)  BSS 22579+3  DATA 26912+1669
-  HEXDUMP          → 9772 (len 410)  BSS 22582+7  DATA 28608+17
-  LIST             → 10184 (len 154)  BSS 22589+3  DATA 28656+27
+  HELP             → 9672 (len 97)  BSS 22579+3  DATA 26944+1669
+  HEXDUMP          → 9772 (len 410)  BSS 22582+7  DATA 28640+17
+  LIST             → 10184 (len 154)  BSS 22589+3  DATA 28688+27
   MEMEDIT          → 10340 (len 413)  BSS 22592+7  DATA —
   MODMUL           → 10756 (len 92)  BSS 22599+4  DATA —
   MULTIPLY         → 10848 (len 47)  BSS 22603+5  DATA —
   NEWLINE          → 10896 (len 5)  BSS —  DATA —
   OFF              → 10904 (len 9)  BSS —  DATA —
-  OSINFO           → 10916 (len 364)  BSS 22608+12  DATA 28704+335
+  OSINFO           → 10916 (len 364)  BSS 22608+12  DATA 28736+335
   PARSENUM         → 11280 (len 57)  BSS 22620+4  DATA —
   PEEK             → 11340 (len 61)  BSS —  DATA —
   POKE             → 11404 (len 108)  BSS —  DATA —
@@ -46,13 +46,13 @@ Entries (NAME → BASE, SIZE, BSS, DATA):
   SPLIT            → 12200 (len 83)  BSS 22659+166  DATA —
   SQRT             → 12284 (len 57)  BSS 22825+4  DATA —
   STRCOMPARE       → 12344 (len 46)  BSS 22829+3  DATA —
-  TED              → 12392 (len 1093)  BSS 22832+13  DATA 29056+55
+  TED              → 12392 (len 1093)  BSS 22832+13  DATA 29088+55
   TGETMNEMONIC     → 13488 (len 18)  BSS —  DATA —
   TGETOSVAR        → 13508 (len 18)  BSS —  DATA —
   TGETPROG         → 13528 (len 21)  BSS —  DATA —
   TESTLSA          → 13552 (len 9)  BSS —  DATA —
-  TESTMEM          → 13564 (len 214)  BSS 22845+6  DATA 29136+48
-  TETRIS           → 13780 (len 2285)  BSS 22851+262  DATA 29200+620
+  TESTMEM          → 13564 (len 214)  BSS 22845+6  DATA 29168+48
+  TETRIS           → 13780 (len 2285)  BSS 22851+262  DATA 29232+620
   TOGGLEDIS        → 16068 (len 7)  BSS —  DATA —
   WAIT100          → 16076 (len 7)  BSS —  DATA —
   WAIT1600         → 16084 (len 20)  BSS —  DATA —
