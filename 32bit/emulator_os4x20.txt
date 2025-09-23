@@ -26,8 +26,8 @@ bits_checker = 2599
 screen_width = 2603        ; screen width in characters
 screen_height = 2604       ; screen height in characters
 
-2603 = 40
-2604 = 20
+2603 = 20
+2604 = 4
 
 text = 2020     ; 16 bytes
 text2 = 2036    ; 16 bytes
