@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; --- Compile ascii text to executable bytes ---
 ; - Two pass compiler. Pass 1: consts and labels. Pass 2: compile to executable -

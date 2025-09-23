@@ -1,9 +1,10 @@
 ;! name: OSINFO
 ;! entry: osinfo
 ;! deps: newline, print, printez, display_number, divide, write_char
-;! abi: all
+;! abi: all sysinfo
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 .linechar = "-"
 .version =                 "EShell (ESH) 25.9.3a"
@@ -17,6 +18,7 @@
 .installed_progs_text_2 =  "Words used for programs (k): "
 .bss_text =                "Words reserved for BSS (k) : "
 .data_text =               "Words reserved for data (k): "
+.end_data_text =           "Data region ends at word   : "
 
 .help_text = "Type HELP for a list of commands"
 .list_text = "Type LIST for a list of all installed"
@@ -85,6 +87,14 @@ osinfo:
   STA .bss + 11
   JSR print_decimal
   JSR @newline
+  LDI .end_data_text
+  JSR print_no_newline
+  LDA .bss + 14                   ; end of data region
+  STA .reserved_region_end
+  PHA
+  JSR @display_number
+  JSR @newline
+  JSR write_40_dash
   LDI .help_text
   JSR print_newline
   LDI .list_text
@@ -120,7 +130,10 @@ get_num_progs:
   STA .bss + 7  ; decimal for words used for programs
   STA .bss + 8  ; decimal for words used for BSS
   STA .bss + 9  ; decimal for words used for data
-  STA .bss + 11 ; base of final program
+  STA .bss + 12 ; base of final program
+  STA .bss + 13 ; data base of final program
+  STA .bss + 14 ; size of final program's data
+  STA .bss + 15 ; tmp for data used for current program
 check_prog_loop:
   LDI .prog_table
   ADD .bss + 1
@@ -136,7 +149,7 @@ check_prog_loop:
   STA .bss + 1
   ADI .prog_table
   LAP                 ; get base for this program
-  STA .bss + 11
+  STA .bss + 12
 
   LDA .bss + 1
   ADI 1               ; increment word step by 17 (17 total)
@@ -154,21 +167,36 @@ check_prog_loop:
   STA .bss + 4        ; store it again
 
   LDA .bss + 1
-  ADI 2              ; increment word step by 2 (21 total)
+  ADI 1               ; increment word step by 1 (20 total)
+  STA .bss + 1
+  ADI .prog_table
+  LAP                 ; get data base for this program (not used)
+  STA .bss + 13       ; store it
+
+  LDA .bss + 1
+  ADI 1               ; increment word step by 1 (21 total)
   STA .bss + 1
   ADI .prog_table
   LAP                 ; get data words reserved for this program
+  STA .bss + 15       ; store it temporarily
   ADD .bss + 5        ; add current sum
   ADI 8               ; add 8 to compensate for the average gap between data regions
   STA .bss + 5        ; store it again
 
+  LDA .bss + 15
+  CPI 0
+  JPZ skip_data_end
+  ADD .bss + 13       ; add data base to get end of data region
+  STA .bss + 14       ; store it
+skip_data_end:
+
   LDA .bss + 1
-  ADI 1               ; increment word step by 1 (22 total)
+  ADI 11              ; increment word step by 11 (32 total)
   STA .bss + 1
 
   JMP check_prog_loop
 get_n_progs_end:
-  LDA .bss + 11       ; base of final program
+  LDA .bss + 12       ; base of final program
   ADD .bss + 3        ; size of final program
   SUB .bss + 10       ; base of first program
   STA .arg1

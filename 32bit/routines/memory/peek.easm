@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: none
 ;! align: 4
+;! callable: yes
 
 peek:
   ; argc at [argv_base]

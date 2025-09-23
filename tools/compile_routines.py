@@ -197,6 +197,7 @@ def assemble_dynamic_module(src_path: str,
             "screen_width = 2603",
             "screen_height = 2604",
             "prog_table = 3000",
+            "reserved_region_end = 2605"
         ]
 
     # BSS injection with size/overlap checks
@@ -314,6 +315,9 @@ def assemble_dynamic_module(src_path: str,
         if not (new_end <= s or new_start >= e):
             raise ValueError(f"Overlap: {src_path.name} [{new_start},{new_end}) conflicts with [{s},{e})")
 
+    # Callable flag: whether module is directly invokable from terminal (shell)
+    callable_flag = 1 if headers.get("callable", "").lower() in ("1", "yes", "true", "y", "on") else 0
+
     mod = {
         "base": base_addr,
         "length": len(code),
@@ -321,6 +325,7 @@ def assemble_dynamic_module(src_path: str,
         "deps": {d: known_symbols.get(d) for d in deps if d in known_symbols},
         "entry": entry,
         "externs": [{"code_index": ci, "symbol": sym} for ci, sym in zip(jsr_zero_code_indexes, extern_calls)],
+        "callable": callable_flag,
     }
     if bss_info is not None:
         mod["bss"] = {"base": bss_info[0], "size": bss_info[1]}
@@ -482,8 +487,17 @@ def main():
     except Exception:
         pass
 
-    # Compose extended program table bytes per entry:
-    #   name[16], base, length, bss_base|0, bss_size|0, data_base|0, data_size|0
+    # Compose extended program table bytes per entry (32 words total):
+    # Layout (indices):
+    #   0..15  : NAME (uppercase, null padded)
+    #   16     : BASE
+    #   17     : LENGTH (code words)
+    #   18     : BSS_BASE (0 if none)
+    #   19     : BSS_SIZE (0 if none)
+    #   20     : DATA_BASE (0 if none)
+    #   21     : DATA_SIZE (0 if none)
+    #   22..31 : FLAGS[10] (flag0=callable, remaining reserved/future)
+    # Row stride is now 32.
     entries = [kv for kv in sorted(data.items(), key=lambda kv: int(kv[1].get("base", 0))) if isinstance(kv[1], dict) and "base" in kv[1] and "entry" in kv[1]]
     # Fast lookup for data modules (name_data)
     data_mods = {k: v for k, v in data.items() if isinstance(v, dict) and k.lower().endswith("_data")}
@@ -512,6 +526,10 @@ def main():
             dbase = 0
             dsize = 0
         table_words.extend([base, length, bbase, bsize, dbase, dsize])
+        # Flags area (10 words). flag0 = callable
+        callable_flag = int(mod.get("callable", 0)) & 0xFFFF
+        flags = [callable_flag] + [0]*9
+        table_words.extend(flags)
     # Sentinel: a single zero at the next name[0]
     table_words.append(0)
     data["program_table"] = {"base": pt_base, "length": len(table_words), "words": table_words}
@@ -543,7 +561,8 @@ def main():
     # Emit a human-readable overview (optional legacy helper)
     overview_lines = [
         f"Program table base: {pt_base}",
-        "Entries (NAME → BASE, SIZE, BSS, DATA):",
+        "Row stride: 32 words (name16 + meta 6 + flags10)",
+        "Entries (NAME → BASE, SIZE, BSS, DATA, CALLABLE):",
     ]
     for name, mod in entries:
         b = int(mod.get('base', 0))
@@ -557,7 +576,8 @@ def main():
         data_s = '—'
         if isinstance(dv, dict):
             data_s = f"{int(dv.get('base',0))}+{int(dv.get('length',0))}"
-        overview_lines.append(f"  {str(name).upper():16} → {b} (len {l})  BSS {bss_s}  DATA {data_s}")
+        callable_flag = int(data[name].get('callable', 0))
+        overview_lines.append(f"  {str(name).upper():16} → {b:5d} (len {l:4d})  BSS {bss_s:10s}  DATA {data_s:10s}  CALL {callable_flag:1d}")
     suggest_path = Path(__file__).parent.parent / "32bit" / "prog_table_suggest.txt"
     suggest_path.write_text("\n".join(overview_lines) + "\n")
     print("\nProgram table overview (written to 32bit/prog_table_suggest.txt):\n")

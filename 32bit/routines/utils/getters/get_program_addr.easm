@@ -5,6 +5,9 @@
 ;! bss: auto
 ;! align: 4
 
+; Program table row layout (32 words stride): base still at +16.
+; Flags present at +22..+31 (flag0 = callable) but not used here.
+
 
 ; --- Get the address of a program from the program table, based on its name ---
 ; --- Pointer to name as input in .arg1, result is a number in .res1, null if not found ---
@@ -32,17 +35,23 @@ compare_loop:
   JPZ match
   ; -- no match --
   LDA .bss + 1
-  ADI 22                ; forward by 22
+  ADI 32                ; forward by 32 (new program table row stride)
   STA .bss + 1
   JMP compare_loop
 match:
   LDI .prog_table
   ADD .bss + 1          ; location of string in program table
-  ADI 16                ; location of base in program table
+  ADI 22                ; location of flags 
+  LAP                   ; get stored "callable" flag from the pointer
+  STA .res2
+  LDI .prog_table
+  ADD .bss + 1          ; location of string in program table
+  ADI 16                ; location of base (unchanged: base field still at index 16 within 32-word row)
   LAP                   ; get stored base from the pointer
   STA .res1
   RET
 no_match:
   LDI 0
   STA .res1
+  STA .res2
   RET

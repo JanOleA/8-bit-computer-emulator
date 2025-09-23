@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; --- Text EDitor. First argument is memory address of start of text file. ---
 

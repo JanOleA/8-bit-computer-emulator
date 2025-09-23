@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; Interactive memory editor
 ; Usage: MEMEDIT <start_addr>

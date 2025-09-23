@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; Items, separated by backslash ("\"). Kept in a single auto-data string.
 .separator = "\"

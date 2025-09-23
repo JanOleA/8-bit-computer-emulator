@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; BSS layout (relative to auto `.bss` base)
 ;   +0    key value / status flag
@@ -33,6 +34,7 @@ hist_max    = 40      ; max number of history entries
 
 .cmd_error_message = "Unknown command: "
 .cmd_error_message_2 = "Type HELP for a list of commands"
+.cmd_error_message_3 = "Program not callable from shell"
 
 start:
   JSR @osinfo
@@ -306,6 +308,9 @@ dispatch_program:
   STA .bss + 1619           ; store resolved program entry
   CPI 0
   JPZ dp_nomatch
+  LDA .res2
+  CPI 0
+  JPZ dp_not_callable
   
 dp_match:
   LDA .bss + 1608
@@ -333,6 +338,10 @@ dp_nomatch:
   LDI .cmd_error_message
   JSR print_no_newline
   LDI .input_buf
+  JSR print_newline
+  JMP err_help
+dp_not_callable:
+  LDI .cmd_error_message_3
   JSR print_newline
 err_help:
   LDI .cmd_error_message_2

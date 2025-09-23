@@ -4,6 +4,7 @@
 ;! abi: none
 ;! bss: none
 ;! align: 4
+;! callable: yes
 
 ; Turn everything off: clear display, disable cursor/blink, then halt.
 ; Uses direct LCD control instructions (no OS ABI).

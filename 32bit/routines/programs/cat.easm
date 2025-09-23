@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; --- Print the contents of memory as text, until first null terminator. \ (ASCII 92) as well as certain special values works as escape character. ---
 ; -- escape characters overview

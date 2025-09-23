@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; DUMP <addr> <nwords>
 ; Prints decimal words from memory starting at <addr>,

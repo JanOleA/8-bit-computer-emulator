@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; Copy memory safely handling overlap.
 ; Inputs (OS ABI):

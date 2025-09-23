@@ -4,6 +4,7 @@
 ;! abi: none
 ;! bss: none
 ;! align: 4
+;! callable: yes
 
 ; Clear the LCD monitor: send clear-display instruction
 main:

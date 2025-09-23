@@ -4,6 +4,18 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
+
+; Program table row layout (32 words total):
+;   0..15  NAME (uppercase, null padded)
+;   16     BASE address
+;   17     LENGTH (code words)
+;   18     BSS_BASE (0 if none)
+;   19     BSS_SIZE
+;   20     DATA_BASE (0 if none)
+;   21     DATA_SIZE
+;   22..31 FLAGS (flag0 = callable-from-shell, others reserved)
+; Stride = 32 words
 
 .more_text = "              --- more ---"
 
@@ -95,7 +107,7 @@ lc_key_ok:
   STA .bss + 2
 lc_advance:
   LDA .bss + 1
-  ADI 22
+  ADI 32                ; forward by 32 (new program table row stride)
   STA .bss + 1
   JMP lc_next
 lc_end:

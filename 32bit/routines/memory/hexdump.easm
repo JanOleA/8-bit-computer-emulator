@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; HEXDUMP <addr> <nwords>
 ; Dynamic formatting based on OS ABI symbol .bits_avail:

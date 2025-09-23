@@ -4,6 +4,7 @@
 ;! abi: all
 ;! bss: auto
 ;! align: 4
+;! callable: yes
 
 ; Fill memory range with a value.
 ; Inputs (OS ABI):
