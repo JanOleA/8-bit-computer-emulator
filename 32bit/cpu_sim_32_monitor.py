@@ -39,7 +39,8 @@ class Game_32(Game):
     """ Main control class. Handles rendering, timing control and user input. """
     def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
                  draw_mem = False, draw_ops = False, progload = "program.txt",
-                 LCD_display = True, cpubits = 8, stackbits = 4, json_images=None):
+                 LCD_display = True, cpubits = 8, stackbits = 4, json_images=None,
+                 monitor_columns=40, monitor_rows=20):
         super().__init__(autorun, target_FPS, target_HZ, draw_mem, draw_ops,
                          progload, LCD_display, json_images)
         self.cpubits = cpubits
@@ -47,6 +48,8 @@ class Game_32(Game):
         self._width = 1900
         self._height = 1000
         self._size = (self._width, self._height)
+        self._mon_columns = monitor_columns
+        self._mon_rows = monitor_rows
 
     def setup_fonts(self):
         pygame.font.init()
@@ -265,7 +268,7 @@ class Game_32(Game):
                                       offcolor = self.DARKERGREEN)
 
         self.make_static_graphics()
-        self.LCD_display = Monitor(self._font_small_console_bold2, position = (1210, 25))
+        self.LCD_display = Monitor(self._font_small_console_bold2, position = (1210, 25), columns=self._mon_columns, rows=self._mon_rows)
         self.keyboard_numbers = [0, 0, 0, 0, 0]
         self.keyboard = np.zeros((5, 11))
 
@@ -649,9 +652,12 @@ if __name__ == "__main__":
     parser.add_argument("--cpubits", type=int, default=32, help="CPU word size in bits")
     parser.add_argument("--stackbits", type=int, default=8, help="Stack pointer width in bits")
     parser.add_argument("--json", action="append", default=[], help="Path to JSON image to write into memory (can be repeated)")
+    parser.add_argument("--monitor_columns", type=int, default=40, help="Number of columns in the monitor")
+    parser.add_argument("--monitor_rows", type=int, default=20, help="Number of rows in the monitor")
     args = parser.parse_args()
 
     game = Game_32(True, args.fps, args.hz, progload=args.program, LCD_display=args.lcd,
-                   cpubits=args.cpubits, stackbits=args.stackbits, json_images=args.json)
+                   cpubits=args.cpubits, stackbits=args.stackbits, json_images=args.json,
+                   monitor_columns=args.monitor_columns, monitor_rows=args.monitor_rows)
     game.execute()
     
