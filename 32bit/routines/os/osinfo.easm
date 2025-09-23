@@ -1,6 +1,6 @@
 ;! name: OSINFO
 ;! entry: osinfo
-;! deps: newline, print, printez, display_number, divide, write_char
+;! deps: newline, print, printez, display_number, divide, write_char, multiply
 ;! abi: all sysinfo
 ;! bss: auto
 ;! align: 4
@@ -132,7 +132,7 @@ get_num_progs:
   STA .bss + 9  ; decimal for words used for data
   STA .bss + 12 ; base of final program
   STA .bss + 13 ; data base of final program
-  STA .bss + 14 ; size of final program's data
+  STA .bss + 14 ; end of final program's data region (ceil to nearest 10)
   STA .bss + 15 ; tmp for data used for current program
 check_prog_loop:
   LDI .prog_table
@@ -236,6 +236,19 @@ get_n_progs_end:
   STA .arg2
   JSR @divide
   STA .bss + 9        ; store value after decimal
+
+  LDA .bss + 14
+  ADI 1               ; add one for safety margin
+  STA .arg1
+  LDI 10
+  STA .arg2
+  JSR @divide
+  PHA
+  LDI 10
+  PHA
+  JSR @multiply
+  ADI 10              ; ceil to nearest 10
+  STA .bss + 14
 
   RET
 

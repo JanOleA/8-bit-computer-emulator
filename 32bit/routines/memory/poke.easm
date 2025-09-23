@@ -1,10 +1,15 @@
 ;! name: POKE
 ;! entry: poke
-;! deps:
-;! abi: all
-;! bss: none
+;! deps: printez, parse_number
+;! abi: argv sysinfo
+;! bss: auto
 ;! align: 4
 ;! callable: yes
+
+.reserved_region_text = "Reserved region - poke not allowed!"
+
+address = .bss + 1
+value   = .bss + 2
 
 poke:
   ; argc >= 2?
@@ -13,65 +18,28 @@ poke:
   JPC pk_ok
   RET
 pk_ok:
-  ; parse address from argv[0] -> res1
+  ; parse address from argv[1] -> address
   LDA .argv_base + 1
-  STA .res2
-  LDI 0
-  STA .res1
-pk_paddr:
-  LPA .res2                ; load mem[mem[.res2]] into A
-  CPI 0
-  JPZ pk_paddr_done
-  CPI 32
-  JPZ pk_paddr_done
-  SUI 48
-  STA .char
-  LDA .res1
-  LSA
-  STA .pow2
-  LSA
-  LSA
-  ADD .pow2
-  STA .res1
-  LDA .res1
-  ADD .char
-  STA .res1
-  LDA .res2
-  ADI 1
-  STA .res2
-  JMP pk_paddr
+  PHA
+  JSR @parse_number
+  STA .address
 pk_paddr_done:
-  ; parse value from argv[1] -> arg1
+  ; parse value from argv[2] -> value
   LDA .argv_base + 2
-  STA .res2
-  LDI 0
-  STA .arg1
-pk_pval:
-  LPA .res2                ; load mem[mem[.res2]] into A
-  CPI 0
-  JPZ pk_pval_done
-  CPI 32
-  JPZ pk_pval_done
-  SUI 48
-  STA .char
-  LDA .arg1
-  LSA
-  STA .pow2
-  LSA
-  LSA
-  ADD .pow2
-  STA .arg1
-  LDA .arg1
-  ADD .char
-  STA .arg1
-  LDA .res2
-  ADI 1
-  STA .res2
-  JMP pk_pval
+  PHA
+  JSR @parse_number
+  STA .value
 pk_pval_done:
   ; store: *addr = val
-  LDA .res1
+  LDA .address
+  CMP .reserved_region_end  ; if we carry, we are >= reserved_region_end -> OK
+  JPC pk_ok_reserved        ; prevent poking into reserved region
+  LDI .reserved_region_text
   PHA
-  LDA .arg1
+  JSR @printez
+  RET
+pk_ok_reserved:
+  PHA
+  LDA .value
   SAS
   RET

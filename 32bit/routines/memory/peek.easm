@@ -1,7 +1,7 @@
 ;! name: PEEK
 ;! entry: peek
-;! deps: display_number, newline
-;! abi: all
+;! deps: display_number, newline, parse_number
+;! abi: argv
 ;! bss: none
 ;! align: 4
 ;! callable: yes
@@ -11,37 +11,10 @@ peek:
   LDA .argv_base
   CPI 0
   JPZ pk_end
-  ; load argv[0] pointer at [argv_base+1]
-  LDA .argv_base + 1
-  STA .res2        ; res2 = pointer to string
-  ; parse number in res2 -> res1
-  LDI 0
-  STA .res1
-pk_pn_loop:
-  LPA .res2                ; load mem[mem[.res2]] into A
-  CPI 0
-  JPZ pk_pn_done
-  CPI 32
-  JPZ pk_pn_done
-  SUI 48
-  STA .char
-  LDA .res1
-  LSA
-  STA .pow2
-  LSA
-  LSA
-  ADD .pow2
-  STA .res1
-  LDA .res1
-  ADD .char
-  STA .res1
-  LDA .res2
-  ADI 1
-  STA .res2
-  JMP pk_pn_loop
-pk_pn_done:
-  ; read memory at [res1]
-  LPA .res1                ; load mem[mem[.res1]] into A
+  LDA .argv_base + 1      ; load pointer at [argv_base+1]
+  PHA
+  JSR @parse_number
+  LAP                     ; read number at mem[A]
   PHA
   JSR @display_number
   JSR @newline
