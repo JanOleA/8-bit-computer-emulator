@@ -1,7 +1,7 @@
 ;! name: RUN
 ;! entry: run
-;! deps: parse_number
-;! abi: all
+;! deps: parse_number, printez
+;! abi: argv sysinfo
 ;! bss: auto
 ;! align: 4
 ;! callable: yes
@@ -10,6 +10,8 @@
 
 ; --- RUN: call an absolute address via OS call stub ---
 ; Usage: RUN <addr>
+
+.error_message = " Error: Address invalid/reserved region "
 
 run:
   ; argc must be >= 1
@@ -27,7 +29,11 @@ rn_have_arg:
   LDA .argv_base + 1
   PHA
   JSR @parse_number
-  STA 19997
+  CMP .reserved_region_end
+  JPC rn_ok_addr
+  JMP rn_error                ; address is in reserved region - error
+rn_ok_addr:
+  STA 19997                   ; set CALL_STUB operand to parsed address (still in A)
 
   ; call trampoline at 19996
   JSR #19996
@@ -35,4 +41,10 @@ rn_have_arg:
   ; restore previous operand
   LDA .bss
   STA 19997
+  RET
+
+rn_error:
+  LDI .error_message
+  PHA
+  JSR @printez
   RET

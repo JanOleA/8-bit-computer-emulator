@@ -25,18 +25,40 @@ list_commands:
   LDI 0
   STA .bss + 2
   STA .bss
+  LDI 0
+  STA .flagtmp          ; reuse bss space if defined later (ensure clear)
 lc_next:
   LPA .bss + 1                ; load mem[mem[.bss + 1]] into A
   CPI 0
   JPZ lc_end
   LDA .bss + 1
   STA .res2
+  ; Print flag column first (callable star or space)
+  LDA .bss + 1         ; row start
+  ADI 22               ; flag0 word
+  STA .work1
+  LDA .work1
+  STA .res2            ; pointer for LAP
+  LAP                  ; load flag value
+  CPI 0
+  JPZ lc_flag_first_space
+  LDI 42               ; '*'
+  JSR @write_char
+  JMP lc_flag_first_done
+lc_flag_first_space:
+  LDI 32               ; space
+  JSR @write_char
+lc_flag_first_done:
+  ; reset res2 back to row start for name iteration
+  LDA .bss + 1
+  ADI 0
+  STA .res2
   LDI 0
   STA .num_digits
 lc_printchar:
   LDA .num_digits
   CPI 16
-  JPZ lc_pad
+  JPZ lc_aftercol      ; once 16 name chars done, go to aftercol directly
   LPA .res2                ; load mem[mem[.res2]] into A
   CPI 0
   JPZ lc_pad
@@ -50,7 +72,7 @@ lc_printchar:
   JMP lc_printchar
 lc_pad:
   LDA .num_digits
-  CPI 18
+  CPI 16
   JPZ lc_aftercol
   LDI 32
   JSR @write_char

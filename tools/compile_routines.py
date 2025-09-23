@@ -153,9 +153,7 @@ def assemble_dynamic_module(src_path: str,
 
     # Inject OS ABI if requested
     # keep in sync with emulator_os.txt and get_os_abi_var.easm
-    lines = [
-        "call_from_shell = 2205",
-    ]
+    lines = []
     if "args" in abi or "all" in abi:
         lines += [
             "char = 2000",
@@ -533,6 +531,11 @@ def main():
     # Sentinel: a single zero at the next name[0]
     table_words.append(0)
     data["program_table"] = {"base": pt_base, "length": len(table_words), "words": table_words}
+
+    print(f"\nProgram table at {pt_base}..{pt_base+len(table_words)} ({len(entries)} entries, {len(table_words)} words)")
+
+    if pt_base + len(table_words) > base_cursor:    
+        print(f"Warning: program table at {pt_base}..{pt_base+len(table_words)} exceeds next free base cursor {base_cursor}")
 
     out_path = Path(__file__).parent.parent / "32bit" / "compiled_routines.json"
     # Write JSON with compact lists (inline) but pretty-printed dicts
