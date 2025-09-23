@@ -6,8 +6,10 @@
 ;! align: 4
 
 ; HEXDUMP <addr> <nwords>
-; Prints 32-bit words in hexadecimal, four columns per row,
-; each value right-aligned in 8 characters (space-padded).
+; Dynamic formatting based on OS ABI symbol .bits_avail:
+;   if .bits_avail <= 16  => 16-bit mode: 8 columns, width 4 (space padded)
+;   else                  => 32-bit mode: 4 columns, width 8 (space padded)
+; This lets the same routine adapt to different machine configurations.
 
 ; Data (module-local)
 .hex_map = "0123456789ABCDEF"
@@ -85,6 +87,19 @@ hx_pn2_done:
   LDA .res1
   STA .bss + 1
 
+  ; Determine formatting mode from .bits_avail
+  LDA .bits_avail
+  CPI 17
+  JPC hx_set_32          ; if A >= 17 (carry clear until A < 17?) we branch (Using CPI semantics: carry set if A >= immediate; we want >16 so >=17) -> if A >= 17 jump to 32-bit
+  ; 16-bit mode
+  LDI 0
+  STA .bss + 6           ; mode = 0 (16-bit)
+  JMP hx_mode_done
+hx_set_32:
+  LDI 1
+  STA .bss + 6           ; mode = 1 (32-bit)
+hx_mode_done:
+
   ; init column counter
   LDI 0
   STA .bss + 2
@@ -94,11 +109,18 @@ hx_loop:
   CPI 0
   JPZ hx_end
 
-  ; read word at [addr] into A
+  ; read word at [addr] into A (cell interpreted per mode)
   LPA .addr                ; load mem[mem[.addr]] into A
   STA .arg1           ; keep a copy if needed
-  ; print 8 hex digits from A
+  ; conditional print based on mode
+  LDA .bss + 6
+  CPI 0
+  JPZ hx_do16
   JSR print_hex8
+  JMP hx_after_print
+hx_do16:
+  JSR print_hex4
+hx_after_print:
 
   ; advance
   LDA .addr
@@ -108,12 +130,24 @@ hx_loop:
   SUI 1
   STA .bss + 1
 
-  ; column handling: 4 per row
+  ; column handling depends on mode
   LDA .bss + 2
   ADI 1
   STA .bss + 2
+  LDA .bss + 6
+  CPI 0
+  JPZ hx_chk16cols
+  ; 32-bit mode: 4 columns
+  LDA .bss + 2
   CPI 4
   JPZ hx_newline
+  JMP hx_space
+hx_chk16cols:
+  ; 16-bit mode: 8 columns
+  LDA .bss + 2
+  CPI 8
+  JPZ hx_newline
+hx_space:
   ; else space and continue
   LDI 32
   JSR @write_char
@@ -129,9 +163,9 @@ hx_end:
   JSR @newline
   RET
 
-; Prints .arg1 as up to 8 hex digits (most significant first),
-; space-padded on the left to width 8
-print_hex8:
+; Prints .arg1 as up to 4 hex digits (most significant first),
+; space-padded on the left to width 4
+print_hex4:
   ; Capture the input word from .arg1 into a local temp (.bss + 4)
   ; Caller stored the memory word into .arg1 before calling us.
   LDA .arg1
@@ -178,8 +212,8 @@ ph_zero:
   STA .bss + 3
   JMP ph_pad
 ph_pad:
-  ; Emit spaces to left-pad to width 8: pad = 8 - digits
-  LDI 8
+  ; Emit spaces to left-pad to width 4: pad = 4 - digits
+  LDI 4
   SUB .bss + 3
   STA .bss + 5        ; pad count
 ph_pad_loop:
@@ -202,4 +236,69 @@ ph_print:
   JPZ ph_done
   JMP ph_print
 ph_done:
+  RET
+
+; Prints .arg1 as up to 8 hex digits (most significant first),
+; space-padded on the left to width 8 (legacy 32-bit mode)
+print_hex8:
+  LDA .arg1
+  STA .bss + 4
+  LDI 0
+  STA .bss + 3
+  LDA .bss + 4
+  CPI 0
+  JPZ ph8_zero
+ph8_loop:
+  LDA .bss + 4
+  STA .arg1
+  LDI 16
+  STA .arg2
+  JSR @divide
+  STA .bss + 4
+  LDA .res2
+  CPI 10
+  JPC ph8_ge10
+  ADI 48
+  JMP ph8_push
+ph8_ge10:
+  SUI 10
+  ADI 65
+ph8_push:
+  PHA
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+  LDA .bss + 4
+  CPI 0
+  JPZ ph8_pad
+  JMP ph8_loop
+ph8_zero:
+  LDI 48
+  PHA
+  LDI 1
+  STA .bss + 3
+  JMP ph8_pad
+ph8_pad:
+  LDI 8
+  SUB .bss + 3
+  STA .bss + 5
+ph8_pad_loop:
+  LDA .bss + 5
+  CPI 0
+  JPZ ph8_print
+  LDI 32
+  JSR @write_char
+  LDA .bss + 5
+  SUI 1
+  STA .bss + 5
+  JMP ph8_pad_loop
+ph8_print:
+  PLA
+  JSR @write_char
+  LDA .bss + 3
+  SUI 1
+  STA .bss + 3
+  JPZ ph8_done
+  JMP ph8_print
+ph8_done:
   RET

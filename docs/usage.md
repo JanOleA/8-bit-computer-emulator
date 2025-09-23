@@ -8,33 +8,70 @@ You also need some third-party packages for Python. These are listed in [the req
 I have not made a pre-compiled version yet. I may make one for Windows and/or Linux, at some point.
 
 ## Running the emulator
-With everything installed, you can run the emulator with the following command:
-~~~~
-> python cpu_sim.py
-~~~~
-By default, this attempts to read the program from the file `program.txt`. It will run at 50 FPS, with a clock cycle of 15 Hz.
+The emulator now uses `argparse` and supports optional flags. Run without arguments:
+```
+python cpu_sim.py
+```
+Defaults:
+* Program file: `program.txt`
+* Target FPS: 50 (`--fps`)
+* Target clock frequency: 25 Hz (`--hz`)
+* LCD panel: disabled (enable with `--lcd`)
 
-You can specify the file to read the program from by adding a command-line argument:
-~~~~
-> python cpu_sim.py fibonacci.txt
-~~~~
+### Command line arguments
+```
+python cpu_sim.py [program] [--fps N] [--hz N] [--lcd] [--json file.json ...]
+```
 
-You can also add an FPS target, if you want to change the FPS the emulator attempts to run at:
-~~~~
-> python cpu_sim.py fibonacci.txt 100
-~~~~
+Argument / Flag | Description | Default
+----------------|-------------|--------
+`program`       | Optional positional path to a program text file to assemble | `program.txt`
+`--fps N`       | Target render frames per second (visual update rate) | 50
+`--hz N`        | Target CPU clock frequency in Hertz | 25
+`--lcd`         | Enable the LCD peripheral panel in the UI | off
+`--json FILE`   | Inject a JSON memory image (repeatable) | none
 
-Finally, you can add a clock cycle frequency target, by adding a third command-line argument:
-~~~~
-> python cpu_sim.py fibonacci.txt 100 200
-~~~~
-This last example will load the program from [fibonacci.txt](../fibonacci.txt), and attempt to run at 100 FPS with a clock cycle of 200 Hz.
+You can repeat `--json` to layer multiple memory images (later images overwrite earlier addresses they touch):
+```
+python cpu_sim.py program.txt --json bootmap.json --json sprites.json
+```
 
-### Note about clock cycle and FPS
-If the clock cycle is higher than the frame rate, the emulator will not be able to display every state of the computer (as some of the computation is done between frames), so you may see it jump between seemingly unrelated states.
+### Examples
+Run Fibonacci demo at higher visual refresh (100 FPS) while keeping a modest clock:
+```
+python cpu_sim.py fibonacci.txt --fps 100 --hz 50
+```
 
-### Note about command line arguments
-For now, the command line arguments must be provided in order, so if you want to give a Hz target, you must also give the program name and the FPS target. Adding flags for more flexibility is on the to-do list.
+Run a program headless-ish with a very fast clock (render still caps visual updates):
+```
+python cpu_sim.py primes.txt --hz 500 --fps 60
+```
+
+Enable LCD panel and load default program:
+```
+python cpu_sim.py --lcd
+```
+
+Layer two memory images then start with a slow, inspectable clock:
+```
+python cpu_sim.py program.txt --json devmap.json --json testdata.json --hz 5 --fps 30
+```
+
+### Clock vs FPS
+If the target clock (`--hz`) exceeds the frame rate (`--fps`), multiple CPU cycles occur between redraws. This is expected; you will see state "jump". Lower `--hz` or raise `--fps` for more granular visual tracing.
+
+### Multiple JSON memory images
+Each JSON file should map named modules to objects with at least a `base` and `words` list, e.g.
+```json
+{
+    "vectors": {"base": 0, "words": [1,2,3,4]},
+    "patch": {"base": 32, "words": [10,11]}
+}
+```
+Words are masked to the machine's memory word width. Invalid entries are skipped with a warning.
+
+### Backwards compatibility note
+Older positional forms like `python cpu_sim.py fibonacci.txt 100 200` are no longer supported. Use flags: `python cpu_sim.py fibonacci.txt --fps 100 --hz 200`.
 
 ## Once running
 Once the emulator is running, there are a few options available to the user by pressing keys on the keyboard:
@@ -79,3 +116,6 @@ The computer has an on-screen numpad that can be used to control the computer, i
 - `*`: `[1001 0000]`
 
 With a little bit of math, this can be used by any program to branch to a specific address depending on what button was pressed. See [calculator.txt](../calculator.txt) and [programmer.txt](../programmer.txt) for examples.
+
+---
+Last updated: Updated for argparse interface (`--fps`, `--hz`, `--lcd`, `--json`).
