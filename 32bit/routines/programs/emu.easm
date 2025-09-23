@@ -1,7 +1,7 @@
 ;! name: EMU
 ;! entry: main
 ;! deps: newline, write_char
-;! abi: os
+;! abi: all
 ;! bss: none
 ;! align: 4
 

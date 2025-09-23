@@ -1,7 +1,7 @@
 ;! name: SPLIT
 ;! entry: split
 ;! deps:
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

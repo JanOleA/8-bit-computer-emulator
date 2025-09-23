@@ -34,13 +34,13 @@ Entries (NAME → BASE, SIZE, BSS, DATA):
   PEEK             → 11340 (len 61)  BSS —  DATA —
   POKE             → 11404 (len 108)  BSS —  DATA —
   POW              → 11512 (len 53)  BSS 22624+3  DATA —
-  POW232           → 11568 (len 45)  BSS 22627+2  DATA —
+  POW232           → 11568 (len 46)  BSS 22627+2  DATA —
   PRIMES           → 11616 (len 76)  BSS 22629+3  DATA —
   PRINT            → 11692 (len 66)  BSS 22632+4  DATA —
   PRINTEZ          → 11760 (len 17)  BSS 22636+2  DATA —
   PUZZLE           → 11780 (len 159)  BSS 22638+10  DATA —
   RANDINT          → 11940 (len 68)  BSS 22648+2  DATA —
-  REM64            → 12008 (len 74)  BSS 22650+7  DATA —
+  REM64            → 12008 (len 73)  BSS 22650+7  DATA —
   RUN              → 12084 (len 25)  BSS 22657+2  DATA —
   SKIPLINE         → 12112 (len 88)  BSS —  DATA —
   SPLIT            → 12200 (len 83)  BSS 22659+166  DATA —

@@ -1,7 +1,7 @@
 ;! name: ADDSQ64
 ;! entry: add_square64
 ;! deps:
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

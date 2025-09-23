@@ -1,7 +1,7 @@
 ;! name: CALC
 ;! entry: calc
 ;! deps: display_number, divide, mult, parse_number, newline, write_char, pow, sqrt, print, printez
-;! abi: os
+;! abi: all
 ;! bss: none
 ;! align: 4
 

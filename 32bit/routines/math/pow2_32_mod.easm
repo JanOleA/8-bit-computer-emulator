@@ -1,7 +1,7 @@
 ;! name: POW232
 ;! entry: pow2_32_mod
 ;! deps:
-;! abi: os
+;! abi: args
 ;! bss: auto
 ;! align: 4
 
@@ -10,33 +10,40 @@
 ;   .bss = mod
 ;   .bss+1 = r
 
+mod =     bss + 0
+r =       bss + 1
+counter = bss + 2
+
 pow2_32_mod:
-  LDA .arg1
-  STA .bss       ; mod
+  PLA             ; get return address from stack
+  MOVAB           ; move return address to B for now
+  PLA             ; get mod from stack
+  STA .mod       
+  MOVBA           ; move return address back to A
+  PHA             ; push it back to stack
   LDI 1
-  STA .bss + 1   ; r = 1
+  STA .r          ; r = 1
   LDI 32
-  STA .num_digits ; use as counter
+  STA .counter
 p2_loop:
-  LDA .num_digits
   CPI 0
   JPZ p2_done
   ; r = (r + r) % mod
-  LDA .bss + 1
-  ADD .bss + 1
-  STA .bss + 1
-  CMP .bss
+  LDA .r
+  ADD .r
+  STA .r
+  CMP .mod
   JPC p2_sub
   JMP p2_next
 p2_sub:
-  SUB .bss
-  STA .bss + 1
+  SUB .mod
+  STA .r
 p2_next:
-  LDA .num_digits
+  LDA .counter
   SUI 1
-  STA .num_digits
+  STA .counter
   JNZ p2_loop
 
 p2_done:
-  LDA .bss + 1
+  LDA .r
   RET

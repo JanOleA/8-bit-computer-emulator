@@ -1,7 +1,7 @@
 ;! name: PRINTEZ
 ;! entry: printez
 ;! deps: print
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

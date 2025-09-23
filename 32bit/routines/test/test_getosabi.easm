@@ -1,7 +1,7 @@
 ;! name: TGETOSVAR
 ;! entry: main
 ;! deps: get_os_abi_var, display_number, newline
-;! abi: os
+;! abi: all
 ;! bss: none
 ;! align: 4
 

@@ -1,7 +1,7 @@
 ;! name: COMPAREGET
 ;! entry: compare_get
 ;! deps: string_compare, parse_number, buffer_to_separator
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

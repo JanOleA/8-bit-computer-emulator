@@ -1,7 +1,7 @@
 ;! name: LIST
 ;! entry: list_commands
 ;! deps: write_char, newline, print
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

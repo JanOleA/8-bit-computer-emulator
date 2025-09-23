@@ -1,7 +1,7 @@
 ;! name: MEMEDIT
 ;! entry: main
 ;! deps: display_number, newline, write_char
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

@@ -1,7 +1,7 @@
 ;! name: OSINFO
 ;! entry: osinfo
 ;! deps: newline, print, printez, display_number, divide, write_char
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

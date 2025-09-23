@@ -1,7 +1,7 @@
 ;! name: PRIMES
 ;! entry: main
 ;! deps: divide, display_number, newline
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

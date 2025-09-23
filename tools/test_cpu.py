@@ -641,42 +641,26 @@ def main():
     press_key(game, pygame.K_k)
     run_frames(game, frames=4)
 
-    # # Try some commands and snapshot after each
-    # for cmd in ["LIST", "HELP", "CLS", "ECHO HELLO"]:
-    #     type_string(game, cmd)
-    #     press_enter(game)
-    #     # Process a few frames to consume events
-    #     run_frames(game, frames=6)
-    #     # Then run CPU hard to execute the command
-    #     if cmd in ["LIST", "HELP"]:
-    #         run_cycles(game, cycles=300000)
-    #         press_enter(game)                   # some of these require pressing twice
-    #         run_cycles(game, cycles=100000)
-    #     else:
-    #         run_cycles(game, cycles=80000)
-    #     # Capture and print a few lines of the monitor text buffer for verification
-    #     lines = capture_monitor_text(game, rows=20)
-    #     print(f"--- After: {cmd} ---")
-    #     for ln in lines:
-    #         print(ln)
-    #     print("\n\n")
-
-    run_cycles(game, cycles=10000)
-    type_string(game, "PUZZLE")
-    press_enter(game)
-    run_frames(game, frames=6)
-    run_cycles(game, cycles=100_000)
-    lines = capture_monitor_text(game, rows=20)
-    for ln in lines[-5::]:
-        print(ln)
-    while True:
-        run_cycles(game, cycles=1_000_000)
+    # Try some commands and snapshot after each
+    for cmd in ["LIST", "HELP", "CLS", "ECHO HELLO"]:
+        type_string(game, cmd)
+        press_enter(game)
+        # Process a few frames to consume events
+        run_frames(game, frames=6)
+        # Then run CPU hard to execute the command
+        if cmd in ["LIST", "HELP"]:
+            run_cycles(game, cycles=200000)
+            press_enter(game)                   # some of these require pressing twice
+            run_cycles(game, cycles=200000)
+        else:
+            run_cycles(game, cycles=100000)
+        # Capture and print a few lines of the monitor text buffer for verification
         lines = capture_monitor_text(game, rows=20)
-        for ln in lines[-5:]:
+        print(f"--- After: {cmd} ---")
+        for ln in lines:
             print(ln)
-
         print("\n\n")
-        print(game.computer.out_regist)
+
 
     # Demonstrate direct subroutine call: DIVIDE (A=res1=quotient, res2=remainder)
     try:
@@ -733,7 +717,7 @@ def main():
         check(r['A'] == exp, f"modmul 123*45 %97 A={r['A']} exp={exp}")
 
         # pow2_32_mod: 2^32 % 97 (arg1=mod)
-        r = call_subroutine(game, 'pow2_32_mod', arg1=97, json_path=json_img, reset_after=False)
+        r = call_subroutine_stack(game, 'pow2_32_mod', 97, json_path=json_img, reset_after=False)
         exp = pow(2, 32, 97)
         check(r['A'] == exp, f"pow2_32_mod mod=97 A={r['A']} exp={exp}")
 
@@ -801,7 +785,7 @@ def main():
 
         # pow2_32_mod: more moduli
         for modv in [2, 3, 5, 17, 97, 257, 65521, 1000003]:
-            r = call_subroutine(game, 'pow2_32_mod', arg1=modv, json_path=json_img, reset_after=False)
+            r = call_subroutine_stack(game, 'pow2_32_mod', modv, json_path=json_img, reset_after=False)
             exp = pow(2, 32, modv)
             check(r['A'] == exp, f"pow2_32_mod mod={modv} A={r['A']} exp={exp}")
 

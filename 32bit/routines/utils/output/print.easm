@@ -1,7 +1,7 @@
 ;! name: PRINT
 ;! entry: print
 ;! deps: newline, write_char
-;! abi: os
+;! abi:
 ;! bss: auto
 ;! align: 4
 

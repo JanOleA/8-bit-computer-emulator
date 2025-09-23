@@ -1,7 +1,7 @@
 ;! name: PARSENUM
 ;! entry: parse_number
 ;! deps: 
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

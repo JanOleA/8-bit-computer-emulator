@@ -31,6 +31,8 @@ Segments:
   [2600,2601)  os-var        random_seed          len=1  
   [2601,2602)  os-var        inc_random_seed      len=1  
   [2602,2603)  os-var        bits_avail           len=1  
+  [2603,2604)  os-var        screen_width         len=1  
+  [2604,2605)  os-var        screen_height        len=1  
   [3000,4277)  os-table      prog_table           len=1277  length from JSON
   [3000,4277)  prog_table    program_table        len=1277  
   [5000,5120)  code          addsq64              len=120  
@@ -67,13 +69,13 @@ Segments:
   [11340,11401)  code          peek                 len=61  
   [11404,11512)  code          poke                 len=108  
   [11512,11565)  code          pow                  len=53  
-  [11568,11613)  code          pow232               len=45  
+  [11568,11614)  code          pow232               len=46  
   [11616,11692)  code          primes               len=76  
   [11692,11758)  code          print                len=66  
   [11760,11777)  code          printez              len=17  
   [11780,11939)  code          puzzle               len=159  
   [11940,12008)  code          randint              len=68  
-  [12008,12082)  code          rem64                len=74  
+  [12008,12081)  code          rem64                len=73  
   [12084,12109)  code          run                  len=25  
   [12112,12200)  code          skipline             len=88  
   [12200,12283)  code          split                len=83  
@@ -154,7 +156,7 @@ Free gaps between segments:
   [2205,2400)  words=195  (free)
   [2401,2500)  words=99  (free)
   [2501,2599)  words=98  (free)
-  [2603,3000)  words=397  (free)
+  [2605,3000)  words=395  (free)
   [4277,5000)  words=723  (free)
   [5786,5788)  words=2  (free)
   [5987,5988)  words=1  (free)
@@ -179,11 +181,11 @@ Free gaps between segments:
   [11337,11340)  words=3  (free)
   [11401,11404)  words=3  (free)
   [11565,11568)  words=3  (free)
-  [11613,11616)  words=3  (free)
+  [11614,11616)  words=2  (free)
   [11758,11760)  words=2  (free)
   [11777,11780)  words=3  (free)
   [11939,11940)  words=1  (free)
-  [12082,12084)  words=2  (free)
+  [12081,12084)  words=3  (free)
   [12109,12112)  words=3  (free)
   [12283,12284)  words=1  (free)
   [12341,12344)  words=3  (free)

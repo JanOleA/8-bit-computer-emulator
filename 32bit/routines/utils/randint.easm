@@ -1,7 +1,7 @@
 ;! name: RANDINT
 ;! entry: randint
 ;! deps: multiply, divide
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 

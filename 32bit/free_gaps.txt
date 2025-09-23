@@ -22,11 +22,11 @@
 11337,11340,3 ; between parsenum and peek
 11401,11404,3 ; between peek and poke
 11565,11568,3 ; between pow and pow232
-11613,11616,3 ; between pow232 and primes
+11614,11616,2 ; between pow232 and primes
 11758,11760,2 ; between print and printez
 11777,11780,3 ; between printez and puzzle
 11939,11940,1 ; between puzzle and randint
-12082,12084,2 ; between rem64 and run
+12081,12084,3 ; between rem64 and run
 12109,12112,3 ; between run and skipline
 12283,12284,1 ; between split and sqrt
 12341,12344,3 ; between sqrt and strcompare

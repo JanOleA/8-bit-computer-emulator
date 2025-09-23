@@ -1,7 +1,7 @@
 ;! name: TESTMEM
 ;! entry: testmem
 ;! deps: display_number, print, printez, newline, write_char
-;! abi: os
+;! abi: all argv
 ;! bss: auto
 ;! align: 4
 

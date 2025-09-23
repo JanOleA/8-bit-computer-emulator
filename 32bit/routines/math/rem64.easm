@@ -1,7 +1,7 @@
 ;! name: REM64
 ;! entry: rem64
 ;! deps: divide, modmul, pow2_32_mod
-;! abi: os
+;! abi: all
 ;! bss: auto
 ;! align: 4
 
@@ -44,7 +44,7 @@ rem64:
   STA .bss + 2
   ; pow = 2^32 % mod
   LDA .bss
-  STA .arg1
+  PHA
   JSR @pow2_32_mod
   STA .bss + 3
   ; hi_term = (hi_mod * pow) % mod
