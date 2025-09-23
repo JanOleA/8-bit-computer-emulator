@@ -54,7 +54,6 @@ def relocate_jumps_in_place(code_words, program, instruction_map, base_addr,
         else:
             idx += 1
 
-
 # ----------
 # Dynamic routines loader from folder
 # ----------
@@ -136,7 +135,6 @@ def parse_headers_and_preprocess(text: str):
 def assemble_dynamic_module(src_path: str,
                             used_bases: List[Tuple[int, int]],
                             base_cursor: int,
-                            abi_inject: bool,
                             bss_auto_start: int,
                             known_symbols: Dict[str, int],
                             data_auto_start: int) -> Tuple[Dict, int, List[Tuple[int, int]], int, int]:
@@ -348,104 +346,7 @@ def assemble_dynamic_module(src_path: str,
     return out, base_cursor, used_bases, data_auto_start, bss_auto_start
 
 
-def apply_prog_table_to_os(table_lines: List[str], data: Dict[str, Dict]) -> bool:
-    os_path = Path(__file__).parent.parent / "32bit" / "emulator_os.txt"
-    if not os_path.exists():
-        print(f"OS file not found: {os_path}")
-        return False
-    text = os_path.read_text().splitlines()
-    # Find start of table
-    start_idx = None
-    for i, ln in enumerate(text):
-        if ln.strip().startswith("prog_table ="):
-            start_idx = i
-            break
-    if start_idx is None:
-        print("Could not locate 'prog_table =' in emulator_os.txt; skipping apply.")
-        return False
-    # Find last .prog_table line after start
-    end_idx = start_idx
-    for i in range(start_idx + 1, len(text)):
-        if text[i].strip().startswith('.prog_table'):
-            end_idx = i
-        elif end_idx != start_idx and not text[i].strip().startswith(';') and text[i].strip() != "":
-            # Stop when we hit the next non-comment, non-empty line after the block
-            break
-    # Replace block (legacy path): keep existing text, but replace the table block with the provided lines
-    new_block = table_lines
-    new_text = text[:start_idx] + new_block + text[end_idx + 1:]
-    # Discover CALL_STUB base
-    call_stub_base = None
-    for ln in new_text:
-        s = ln.strip().replace(" ", "")
-        if s.startswith('CALL_STUB='):
-            try:
-                call_stub_base = int(s.split('=', 1)[1])
-            except Exception:
-                pass
-            break
-    # Patch CALL_STUB operand (CALL_STUB+1) and (CALL_STUB+3) to ESH base, if present
-    # Prefer an explicit module named 'esh'. Do NOT heuristically use entry=='start',
-    # because many modules use 'start' and that can mispatch the boot target.
-    shell_base = None
-    for k, v in data.items():
-        if k.lower() == 'esh':
-            shell_base = int(v.get('base', 0))
-            break
-    if shell_base is not None and call_stub_base is not None:
-        for i, ln in enumerate(new_text):
-            s = ln.replace(" ", "")
-            if s.startswith(f"{call_stub_base+1}="):
-                new_text[i] = f"{call_stub_base+1} = {shell_base}"
-            if s.startswith(f"{call_stub_base+3}="):
-                new_text[i] = f"{call_stub_base+3} = {shell_base}"
-
-    # Fill OS API vector with label addresses (simple first pass label indexer)
-    # Build label->address mapping based on assembled instruction layout
-    addr = 0
-    labels: Dict[str, int] = {}
-    for ln in new_text:
-        line = ln.split(';')[0]
-        if line.replace(' ', '') == '':
-            continue
-        if line.startswith('  ') and (len(line) < 3 or line[2] != ' '):
-            parts = line.strip().split(' ')
-            if len(parts) > 2:
-                # normalize to at most 2 tokens
-                parts = [parts[0], ''.join(parts[1:])]
-            addr += len(parts)
-        elif not line.startswith(' '):
-            if ':' in line:
-                name = line.strip().split(':')[0]
-                labels[name] = addr
-
-    # Target API names in order
-    api_names = [
-        ('dispatch_program', 0),
-        ('build_argv', 1),
-        ('parse_number', 2),
-        ('skip_spaces', 3),
-        ('write_char', 4),
-        ('newline', 5),
-        ('ret_home', 6),
-        ('cursor_left', 7),
-        ('enter', 8),
-        ('print_prompt', 9),
-    ]
-    # Patch .os_api + idx lines
-    for i, ln in enumerate(new_text):
-        s = ln.strip().replace(' ', '')
-        for name, idx in api_names:
-            if s.startswith(f'.os_api+{idx}='):
-                val = labels.get(name)
-                if val is not None:
-                    new_text[i] = f'.os_api + {idx} = {val}'
-    os_path.write_text("\n".join(new_text) + "\n")
-    print(f"Applied call stub and (legacy) table to {os_path}")
-    return True
-
-
-def main(apply_table: bool = False):
+def main():
     data: Dict[str, Dict] = {}
     known_symbols: Dict[str, int] = {}
     used_ranges: List[Tuple[int, int]] = []
@@ -494,7 +395,6 @@ def main(apply_table: bool = False):
                     src,
                     used_bases=used_ranges,
                     base_cursor=base_cursor,
-                    abi_inject=True,
                     bss_auto_start=bss_auto_start,
                     known_symbols=known_symbols,
                     data_auto_start=data_auto_start,
@@ -776,19 +676,6 @@ def main(apply_table: bool = False):
     except Exception as e:
         print(f"Warning: failed to patch CALL_STUB to ESH: {e}")
 
-    if apply_table:
-        # Legacy: still allow patching OS file on request (kept for compatibility)
-        table_lines = [f"prog_table = {pt_base}", "; Command/program table entries: name[0..7], addr[8], reserved[9]"]
-        for i, (name, mod) in enumerate(entries):
-            off = i * 10
-            nm = str(name).upper()[:16]
-            base = int(mod.get("base", 0))
-            table_lines.append(f".prog_table + {off}  = \"{nm}\"")
-            table_lines.append(f".prog_table + {off+8} = {base}")
-            table_lines.append(f".prog_table + {off+9} = 0")
-        table_lines.append(f".prog_table + {len(entries)*10} = 0    ; sentinel")
-        apply_prog_table_to_os(table_lines, data)
-
     if have_skips:
         print(f"There were compile errors, check logs.")
 
@@ -796,6 +683,5 @@ def main(apply_table: bool = False):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Assemble routines and emit program table")
-    parser.add_argument("--apply-table", action="store_true", help="Apply the generated program table into 32bit/emulator_os.txt")
     args = parser.parse_args()
-    main(apply_table=args.apply_table)
+    main()
