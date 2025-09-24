@@ -3,7 +3,7 @@
 ;! deps: get_os_abi_var, display_number, newline
 ;! abi: all
 ;! bss: none
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 main:

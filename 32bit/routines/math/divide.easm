@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 divide:             ; optimized binary long division with fast paths
   ; Locals layout:

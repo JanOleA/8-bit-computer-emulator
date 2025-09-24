@@ -3,7 +3,7 @@
 ;! deps: 
 ;! abi: none
 ;! bss: none
-;! align: 4
+;! align: 1
 
 newline:
   DIS 32

@@ -1,14 +1,14 @@
 ;! name: CALC
 ;! entry: calc
-;! deps: display_number, divide, mult, parse_number, newline, write_char, pow, sqrt, print, printez
+;! deps: display_int, display_number, divide, mult, parse_number, newline, write_char, pow, sqrt, print, printez
 ;! abi: all
 ;! bss: none
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; CALC <num1> <op> <num2>
 ; Computes num1 <op> num2 where op is one of + - * /
-; Prints the result in decimal using display_number
+; Prints the result in decimal using display_int or display_number as appropriate.
 
 .residual_text = "Residual="
 .distance_text = "Distance to next square="
@@ -72,7 +72,7 @@ do_add:
 do_sub:
   LDA .work1
   SUB .work2
-  JMP do_print
+  JMP do_print_signed
 
 do_sqrt:
   LDA .work1
@@ -151,6 +151,12 @@ do_div:
 do_print:
   PHA
   JSR @display_number
+  JSR @newline
+  RET
+
+do_print_signed:
+  PHA
+  JSR @display_int
   JSR @newline
   RET
 

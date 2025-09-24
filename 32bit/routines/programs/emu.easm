@@ -3,7 +3,7 @@
 ;! deps: newline, write_char
 ;! abi: all
 ;! bss: none
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; Print EMU ASCII art using OS display ABI

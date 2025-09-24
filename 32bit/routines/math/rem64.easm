@@ -3,7 +3,7 @@
 ;! deps: divide, modmul, pow2_32_mod
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Compute (hi * 2^32 + lo) mod mod, where
 ;   .arg1 = lo

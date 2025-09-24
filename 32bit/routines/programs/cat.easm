@@ -3,7 +3,7 @@
 ;! deps: write_char, newline, parse_number, skip_line
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; --- Print the contents of memory as text, until first null terminator. \ (ASCII 92) as well as certain special values works as escape character. ---

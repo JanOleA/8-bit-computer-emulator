@@ -3,7 +3,7 @@
 ;! deps: write_char, newline, display_number, randint, wait_100, toggle_display_enable, print, printez
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 board_width = 10

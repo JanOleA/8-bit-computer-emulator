@@ -3,7 +3,10 @@
 ;! deps: divide, write_char
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
+
+; -- Prints a number in decimal --
+; Input: Stack Pointer - 2: argument: value to print (unsigned)
 
 ; BSS locals
 ; .bss      = working value (dividend)

@@ -1,9 +1,9 @@
 ;! name: HEXDUMP
 ;! entry: main
-;! deps: divide, newline, write_char
+;! deps: divide, newline, write_char, parse_number
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; HEXDUMP <addr> <nwords>
@@ -28,64 +28,14 @@ main:
 hx_go:
   ; parse first arg -> addr
   LDA .argv_base + 1
-  STA .res2           ; res2 = pointer to string
-  LDI 0
-  STA .res1
-hx_pn1:
-  LPA .res2                ; load mem[mem[.res2]] into A
-  CPI 0
-  JPZ hx_pn1_done
-  CPI 32
-  JPZ hx_pn1_done
-  SUI 48
-  STA .char
-  LDA .res1
-  LSA
-  STA .pow2
-  LSA
-  LSA
-  ADD .pow2
-  STA .res1
-  LDA .res1
-  ADD .char
-  STA .res1
-  LDA .res2
-  ADI 1
-  STA .res2
-  JMP hx_pn1
-hx_pn1_done:
-  LDA .res1
+  PHA
+  JSR @parse_number
   STA .addr
 
-  ; parse second arg -> lenv
+  ; parse second arg -> length
   LDA .argv_base + 2
-  STA .res2           ; res2 = pointer to string
-  LDI 0
-  STA .res1
-hx_pn2:
-  LPA .res2                ; load mem[mem[.res2]] into A
-  CPI 0
-  JPZ hx_pn2_done
-  CPI 32
-  JPZ hx_pn2_done
-  SUI 48
-  STA .char
-  LDA .res1
-  LSA
-  STA .pow2
-  LSA
-  LSA
-  ADD .pow2
-  STA .res1
-  LDA .res1
-  ADD .char
-  STA .res1
-  LDA .res2
-  ADI 1
-  STA .res2
-  JMP hx_pn2
-hx_pn2_done:
-  LDA .res1
+  PHA
+  JSR @parse_number
   STA .bss + 1
 
   ; Determine formatting mode from .bits_avail

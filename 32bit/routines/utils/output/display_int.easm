@@ -1,0 +1,53 @@
+;! name: DISPINT
+;! entry: display_int
+;! deps: display_number, pow, write_char
+;! abi: sysinfo
+;! bss: auto
+;! align: 1
+
+; -- Prints a signed (2s complement) number in decimal --
+; Input: Stack Pointer - 2: argument: value to print (signed, use A register to determine number of bits)
+
+sign_bit_mask = .bss + 1   ; mask for sign bit based on .bits_avail
+
+display_int:
+  PLA                     ; get return address from stack
+  MOVAB                   ; move return address to B for now
+
+  PLA                     ; Argument. Copy input value into local working storage
+  STA .bss
+  STA .bss + 2
+
+  MOVBA                   ; move return address back to A
+  PHA                     ; push it back to stack
+
+  ; pow(2, bits-1) to get sign bit mask
+  LDI 2
+  PHA
+  LDA .bits_avail
+  SUI 1
+  PHA
+  JSR @pow
+  STA .sign_bit_mask
+
+  ; Check if negative
+  LDA .bss
+  CMP .sign_bit_mask      ; if value >= sign bit mask, it's negative
+  JPC di_negative
+  JMP di_positive         ; if positive, skip negation
+di_negative:
+  ; It's negative: print '-' and negate value
+  LDI 45                  ; ASCII '-'
+  JSR @write_char
+  LDI 0
+  SUB .bss
+  STA .bss
+di_positive:
+  ; Print absolute value
+  LDA .bss
+  PHA
+  JSR @display_number
+
+  ; Restore original value to A before returning
+  LDA .bss + 2
+  RET

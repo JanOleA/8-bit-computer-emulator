@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; Fill memory range with a value.

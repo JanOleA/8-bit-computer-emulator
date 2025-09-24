@@ -3,7 +3,7 @@
 ;! deps: printez, parse_number
 ;! abi: argv sysinfo
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 .reserved_region_text = "Reserved region - poke not allowed!"

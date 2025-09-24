@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: all
 ;! bss: none
-;! align: 4
+;! align: 1
 
 skip_line:
   ; -- Subroutine. Starts at .arg1, increments until \n, 0x0A, or null. Returns location of next line, or of the first null, in .arg1 and A --

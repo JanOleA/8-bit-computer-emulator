@@ -3,7 +3,7 @@
 ;! deps: write_char, newline, print
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; Program table row layout (32 words total):

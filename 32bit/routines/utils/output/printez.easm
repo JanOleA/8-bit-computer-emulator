@@ -3,7 +3,7 @@
 ;! deps: print
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Prints the string at the given input_string_pointer, until null, followed by a newline.
 ; Convenience wrapper around print() with max_length=0 (print until null) and skip_newline=0.

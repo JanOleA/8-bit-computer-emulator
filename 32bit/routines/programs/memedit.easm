@@ -3,7 +3,7 @@
 ;! deps: display_number, newline, write_char
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; Interactive memory editor

@@ -3,7 +3,7 @@
 ;! deps: multiply, divide
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; --- 16/32 bit pseudo-randint in the range [0, argument) ---
 ; Uses a small LCG. For <32-bit A-regs uses (a=25173, c=13849).

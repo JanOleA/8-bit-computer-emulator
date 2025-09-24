@@ -35,100 +35,12 @@
 <text class='lbl' x='98' y='61.97'>[2501,2599) len=98</text>
 <rect x='92' y='64.16' width='466' height='15.78' fill='#2e7d32' />
 <text class='lbl' x='98' y='72.05'>[2605,3000) len=395</text>
-<rect x='92' y='154.10' width='466' height='5.71' fill='#2e7d32' />
-<text class='lbl' x='98' y='156.96'>[4857,5000) len=143</text>
-<rect x='92' y='191.20' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='191.24'>[5786,5788) len=2</text>
-<rect x='92' y='199.23' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='199.25'>[5987,5988) len=1</text>
-<rect x='92' y='206.90' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='206.92'>[6179,6180) len=1</text>
-<rect x='92' y='207.30' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='207.36'>[6189,6192) len=3</text>
-<rect x='92' y='211.05' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='211.07'>[6283,6284) len=1</text>
-<rect x='92' y='269.00' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='269.04'>[7734,7736) len=2</text>
-<rect x='92' y='275.87' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='275.91'>[7906,7908) len=2</text>
-<rect x='92' y='279.10' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='279.12'>[7987,7988) len=1</text>
-<rect x='92' y='294.60' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='294.62'>[8375,8376) len=1</text>
-<rect x='92' y='336.89' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='336.93'>[9434,9436) len=2</text>
-<rect x='92' y='341.49' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='341.55'>[9549,9552) len=3</text>
-<rect x='92' y='343.24' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='343.30'>[9593,9596) len=3</text>
-<rect x='92' y='347.24' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='347.30'>[9693,9696) len=3</text>
-<rect x='92' y='351.23' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='351.29'>[9793,9796) len=3</text>
-<rect x='92' y='367.73' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='367.76'>[10206,10208) len=2</text>
-<rect x='92' y='375.35' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='375.41'>[10397,10400) len=3</text>
-<rect x='92' y='391.97' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='392.03'>[10813,10816) len=3</text>
-<rect x='92' y='397.64' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='397.66'>[10955,10956) len=1</text>
-<rect x='92' y='397.88' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='397.94'>[10961,10964) len=3</text>
-<rect x='92' y='398.36' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='398.42'>[10973,10976) len=3</text>
-<rect x='92' y='415.65' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='415.69'>[11406,11408) len=2</text>
-<rect x='92' y='418.01' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='418.07'>[11465,11468) len=3</text>
-<rect x='92' y='418.84' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='418.88'>[11486,11488) len=2</text>
-<rect x='92' y='420.44' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='420.48'>[11526,11528) len=2</text>
-<rect x='92' y='422.64' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='422.70'>[11581,11584) len=3</text>
-<rect x='92' y='424.60' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='424.64'>[11630,11632) len=2</text>
-<rect x='92' y='430.35' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='430.39'>[11774,11776) len=2</text>
-<rect x='92' y='431.11' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='431.17'>[11793,11796) len=3</text>
-<rect x='92' y='437.58' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='437.60'>[11955,11956) len=1</text>
-<rect x='92' y='443.25' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='443.31'>[12097,12100) len=3</text>
-<rect x='92' y='444.84' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='444.90'>[12137,12140) len=3</text>
-<rect x='92' y='451.79' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='451.81'>[12311,12312) len=1</text>
-<rect x='92' y='454.11' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='454.17'>[12369,12372) len=3</text>
-<rect x='92' y='456.07' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='456.11'>[12418,12420) len=2</text>
-<rect x='92' y='499.80' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='499.86'>[13513,13516) len=3</text>
-<rect x='92' y='500.64' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='500.68'>[13534,13536) len=2</text>
-<rect x='92' y='501.43' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='501.47'>[13554,13556) len=2</text>
-<rect x='92' y='502.35' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='502.41'>[13577,13580) len=3</text>
-<rect x='92' y='502.83' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='502.89'>[13589,13592) len=3</text>
-<rect x='92' y='511.50' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='511.54'>[13806,13808) len=2</text>
-<rect x='92' y='602.84' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='602.90'>[16093,16096) len=3</text>
-<rect x='92' y='603.23' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='603.25'>[16103,16104) len=1</text>
-<rect x='92' y='603.55' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='603.57'>[16111,16112) len=1</text>
-<rect x='92' y='604.59' width='466' height='1.50' fill='#2e7d32' />
-<text class='lbl' x='98' y='604.65'>[16137,16140) len=3</text>
-<rect x='92' y='605.03' width='466' height='153.68' fill='#2e7d32' />
-<text class='lbl' x='98' y='681.87'>[16148,19996) len=3848</text>
-<rect x='92' y='883.47' width='466' height='75.40' fill='#2e7d32' />
-<text class='lbl' x='98' y='921.18'>[23120,25008) len=1888</text>
+<rect x='92' y='155.38' width='466' height='4.43' fill='#2e7d32' />
+<text class='lbl' x='98' y='157.60'>[4889,5000) len=111</text>
+<rect x='92' y='596.92' width='466' height='161.79' fill='#2e7d32' />
+<text class='lbl' x='98' y='677.82'>[15945,19996) len=4051</text>
+<rect x='92' y='883.63' width='466' height='75.24' fill='#2e7d32' />
+<text class='lbl' x='98' y='921.26'>[23124,25008) len=1884</text>
 <rect x='92' y='960.63' width='466' height='1.50' fill='#2e7d32' />
 <text class='lbl' x='98' y='961.03'>[25052,25072) len=20</text>
 <rect x='92' y='962.83' width='466' height='1.50' fill='#2e7d32' />

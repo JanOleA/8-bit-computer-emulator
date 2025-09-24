@@ -3,7 +3,7 @@
 ;! deps: string_compare, parse_number, buffer_to_separator
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 .separator = ","
 

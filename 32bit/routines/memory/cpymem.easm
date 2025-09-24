@@ -3,7 +3,7 @@
 ;! deps: display_number, parse_number
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; Copy memory safely handling overlap.

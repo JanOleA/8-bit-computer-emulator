@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; --- Loop through the string pointed to by the first argument until reaching the character stored in the second argument, fill buffer from .bss + 0, up to 160 characters ---
 

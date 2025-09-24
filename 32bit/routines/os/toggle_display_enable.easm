@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: none
 ;! bss: none
-;! align: 4
+;! align: 1
 
 ; toggle display enable bit
 toggle_display_enable:

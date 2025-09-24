@@ -3,7 +3,7 @@
 ;! deps: newline, write_char
 ;! abi:
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Prints the string at the given input_string_pointer, followed by a newline unless skip_newline is 1.
 

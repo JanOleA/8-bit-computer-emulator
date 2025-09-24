@@ -3,7 +3,7 @@
 ;! deps: divide, display_number, newline
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; bss + 0 = check_value

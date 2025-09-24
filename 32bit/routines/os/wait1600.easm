@@ -3,7 +3,7 @@
 ;! deps: wait_100
 ;! abi:
 ;! bss: none
-;! align: 4
+;! align: 1
 
 wait_1600:
   JSR wait_800

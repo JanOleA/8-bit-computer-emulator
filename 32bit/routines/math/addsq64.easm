@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Add p^2 into a 64-bit sum stored at [sum_lo_addr],[sum_hi_addr]
 ; Inputs:

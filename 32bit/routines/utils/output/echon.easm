@@ -3,7 +3,7 @@
 ;! deps: print
 ;! abi: all
 ;! bss: none
-;! align: 4
+;! align: 1
 
 ; backwards compatibility wrapper for print
 

@@ -3,7 +3,7 @@
 ;! deps: newline, write_char, printez, print, buffer_to_separator, wait_3200
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; Items, separated by backslash ("\"). Kept in a single auto-data string.

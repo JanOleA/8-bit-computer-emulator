@@ -3,7 +3,7 @@
 ;! deps: parse_number, display_number, newline, skip_line, print, printez, get_os_abi_var, get_mnemonic, get_program_address
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; --- Compile ascii text to executable bytes ---

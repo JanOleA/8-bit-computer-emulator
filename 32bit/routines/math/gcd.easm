@@ -3,7 +3,7 @@
 ;! deps: divide
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Compute gcd(arg1, arg2) using Euclid's algorithm.
 ; Inputs: .arg1 = a, .arg2 = b

@@ -3,7 +3,7 @@
 ;! deps: 
 ;! abi: all
 ;! bss: none
-;! align: 4
+;! align: 1
 
 ; -- Write an ascii character to the screen. Value must be in the A register. --
 

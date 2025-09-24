@@ -3,7 +3,7 @@
 ;! deps: wait_1600
 ;! abi:
 ;! bss: none
-;! align: 4
+;! align: 1
 
 wait_3200:
   JSR @wait_1600

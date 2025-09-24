@@ -3,7 +3,7 @@
 ;! deps: toggle_display_enable
 ;! abi: none
 ;! bss: none
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; Turn everything off: clear display, disable cursor/blink, then halt.

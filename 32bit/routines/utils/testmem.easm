@@ -3,7 +3,7 @@
 ;! deps: display_number, print, printez, newline, write_char
 ;! abi: all argv
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; --- Print a list of memory regions with 100 or more contiguous nulls, as well as the memory region with the largest contiguous block of nulls --

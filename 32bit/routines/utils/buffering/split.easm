@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; --- Return all locations of the separator character in the input string ---
 

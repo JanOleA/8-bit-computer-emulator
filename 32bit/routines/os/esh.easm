@@ -3,7 +3,7 @@
 ;! deps: osinfo, newline, write_char, toggle_display_enable, get_program_address, buffer_to_separator, print, printez
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; BSS layout (relative to auto `.bss` base)

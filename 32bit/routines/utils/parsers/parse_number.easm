@@ -3,7 +3,7 @@
 ;! deps: 
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Parse a text decimal number from pointer (first argument) into integer in .bss (stops at first non-digit)
 ; returns the number in A and the updated pointer in .arg1 (backwards compat)

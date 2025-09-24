@@ -3,7 +3,7 @@
 ;! deps: string_compare
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Program table row layout (32 words stride): base still at +16.
 ; Flags present at +22..+31 (flag0 = callable) but not used here.

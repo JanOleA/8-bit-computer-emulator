@@ -3,7 +3,7 @@
 ;! deps: newline, print, printez, display_number, divide, write_char, multiply
 ;! abi: all sysinfo
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 .linechar = "-"
@@ -111,6 +111,13 @@ print_decimal:  ; -- print a decimal number, bss + 10 = before decimal, bss + 11
   JSR @display_number
   LDI 46
   JSR @write_char
+  ; Ensure two digits after the decimal point (value is expected 0..99)
+  LDA .bss + 11
+  CPI 10
+  JPC pd_two_digits    ; if >= 10, no leading zero needed
+  LDI 48               ; '0'
+  JSR @write_char
+pd_two_digits:
   LDA .bss + 11
   PHA
   JSR @display_number
@@ -124,16 +131,17 @@ get_num_progs:
   LDI 0
   STA .bss + 1  ; word step from .prog_table
   STA .bss + 2  ; program count
-  STA .bss + 3  ; size of the final program in the table
-  STA .bss + 4  ; words used for BSS
-  STA .bss + 5  ; words used for data
+  STA .bss + 3  ; size of the current program's code in the table (and final program after the loop)
+  STA .bss + 4  ; total words used for BSS
+  STA .bss + 5  ; total words used for data
   STA .bss + 7  ; decimal for words used for programs
   STA .bss + 8  ; decimal for words used for BSS
   STA .bss + 9  ; decimal for words used for data
-  STA .bss + 12 ; base of final program
-  STA .bss + 13 ; data base of final program
+  STA .bss + 12 ; base of current program (and final program after the loop)
+  STA .bss + 13 ; data base of current program (and final program after the loop)
   STA .bss + 14 ; end of final program's data region (ceil to nearest 10)
-  STA .bss + 15 ; tmp for data used for current program
+  STA .bss + 15 ; data used for current program (and final program after the loop)
+  STA .bss + 16 ; start of data region
 check_prog_loop:
   LDI .prog_table
   ADD .bss + 1
@@ -179,13 +187,16 @@ check_prog_loop:
   ADI .prog_table
   LAP                 ; get data words reserved for this program
   STA .bss + 15       ; store it temporarily
-  ADD .bss + 5        ; add current sum
-  ADI 8               ; add 8 to compensate for the average gap between data regions
-  STA .bss + 5        ; store it again
 
-  LDA .bss + 15
   CPI 0
   JPZ skip_data_end
+  LDA .bss + 16       ; start of data region
+  CPI 1
+  JPC skip_set_data_start
+  LDA .bss + 13       ; data base of this program
+  STA .bss + 16       ; set start of data region
+skip_set_data_start:
+  LDA .bss + 15       ; data words reserved for this program
   ADD .bss + 13       ; add data base to get end of data region
   STA .bss + 14       ; store it
 skip_data_end:
@@ -224,7 +235,8 @@ get_n_progs_end:
   JSR @divide
   STA .bss + 8        ; store value after decimal
 
-  LDA .bss + 5
+  LDA .bss + 14       ; end of data region
+  SUB .bss + 16       ; - (start of data region) = get total data words used
   STA .arg1
   LDI 1000
   STA .arg2

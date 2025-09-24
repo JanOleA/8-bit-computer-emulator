@@ -3,7 +3,7 @@
 ;! deps: display_number, newline, parse_number
 ;! abi: argv
 ;! bss: none
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 peek:

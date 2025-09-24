@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi:
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Call signature: pow2_32_mod(SP - 2) = pow2_32_mod(input_mod)
 ; Inputs:

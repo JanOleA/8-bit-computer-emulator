@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; --- Multiply two inputs (retrieve first two from stack) store the result in the A register
 

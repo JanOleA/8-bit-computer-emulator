@@ -3,7 +3,7 @@
 ;! deps: cat, parse_number, display_number, newline, toggle_display_enable, copy_mem, skip_line, compile, print, printez
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; --- Text EDitor. First argument is memory address of start of text file. ---

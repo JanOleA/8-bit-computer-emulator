@@ -3,7 +3,7 @@
 ;! deps: parse_number, printez
 ;! abi: argv sysinfo
 ;! bss: auto
-;! align: 4
+;! align: 1
 ;! callable: yes
 
 ; bss + 0 : saved call stub operand

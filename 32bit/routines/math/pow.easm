@@ -3,7 +3,7 @@
 ;! deps: mult
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Compute pow(SP - 3, SP - 2) = (base ^ exp)
 ; Inputs: Stack Pointer - 3 = base, Stack Pointer - 2 = exp

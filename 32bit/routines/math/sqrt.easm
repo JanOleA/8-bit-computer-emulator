@@ -3,7 +3,7 @@
 ;! deps:
 ;! abi: all
 ;! bss: auto
-;! align: 4
+;! align: 1
 
 ; Integer floor square root using subtraction of odd numbers.
 ; Inputs: Stack Pointer - 2 = n
