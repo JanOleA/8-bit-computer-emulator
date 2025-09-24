@@ -1,0 +1,83 @@
+;! name: PRINTF
+;! entry: printf
+;! deps: printez
+;! abi: all
+;! bss: auto
+;! align: 1
+
+; --- Print a formatted null-terminated string to standard output, followed by a newline ---
+
+; Call signature: print(SP - 3, SP - 2) = print(string_pointer, args_pointer)
+; Inputs:
+;   Stack Pointer - 3 = pointer to string to be formatted
+;   Stack Pointer - 2 = pointer to arguments
+; Returns: A = number of characters printed
+
+; -- format specifiers supported:
+; %d - signed decimal integer
+; %u - unsigned decimal integer
+; %x - hexadecimal integer
+; %s - string
+; %% - literal percent sign
+
+string_pointer = .bss + 0
+args_pointer   = .bss + 1
+chars_printed  = .bss + 2
+
+printf:
+  PLA                       ; get return address from stack
+  MOVAB                     ; move return address to B for now
+
+  PLA                       ; get args_pointer from stack
+  STA .args_pointer         ; store args_pointer in .args_pointer
+  PLA                       ; get pointer to input string from stack
+  STA .string_pointer       ; store input string pointer in .string_pointer
+
+  MOVBA                     ; move return address back to A
+  PHA                       ; push it back to stack
+
+  LDI 0
+  STA .chars_printed
+
+lp:
+  ; load *string_pointer into A
+  LPA .string_pointer                 ; load mem[mem[.string_pointer]] into A
+  CPI 0
+  JPZ end                             ; if we reach null, return
+  CPI 37
+  JNZ print_char                      ; if not '%', print character
+  ; -- handle format specifier --
+  LDA .string_pointer
+  ADI 1
+  STA .string_pointer                 ; advance string pointer
+  LPA .string_pointer                 ; load next character (format specifier)
+  CPI 0
+  JPZ end                             ; if we reach null, return
+  CPI 100                             ; 'd'
+  JPZ print_signed_decimal
+  CPI 117                             ; 'u'
+  JPZ print_unsigned_decimal
+  CPI 120                             ; 'x'
+  JPZ print_hexadecimal
+  CPI 115                             ; 's'
+  JPZ print_string
+  CPI 37                              ; '%'
+  JPZ print_percent
+  ; -- unknown format specifier, just print it as-is, but first print the initial '%' --
+  LDI 37                              ; '%'
+  JSR @write_char
+  JSR increment_counter_and_continue
+  ; fallthrough to print the unknown specifier character itself
+print_char:                           ; print next character, whether it is the unknown specifier or a normal character
+  JSR @write_char
+  LDA .string_pointer
+  ADI 1
+  STA .string_pointer                 ; advance string pointer
+  JSR increment_counter_and_continue
+  JMP lp
+
+increment_counter_and_continue:
+  LDA .chars_printed
+  ADI 1
+  STA .chars_printed
+  RET

@@ -1,0 +1,78 @@
+;! name: DISPHEX
+;! entry: display_hex
+;! deps: divide, write_char
+;! abi: all
+;! bss: auto
+;! align: 1
+
+; -- Prints a number in hexadecimal --
+; Input: Stack Pointer - 2: argument: value to print (unsigned)
+
+; BSS locals
+; .bss      = working value (dividend)
+; .bss + 1  = digit count
+; .bss + 2  = input value, to return it to the A register at the end
+
+display_hex:
+  PLA                     ; get return address from stack
+  MOVAB                   ; move return address to B for now
+
+  PLA                     ; Argument. Copy input value into local working storage
+  STA .bss
+  STA .bss + 2
+
+  MOVBA                   ; move return address back to A
+  PHA                     ; push it back to stack
+
+  ; Handle zero specially -> print '0'
+  LDA .bss
+  CPI 0
+  JPZ dn_zero
+  ; Reset digit count
+  LDI 0
+  STA .bss + 1
+dn_loop:
+  ; Divide working value by 10, push remainder as ASCII
+  LDA .bss
+  CPI 0
+  JPZ dn_print
+  ; prepare args for divide
+  LDA .bss
+  STA .arg1
+  LDI 10
+  STA .arg2
+  ; divide by 10: returns A=quotient, .res2=remainder
+  JSR @divide
+  STA .bss            ; carry quotient forward
+  LDA .res2
+  ADI 48
+  PHA                 ; push ASCII digit
+  ; increment digit count
+  LDA .bss + 1
+  ADI 1
+  STA .bss + 1
+  JMP dn_loop
+
+dn_print:
+  ; Pop and print digits
+  LDA .bss + 1
+  CPI 0
+  JPZ dn_done
+dn_pop:
+  PLA
+  JSR @write_char
+  LDA .bss + 1
+  SUI 1
+  STA .bss + 1
+  JPZ dn_done
+  JMP dn_pop
+
+dn_zero:
+  LDI 48
+  JSR @write_char
+  LDA .bss + 2
+  RET
+
+dn_done:
+  LDA .bss + 2
+  RET
