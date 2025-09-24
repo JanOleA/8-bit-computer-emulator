@@ -12,13 +12,12 @@
 ; bss + 1 : current test site start
 ; bss + 2 : current test site size
 ; bss + 3 : largest test site start
-; bss + 4 : largest test site size
-; bss + 5 : in zero region
+; bss + 4 : largest test site stop
+; bss + 5 : largest test site size
+; bss + 6 : in zero region
 
 .largest_text = "Largest memory region with nulls:"
-.largest_text_2 = "["
-.largest_text_3 = ", "
-.largest_text_4 = ") Size: "
+.largest_text_2 = "[%u, %u) Size: %u"
 
 testmem:
   LDI 0
@@ -28,16 +27,17 @@ testmem:
   STA .bss + 3
   STA .bss + 4
   STA .bss + 5
+  STA .bss + 6
   JMP check_zero
 
 is_zero:
-  LDA .bss + 5          ; if in_zero_region is 1, skip setting start of site
+  LDA .bss + 6          ; if in_zero_region is 1, skip setting start of site
   CPI 1
   JPZ skip_startsite
   LDA .bss
   STA .bss + 1          ; set the start of current site to memory address
   LDI 1
-  STA .bss + 5          ; set flag for being in zero region
+  STA .bss + 6          ; set flag for being in zero region
 skip_startsite:
   LDA .bss
   ADI 1
@@ -55,13 +55,13 @@ not_zero:               ; if it's not zero
   ADI 1
   JPC end               ; increment memory address, if carry, end
   STA .bss
-  LDA .bss + 5          ; see if we previously were in a zero region
+  LDA .bss + 6          ; see if we previously were in a zero region
   CPI 1
   JPZ end_zero_region
   JMP check_zero        ; we were not, so go back to check_zero
 end_zero_region:
   LDI 0
-  STA .bss + 5
+  STA .bss + 6
   LDI 100
   CMP .bss + 2          ; compare size of this region with 100, if 100 is GEQ A, skip printing
   JPC skip_print
@@ -69,7 +69,7 @@ print_current:          ; print the start and size of the current region
   JSR display_current
 skip_print:
   LDA .bss + 2
-  CMP .bss + 4
+  CMP .bss + 5
   JPC update_largest    ; if the current region is GEQ than the previous largest
   LDI 0
   STA .bss + 2
@@ -78,48 +78,39 @@ update_largest:
   LDA .bss + 1
   STA .bss + 3
   LDA .bss + 2
-  STA .bss + 4
+  STA .bss + 5
   LDI 0
   STA .bss + 2
   JMP check_zero
 end:
-  LDA .bss + 5
+  LDA .bss + 6
   CPI 1
   JPZ end_on_zero_region
   JMP print_largest
 
 end_on_zero_region:
   JSR display_current
-  LDA .bss + 4
+  LDA .bss + 5
   CMP .bss + 2
   JPC print_largest    ; if the largest region is GEQ than the current, skip to end
   LDA .bss + 1
   STA .bss + 3
   LDA .bss + 2
-  STA .bss + 4
+  STA .bss + 5
 print_largest:
   LDI .largest_text
   JSR print_newline
+
   LDI .largest_text_2
-  JSR print_no_newline
+  PHA
+  LDI .bss + 3          ; args are bss + 3, + 4 and + 5, so pass the start as a pointer for all three
+  PHA
 
   LDA .bss + 3
-  PHA
-  JSR @display_number
+  ADD .bss + 5
+  STA .bss + 4
 
-  LDI .largest_text_3
-  JSR print_no_newline
-
-  LDA .bss + 3
-  ADD .bss + 4
-  PHA
-  JSR @display_number
-  LDI .largest_text_4
-  JSR print_no_newline
-  LDA .bss + 4
-  PHA
-  JSR @display_number
-  JSR @newline
+  JSR @printf
   RET
 
 

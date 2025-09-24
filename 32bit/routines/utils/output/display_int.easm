@@ -9,6 +9,7 @@
 ; Input: Stack Pointer - 2: argument: value to print (signed, use A register to determine number of bits)
 
 sign_bit_mask = .bss + 1   ; mask for sign bit based on .bits_avail
+print_count   = .bss + 3   ; local counter for total chars printed ('-' + digits)
 
 display_int:
   PLA                     ; get return address from stack
@@ -30,6 +31,10 @@ display_int:
   JSR @pow
   STA .sign_bit_mask
 
+  ; reset local count
+  LDI 0
+  STA .print_count
+
   ; Check if negative
   LDA .bss
   CMP .sign_bit_mask      ; if value >= sign bit mask, it's negative
@@ -39,6 +44,9 @@ di_negative:
   ; It's negative: print '-' and negate value
   LDI 45                  ; ASCII '-'
   JSR @write_char
+  ; record 1 char printed for '-'
+  LDI 1
+  STA .print_count
   LDI 0
   SUB .bss
   STA .bss
@@ -47,6 +55,10 @@ di_positive:
   LDA .bss
   PHA
   JSR @display_number
+  ; add any leading '-' to digit count: .res3 = digits + print_count
+  LDA .res3
+  ADD .print_count
+  STA .res3
 
   ; Restore original value to A before returning
   LDA .bss + 2

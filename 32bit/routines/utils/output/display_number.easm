@@ -55,6 +55,9 @@ dn_loop:
 
 dn_print:
   ; Pop and print digits
+  ; Save digit count to .res3 before we start decrementing it
+  LDA .bss + 1
+  STA .res3
   LDA .bss + 1
   CPI 0
   JPZ dn_done
@@ -70,6 +73,9 @@ dn_pop:
 dn_zero:
   LDI 48
   JSR @write_char
+  ; one character printed
+  LDI 1
+  STA .res3
   LDA .bss + 2
   RET
 

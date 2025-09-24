@@ -1,6 +1,6 @@
 ;! name: TED
 ;! entry: ted_start
-;! deps: cat, parse_number, display_number, newline, toggle_display_enable, copy_mem, skip_line, compile, print, printez
+;! deps: cat, parse_number, display_number, newline, toggle_display_enable, copy_mem, skip_line, compile, print, printez, printf
 ;! abi: all
 ;! bss: auto
 ;! align: 1
@@ -21,6 +21,7 @@
 ; bss + 10      : input entered
 ; bss + 11      : entered value
 ; bss + 12      : no input
+; bss + 13      : tmp
 
 screen_width = 40
 screen_height = 20
@@ -30,8 +31,7 @@ screen_height = 20
 .lc_text = "  lc="
 .mode0_text = "insert"
 .mode1_text = "command"
-.compiling_text = "Compiling to mem["
-.compiling_text_2 = ":]"
+.compiling_text = "Compiling to mem[%u:]"
 
 ted_start:
   LDA .argv_base
@@ -141,18 +141,17 @@ set_mode_1:
 compile:
   JSR clear_display
   LDI .compiling_text
-  JSR print_no_newline
+  PHA
   LDA .bss + 0
   ADD .bss + 2
   ADI 2
+  STA .bss + 13
+  LDI .bss + 13
   PHA
-  JSR @display_number
-  LDI .compiling_text_2
-  JSR print_newline
+  JSR @printf
   LDA .bss + 0
   STA .arg1
-  ADD .bss + 2
-  ADI 2
+  LDA .bss + 13
   STA .arg2
   JSR @compile
   RET

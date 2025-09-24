@@ -1,19 +1,16 @@
 ;! name: OSINFO
 ;! entry: osinfo
-;! deps: newline, print, printez, display_number, divide, write_char, multiply
-;! abi: all sysinfo
+;! deps: newline, print, printez, printf,display_number, divide, write_char, multiply
+;! abi: args sysinfo
 ;! bss: auto
 ;! align: 1
 ;! callable: yes
 
 .linechar = "-"
-.version =                 "EShell (ESH) 25.9.3a"
-.bits_avail_text_1 =       "AReg size       : "
-.bits_avail_text_2 =       " bits"
-.memory_available_text =   "Memory available: "
-.memory_available_text_2 = " k words"
-.memory_available_text_3 = "                  ("
-.memory_available_text_4 = " bits/word)"
+.version =                 "EShell (ESH) 25.9.0a4 - 2025-09-24"
+.bits_avail_text_1 =       "AReg size       : %u bits"
+.memory_available_text =   "Memory available: %u kwords"
+.memory_available_text_2 = "                  (%u bits/word)"
 .installed_progs_text =    "Installed routines/programs: "
 .installed_progs_text_2 =  "Words used for programs (k): "
 .bss_text =                "Words reserved for BSS (k) : "
@@ -30,32 +27,27 @@ osinfo:
   LDI .version
   JSR print_newline
   LDI .bits_avail_text_1
-  JSR print_no_newline
-  LDA .bits_avail
   PHA
-  JSR @display_number
-  LDI .bits_avail_text_2
-  JSR print_newline
-  LDI .memory_available_text
-  JSR print_no_newline
+  LDI .bits_avail
+  PHA
+  JSR @printf
+  LDI .bits_avail_text_2  
   LDI 0
   SUI 1
   STA .arg1
   LDI 1000
   STA .arg2
   JSR @divide
-  LDA .res1
+  LDI .memory_available_text
   PHA
-  JSR @display_number
+  LDI .res1
+  PHA
+  JSR @printf
   LDI .memory_available_text_2
-  JSR print_newline
-  LDI .memory_available_text_3
-  JSR print_no_newline
-  LDA .bits_avail
   PHA
-  JSR @display_number
-  LDI .memory_available_text_4
-  JSR print_newline
+  LDI .bits_avail
+  PHA
+  JSR @printf
   JSR get_num_progs
   LDI .installed_progs_text
   JSR print_no_newline
