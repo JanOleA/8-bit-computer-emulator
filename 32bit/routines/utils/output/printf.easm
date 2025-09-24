@@ -1,7 +1,7 @@
 ;! name: PRINTF
 ;! entry: printf
-;! deps: printez
-;! abi: all
+;! deps: printez, display_int, display_hex, write_char
+;! abi: 
 ;! bss: auto
 ;! align: 1
 
@@ -13,6 +13,16 @@
 ;   Stack Pointer - 2 = pointer to arguments
 ; Returns: A = number of characters printed
 
+; example args pointer = some_mem_location
+; mem[some_mem_location + 0] = first argument
+; mem[some_mem_location + 1] = second argument
+; mem[some_mem_location + 2] = third argument
+; ...
+; e.g. a string and an integer:
+; mem[some_mem_location + 0] = pointer to string -> to pass to printez, LDA some_mem_location + 0; PHA; JSR @write_string
+; mem[some_mem_location + 1] = integer value
+; ...
+
 ; -- format specifiers supported:
 ; %d - signed decimal integer
 ; %u - unsigned decimal integer
@@ -20,9 +30,10 @@
 ; %s - string
 ; %% - literal percent sign
 
-string_pointer = .bss + 0
-args_pointer   = .bss + 1
-chars_printed  = .bss + 2
+string_pointer  = .bss + 0
+args_pointer    = .bss + 1
+chars_printed   = .bss + 2
+tmp             = .bss + 3
 
 printf:
   PLA                       ; get return address from stack
@@ -47,9 +58,7 @@ lp:
   CPI 37
   JNZ print_char                      ; if not '%', print character
   ; -- handle format specifier --
-  LDA .string_pointer
-  ADI 1
-  STA .string_pointer                 ; advance string pointer
+  JSR increment_string_pointer
   LPA .string_pointer                 ; load next character (format specifier)
   CPI 0
   JPZ end                             ; if we reach null, return
@@ -66,18 +75,79 @@ lp:
   ; -- unknown format specifier, just print it as-is, but first print the initial '%' --
   LDI 37                              ; '%'
   JSR @write_char
-  JSR increment_counter_and_continue
+  JSR increment_counter
   ; fallthrough to print the unknown specifier character itself
 print_char:                           ; print next character, whether it is the unknown specifier or a normal character
   JSR @write_char
-  LDA .string_pointer
-  ADI 1
-  STA .string_pointer                 ; advance string pointer
-  JSR increment_counter_and_continue
+  JSR increment_string_pointer
+  JSR increment_counter
   JMP lp
 
-increment_counter_and_continue:
+print_percent:
+  LDI 37                              ; '%'
+  JSR @write_char
+  JSR increment_counter
+  JSR increment_string_pointer
+  JMP lp
+
+print_string:
+  ; get argument (pointer to string)
+  LDA .args_pointer
+  LPA .arg1
+  JSR @printez
+  ADD .chars_printed
+  STA .chars_printed
+  JSR increment_args_pointer
+  JSR increment_string_pointer
+  JMP lp
+
+print_signed_decimal:
+  ; get argument (signed integer)
+  LDA .args_pointer
+  PHA
+  JSR @display_int
+  JSR increment_counter            ; does not return number of chars printed, TODO: fix or workaround
+  JSR increment_args_pointer
+  JSR increment_string_pointer
+  JMP lp
+
+print_unsigned_decimal:
+  ; get argument (unsigned integer)
+  LDA .args_pointer
+  PHA
+  JSR @display_number
+  JSR increment_counter            ; does not return number of chars printed, TODO: fix or workaround
+  JSR increment_args_pointer
+  JSR increment_string_pointer
+  JMP lp
+
+print_hexadecimal:
+  ; get argument (unsigned integer)
+  LDA .args_pointer
+  PHA
+  JSR @display_hex
+  JSR increment_counter            ; does not return number of chars printed, TODO: fix or workaround
+  JSR increment_args_pointer
+  JSR increment_string_pointer
+  JMP lp
+
+increment_counter:
   LDA .chars_printed
   ADI 1
   STA .chars_printed
+  RET
+
+increment_args_pointer:
+  LDA .args_pointer
+  ADI 1
+  STA .args_pointer
+  RET
+
+increment_string_pointer:
+  LDA .string_pointer
+  ADI 1
+  STA .string_pointer
+  RET
+
+end:
   RET

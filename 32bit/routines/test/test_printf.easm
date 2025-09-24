@@ -1,0 +1,28 @@
+;! name: TESTPRINTF
+;! entry: main
+;! abi: all
+;! callable: yes
+;! dps: printf
+
+.text_1 = "This %s has n=%d h=%x. 100%%!"
+.text_2 = "Test with %u and %d."
+.insert_string = "string"
+
+args_1 = .bss
+args_2 = .bss + 1
+args_2_end = .bss + 3
+
+main:
+  LDI .insert_string
+  STA .args_1
+  LDI 42
+  STA .args_1 + 1
+  STA .args_1 + 2     ; 0x2A
+
+  LDI .text_1
+  PHA
+  LDI .args_1
+  PHA
+  JSR @printf
+  RET
+

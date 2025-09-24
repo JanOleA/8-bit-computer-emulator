@@ -5,7 +5,7 @@
 ;! bss: auto
 ;! align: 1
 
-; -- Prints a number in hexadecimal --
+; -- Prints a number in hexadecimal (uppercase) --
 ; Input: Stack Pointer - 2: argument: value to print (unsigned)
 
 ; BSS locals
@@ -32,21 +32,29 @@ display_hex:
   LDI 0
   STA .bss + 1
 dn_loop:
-  ; Divide working value by 10, push remainder as ASCII
+  ; Divide working value by 16, push remainder as ASCII hex
   LDA .bss
   CPI 0
   JPZ dn_print
   ; prepare args for divide
   LDA .bss
   STA .arg1
-  LDI 10
+  LDI 16
   STA .arg2
-  ; divide by 10: returns A=quotient, .res2=remainder
+  ; divide by 16: returns A=quotient, .res2=remainder
   JSR @divide
   STA .bss            ; carry quotient forward
   LDA .res2
-  ADI 48
+  CPI 10
+  JPC dn_hex_alpha    ; if remainder >= 10 → A-F
+  ADI 48              ; '0'..'9'
   PHA                 ; push ASCII digit
+  JMP dn_pushed
+dn_hex_alpha:
+  SUI 10
+  ADI 65              ; 'A'..'F'
+  PHA
+dn_pushed:
   ; increment digit count
   LDA .bss + 1
   ADI 1
