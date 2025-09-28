@@ -13,26 +13,26 @@ value   = .bss + 2
 
 poke:
   ; argc >= 2?
-  LDA .argv_base
+  LDA .__argv_base
   CPI 2
   JPC pk_ok
   RET
 pk_ok:
   ; parse address from argv[1] -> address
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @parse_number
   STA .address
 pk_paddr_done:
   ; parse value from argv[2] -> value
-  LDA .argv_base + 2
+  LDA .__argv_base + 2
   PHA
   JSR @parse_number
   STA .value
 pk_pval_done:
   ; store: *addr = val
   LDA .address
-  CMP .reserved_region_end  ; if we carry, we are >= reserved_region_end -> OK
+  CMP .__sys_reserved_region_end  ; if we carry, we are >= __sys_reserved_region_end -> OK
   JPC pk_ok_reserved        ; prevent poking into reserved region
   LDI .reserved_region_text
   PHA

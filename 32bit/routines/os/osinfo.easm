@@ -8,7 +8,7 @@
 
 .linechar = "-"
 .version =                 "EShell (ESH) 25.9.0a4 - 2025-09-24"
-.bits_avail_text_1 =       "AReg size       : %u bits"
+..__sys_bits_avail_text_1 =       "AReg size       : %u bits"
 .memory_available_text =   "Memory available: %u kwords"
 .memory_available_text_2 = "                  (%u bits/word)"
 .installed_progs_text =    "Installed routines/programs: "
@@ -26,33 +26,32 @@ osinfo:
   JSR write_40_dash
   LDI .version
   JSR print_newline
-  LDI .bits_avail_text_1
+  LDI ..__sys_bits_avail_text_1
   PHA
-  LDI .bits_avail
+  LDI ..__sys_bits_avail
   PHA
   JSR @printf
-  LDI .bits_avail_text_2  
+  LDI ..__sys_bits_avail_text_2  
   LDI 0
   SUI 1
-  STA .arg1
+  STA .__arg1
   LDI 1000
-  STA .arg2
+  STA .__arg2
   JSR @divide
   LDI .memory_available_text
   PHA
-  LDI .res1
+  LDI .__res1
   PHA
   JSR @printf
   LDI .memory_available_text_2
   PHA
-  LDI .bits_avail
+  LDI ..__sys_bits_avail
   PHA
   JSR @printf
   JSR get_num_progs
   LDI .installed_progs_text
   JSR print_no_newline
   LDA .bss + 2
-  PHA
   JSR @display_number
   JSR @newline
   LDI .installed_progs_text_2
@@ -82,8 +81,7 @@ osinfo:
   LDI .end_data_text
   JSR print_no_newline
   LDA .bss + 14                   ; end of data region
-  STA .reserved_region_end
-  PHA
+  STA .__sys_reserved_region_end
   JSR @display_number
   JSR @newline
   JSR write_40_dash
@@ -99,7 +97,6 @@ osinfo:
 
 print_decimal:  ; -- print a decimal number, bss + 10 = before decimal, bss + 11 = after decimal --
   LDA .bss + 10
-  PHA
   JSR @display_number
   LDI 46
   JSR @write_char
@@ -111,17 +108,16 @@ print_decimal:  ; -- print a decimal number, bss + 10 = before decimal, bss + 11
   JSR @write_char
 pd_two_digits:
   LDA .bss + 11
-  PHA
   JSR @display_number
   RET
 
 get_num_progs:
-  LDI .prog_table
+  LDI .__sys_prog_table
   ADI 16
   LAP
   STA .bss + 10 ; base of first program
   LDI 0
-  STA .bss + 1  ; word step from .prog_table
+  STA .bss + 1  ; word step from .__sys_prog_table
   STA .bss + 2  ; program count
   STA .bss + 3  ; size of the current program's code in the table (and final program after the loop)
   STA .bss + 4  ; total words used for BSS
@@ -135,7 +131,7 @@ get_num_progs:
   STA .bss + 15 ; data used for current program (and final program after the loop)
   STA .bss + 16 ; start of data region
 check_prog_loop:
-  LDI .prog_table
+  LDI .__sys_prog_table
   ADD .bss + 1
   LAP                 ; get the first word of the name, if it's not null, continue
   CPI 0
@@ -147,21 +143,21 @@ check_prog_loop:
   LDA .bss + 1
   ADI 16              ; increment word step by 16
   STA .bss + 1
-  ADI .prog_table
+  ADI .__sys_prog_table
   LAP                 ; get base for this program
   STA .bss + 12
 
   LDA .bss + 1
   ADI 1               ; increment word step by 17 (17 total)
   STA .bss + 1
-  ADI .prog_table
+  ADI .__sys_prog_table
   LAP                 ; get words used for this program
   STA .bss + 3        ; store it
 
   LDA .bss + 1
   ADI 2               ; increment word step by 2 (19 total)
   STA .bss + 1
-  ADI .prog_table
+  ADI .__sys_prog_table
   LAP                 ; get BSS words reserved for this program
   ADD .bss + 4        ; add current sum
   STA .bss + 4        ; store it again
@@ -169,14 +165,14 @@ check_prog_loop:
   LDA .bss + 1
   ADI 1               ; increment word step by 1 (20 total)
   STA .bss + 1
-  ADI .prog_table
+  ADI .__sys_prog_table
   LAP                 ; get data base for this program (not used)
   STA .bss + 13       ; store it
 
   LDA .bss + 1
   ADI 1               ; increment word step by 1 (21 total)
   STA .bss + 1
-  ADI .prog_table
+  ADI .__sys_prog_table
   LAP                 ; get data words reserved for this program
   STA .bss + 15       ; store it temporarily
 
@@ -202,50 +198,50 @@ get_n_progs_end:
   LDA .bss + 12       ; base of final program
   ADD .bss + 3        ; size of final program
   SUB .bss + 10       ; base of first program
-  STA .arg1
+  STA .__arg1
   LDI 1000
-  STA .arg2
+  STA .__arg2
   JSR @divide
   STA .bss + 3        ; result from divide is stored in A reg
-  LDA .res2           ; get remainder
-  STA .arg1
+  LDA .__res2           ; get remainder
+  STA .__arg1
   LDI 10
-  STA .arg2
+  STA .__arg2
   JSR @divide
   STA .bss + 7        ; store value after decimal
 
   LDA .bss + 4
-  STA .arg1
+  STA .__arg1
   LDI 1000
-  STA .arg2
+  STA .__arg2
   JSR @divide 
   STA .bss + 4        ; result from divide is stored in A reg
-  LDA .res2           ; get remainder
-  STA .arg1
+  LDA .__res2           ; get remainder
+  STA .__arg1
   LDI 10
-  STA .arg2
+  STA .__arg2
   JSR @divide
   STA .bss + 8        ; store value after decimal
 
   LDA .bss + 14       ; end of data region
   SUB .bss + 16       ; - (start of data region) = get total data words used
-  STA .arg1
+  STA .__arg1
   LDI 1000
-  STA .arg2
+  STA .__arg2
   JSR @divide
   STA .bss + 5        ; result from divide is stored in A reg
-  LDA .res2           ; get remainder
-  STA .arg1
+  LDA .__res2           ; get remainder
+  STA .__arg1
   LDI 10
-  STA .arg2
+  STA .__arg2
   JSR @divide
   STA .bss + 9        ; store value after decimal
 
   LDA .bss + 14
   ADI 1               ; add one for safety margin
-  STA .arg1
+  STA .__arg1
   LDI 10
-  STA .arg2
+  STA .__arg2
   JSR @divide
   PHA
   LDI 10

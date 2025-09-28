@@ -1,14 +1,14 @@
 ;! name: REM64
 ;! entry: rem64
-;! deps: divide, modmul, pow2_32_mod
+;! deps: divide, modmul, __pow2_32_mod
 ;! abi: all
 ;! bss: auto
 ;! align: 1
 
 ; Compute (hi * 2^32 + lo) mod mod, where
-;   .arg1 = lo
-;   .arg2 = hi
-;   .res1 = mod
+;   .__arg1 = lo
+;   .__arg2 = hi
+;   .__res1 = mod
 ; Returns A = remainder
 ; Locals:
 ;   .bss     = mod
@@ -19,41 +19,41 @@
 
 rem64:
   ; save mod
-  LDA .res1
+  LDA .__res1
   STA .bss
-  ; preserve original inputs (lo, hi) because .arg1/.arg2 are clobbered by subcalls
-  LDA .arg1
+  ; preserve original inputs (lo, hi) because .__arg1/.__arg2 are clobbered by subcalls
+  LDA .__arg1
   STA .bss + 5      ; save lo
-  LDA .arg2
+  LDA .__arg2
   STA .bss + 6      ; save hi
   ; lo_mod = lo % mod
   LDA .bss + 5
-  STA .arg1
+  STA .__arg1
   LDA .bss
-  STA .arg2
+  STA .__arg2
   JSR @divide
-  LDA .res2
+  LDA .__res2
   STA .bss + 1
   ; hi_mod = hi % mod
   LDA .bss + 6
-  STA .arg1
+  STA .__arg1
   LDA .bss
-  STA .arg2
+  STA .__arg2
   JSR @divide
-  LDA .res2
+  LDA .__res2
   STA .bss + 2
   ; pow = 2^32 % mod
   LDA .bss
   PHA
-  JSR @pow2_32_mod
+  JSR @__pow2_32_mod
   STA .bss + 3
   ; hi_term = (hi_mod * pow) % mod
   LDA .bss + 2
-  STA .arg1
+  STA .__arg1
   LDA .bss + 3
-  STA .arg2
+  STA .__arg2
   LDA .bss
-  STA .res1
+  STA .__res1
   JSR @modmul
   STA .bss + 4
   ; r = (hi_term + lo_mod) % mod

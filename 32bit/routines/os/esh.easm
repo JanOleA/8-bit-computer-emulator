@@ -40,13 +40,13 @@ start:
   JSR @osinfo
   ; initialize shell state
   LDI 0
-  STA .cmd_len
-  STA .cmd_ready
+  STA .__cmd_len
+  STA .__cmd_ready
   STA .bss + 2
   STA .bss + 3
   STA .bss + 4
-  LDI .input_buf
-  STA .input_ptr
+  LDI .__input_buf
+  STA .__input_ptr
   JSR print_prompt
   JMP main_loop
 
@@ -55,8 +55,8 @@ main_loop:
   JSR check_input
   LDA .bss + 1
   CPI 0
-  JPZ no_input
-  LDA .no_input
+  JPZ __no_input
+  LDA .__no_input
   CPI 1
   JPZ main_loop
   LDA .bss
@@ -72,62 +72,62 @@ main_loop:
   JPZ handle_backspace
   CPI 52
   JPZ handle_left
-  LDA .ascii_start
+  LDA .__ascii_start
   ADD .bss
   LAP
   STA .char
   JSR @write_char
   ; buffer char
-  LDA .input_ptr
+  LDA .__input_ptr
   PHA
   LDA .char
   SAS
   ; advance ptr and len with clamps
-  LDA .input_ptr
+  LDA .__input_ptr
   ADI 1
-  STA .input_ptr
-  ; clamp input_ptr to input_buf + hist_entry_len
-  CPI .input_buf + .hist_entry_len
+  STA .__input_ptr
+  ; clamp __input_ptr to __input_buf + hist_entry_len
+  CPI .__input_buf + .hist_entry_len
   JPZ clamp_ptr
   JMP after_ptr
 clamp_ptr:
-  LDA .input_ptr
+  LDA .__input_ptr
   SUI 1
-  STA .input_ptr
+  STA .__input_ptr
 after_ptr:
-  LDA .cmd_len
+  LDA .__cmd_len
   ADI 1
-  STA .cmd_len
-  ; clamp cmd_len to hist_entry_len
+  STA .__cmd_len
+  ; clamp __cmd_len to hist_entry_len
   CPI .hist_entry_len
   JPZ clamp_len
   JMP after_len
 clamp_len:
-  LDA .cmd_len
+  LDA .__cmd_len
   SUI 1
-  STA .cmd_len
+  STA .__cmd_len
 after_len:
   LDI 1
-  STA .no_input
+  STA .__no_input
   JMP main_loop
 
-no_input:
+__no_input:
   LDI 0
-  STA .no_input
+  STA .__no_input
   JMP main_loop
 
 handle_left:
   LDI 1
-  STA .no_input
+  STA .__no_input
   JMP main_loop
 
 check_input:
-  LDA .inc_random_seed
+  LDA .__inc_random_seed
   CPI 0
   JPZ pass_increase
-  LDA .random_seed
+  LDA .__random_seed
   ADI 1
-  STA .random_seed
+  STA .__random_seed
 pass_increase:
   KEI
   PHA
@@ -145,37 +145,37 @@ input_entered:
   LDI 1
   STA .bss + 1
   LDI 0
-  STA .inc_random_seed
+  STA .__inc_random_seed
   RET
 
 handle_hist_up:
   JSR history_up
   LDI 1
-  STA .no_input
+  STA .__no_input
   JMP main_loop
 
 handle_hist_down:
   JSR history_down
   LDI 1
-  STA .no_input
+  STA .__no_input
   JMP main_loop
 
 handle_backspace:
-  LDA .input_ptr
-  CPI .input_buf
+  LDA .__input_ptr
+  CPI .__input_buf
   JPZ hb_done
-  LDA .input_ptr
+  LDA .__input_ptr
   SUI 1
-  STA .input_ptr
-  LDA .input_ptr
+  STA .__input_ptr
+  LDA .__input_ptr
   PHA
   LDI 0
   SAS
-  LDA .cmd_len
+  LDA .__cmd_len
   CPI 0
   JPZ hb_after_len
   SUI 1
-  STA .cmd_len
+  STA .__cmd_len
 hb_after_len:
   JSR cursor_left
   LDI 32
@@ -183,17 +183,17 @@ hb_after_len:
   JSR cursor_left
 hb_done:
   LDI 1
-  STA .no_input
+  STA .__no_input
   JMP main_loop
 
 handle_enter:
   ; terminate buffer, set ready
-  LDA .input_ptr
+  LDA .__input_ptr
   PHA
   LDI 0
   SAS
   LDI 1
-  STA .cmd_ready
+  STA .__cmd_ready
   ; newline
   JSR enter
   ; run command
@@ -201,14 +201,14 @@ handle_enter:
   ; save to history
   JSR save_history
   ; reset buffer
-  LDI .input_buf
-  STA .input_ptr
+  LDI .__input_buf
+  STA .__input_ptr
   LDI 0
-  STA .cmd_len
+  STA .__cmd_len
   ; prompt
   JSR print_prompt
   LDI 1
-  STA .no_input
+  STA .__no_input
   JMP main_loop
 
 ; --- UI helpers ---
@@ -253,13 +253,13 @@ enter:
 clear_line:
   JSR ret_home
   LDI 40
-  STA .num_digits
+  STA .__num_digits
 cl_loop:
   LDI 32
   JSR @write_char
-  LDA .num_digits
+  LDA .__num_digits
   SUI 1
-  STA .num_digits
+  STA .__num_digits
   JNZ cl_loop
 cl_done:
   JSR ret_home
@@ -268,7 +268,7 @@ cl_done:
 
 ; --- Command parsing ---
 run_command:
-  LDI .input_buf
+  LDI .__input_buf
   STA .bss + 1609
   JSR skip_spaces
   JSR dispatch_program
@@ -292,23 +292,23 @@ dispatch_program:
   PHA                       ; buffer to first space
   JSR @buffer_to_separator
   PLA                       ; buffer pointer
-  STA .res1
+  STA .__res1
   PLA                       ; length
-  STA .res2
+  STA .__res2
   PLA                       ; end_on_null                   ; not needed here
-  LDA .res2
+  LDA .__res2
   CPI 0
   JPZ dp_nomatch            ; jump to no match if buffer returns empty string (0 length)
-  LDI .input_buf
-  ADD .res2                 ; add length of command to input buffer to get to start of arguments
+  LDI .__input_buf
+  ADD .__res2                 ; add length of command to input buffer to get to start of arguments
   STA .bss + 1608           ; store memory location for start of argument buffer
-  LDA .res1
-  STA .arg1
+  LDA .__res1
+  STA .__arg1
   JSR @get_program_address
   STA .bss + 1619           ; store resolved program entry
   CPI 0
   JPZ dp_nomatch
-  LDA .res2
+  LDA .__res2
   CPI 0
   JPZ dp_not_callable
   
@@ -319,10 +319,10 @@ dp_match:
   LDA .bss + 1609
   STA .bss + 1615
   JSR build_argv
-  LDI .argv_base
-  STA .arg1
-  LDI .argv_buf
-  STA .arg2
+  LDI .__argv_base
+  STA .__arg1
+  LDI .__argv_buf
+  STA .__arg2
   LDA .bss + 1619
   STA 19997
   JSR #19996
@@ -332,12 +332,12 @@ dp_match:
   STA .bss
   RET
 dp_nomatch:
-  LDA .cmd_len
+  LDA .__cmd_len
   CPI 0
   JPZ err_help
   LDI .cmd_error_message
   JSR print_no_newline
-  LDI .input_buf
+  LDI .__input_buf
   JSR print_newline
   JMP err_help
 dp_not_callable:
@@ -352,14 +352,14 @@ err_help:
 
 ; Build argc/argv from the raw argument string referenced by .bss + 1615
 build_argv:
-  LDI .argv_base
+  LDI .__argv_base
   PHA
   LDI 0
   SAS
-  LDI .argv_base
+  LDI .__argv_base
   ADI 1
   STA .bss + 1613
-  LDI .argv_buf
+  LDI .__argv_buf
   STA .bss + 1614
   LDA .bss + 1615
   STA .bss + 1616
@@ -376,7 +376,7 @@ ba_skip_whitespace:
   STA .bss + 1616
   JMP ba_next_token
 ba_start:
-  LDA .argv_base
+  LDA .__argv_base
   CPI 8
   JPZ ba_done
   LDA .bss + 1613
@@ -411,10 +411,10 @@ ba_term:
   LDA .bss + 1612
   ADI 1
   STA .bss + 1614
-  LDA .argv_base
+  LDA .__argv_base
   ADI 1
   STA .bss + 1617
-  LDI .argv_base
+  LDI .__argv_base
   PHA
   LDA .bss + 1617
   SAS
@@ -427,7 +427,7 @@ ba_done:
 
 ; --- History ---
 save_history:
-  LDA .cmd_len
+  LDA .__cmd_len
   CPI 0
   JPZ sh_done
   ; compute dest = hist_base + .bss + 2*80
@@ -451,7 +451,7 @@ save_history:
   LDI .bss + 7
   ADD .bss + 6
   STA .bss + 1610
-  LDI .input_buf
+  LDI .__input_buf
   STA .bss + 1611
   LDI 0
   STA .bss + 1617
@@ -517,10 +517,10 @@ sh_done:
 
 history_load_current:
   JSR clear_line
-  LDI .input_buf
-  STA .input_ptr
+  LDI .__input_buf
+  STA .__input_ptr
   LDI 0
-  STA .cmd_len
+  STA .__cmd_len
   LDA .bss + 4
   CPI 0
   JPZ hlc_blank
@@ -566,31 +566,31 @@ hlc_copy:
   CPI 0
   JPZ hlc_done
   JSR @write_char
-  LDA .input_ptr
+  LDA .__input_ptr
   PHA
   LDA .char
   SAS
   LDA .bss + 1611
   ADI 1
   STA .bss + 1611
-  LDA .input_ptr
+  LDA .__input_ptr
   ADI 1
-  STA .input_ptr
-  LDA .cmd_len
+  STA .__input_ptr
+  LDA .__cmd_len
   ADI 1
-  STA .cmd_len
+  STA .__cmd_len
   LDA .bss + 1617
   ADI 1
   STA .bss + 1617
   JMP hlc_copy
 hlc_done:
-  LDA .input_ptr
+  LDA .__input_ptr
   PHA
   LDI 0
   SAS
   RET
 hlc_blank:
-  LDA .input_ptr
+  LDA .__input_ptr
   PHA
   LDI 0
   SAS

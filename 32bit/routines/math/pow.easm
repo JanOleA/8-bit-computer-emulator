@@ -7,7 +7,7 @@
 
 ; Compute pow(SP - 3, SP - 2) = (base ^ exp)
 ; Inputs: Stack Pointer - 3 = base, Stack Pointer - 2 = exp
-; Returns: .res1 = result; A = result
+; Returns: .__res1 = result; A = result
 
 ; bss + 1 = exp
 ; bss + 2 = base
@@ -31,18 +31,18 @@ pow:
   JPZ pow_one
   ; res = 1
   LDI 1
-  STA .res1
+  STA .__res1
 pow_loop:
   LDA .bss + 2
   CPI 0
   JPZ pow_done
-  ; res1 = res1 * base
-  LDA .res1
+  ; __res1 = __res1 * base
+  LDA .__res1
   PHA
   LDA .bss + 1
   PHA
   JSR @multiply
-  STA .res1
+  STA .__res1
   ; dec exp
   LDA .bss + 2
   SUI 1
@@ -52,8 +52,8 @@ pow_loop:
 
 pow_one:
   LDI 1
-  STA .res1
+  STA .__res1
 
 pow_done:
-  LDA .res1
+  LDA .__res1
   RET

@@ -6,8 +6,6 @@
 ;! align: 1
 ;! callable: yes
 
-screen_width = 39
-screen_height = 20
 repeat_delay = 64       ; ticks before first auto-repeat
 repeat_shift = 4        ; repeat rate = every 2^repeat_shift ticks after delay
 
@@ -30,11 +28,16 @@ repeat_shift = 4        ; repeat rate = every 2^repeat_shift ticks after delay
 ; bss + 10    : last_key (for repeat)
 ; bss + 11    : hold_count (for repeat)
 
+screen_width_sub1 = bss + 12
+
 main:
+  LDA .__sys_screen_width
+  SUI 1
+  STA .screen_width_sub1
   DIS 8                 ; disable cursor and cursor blink
   JSR @toggle_display_enable
   JSR clear_display
-  LDI .screen_width
+  LDA .screen_width_sub1
   PHA
   JSR @randint
   ; get random value in [0,40)
@@ -45,7 +48,7 @@ main:
   STA .bss + 9          ; score
 
 new_asteroid:
-  LDI .screen_width
+  LDA .screen_width_sub1
   PHA
   JSR @randint
   ; get random value in [0,40)
@@ -76,7 +79,7 @@ skip_waits:
   LDA .bss + 2
   ADI 1
   STA .bss + 2
-  CPI .screen_height
+  CMP .__sys_screen_height
   JPC end
   LDA .bss + 6        ; = bullet fired
   CPI 0
@@ -99,7 +102,6 @@ update_display:
   LDI .score_text
   JSR print_z
   LDA .bss + 9
-  PHA
   JSR @display_number
   JSR @newline
   LDI 1
@@ -113,7 +115,7 @@ screen_loop:
   LDA .bss + 3
   ADI 1
   STA .bss + 3
-  CPI .screen_height
+  CMP .__sys_screen_height
   JPC write_turret_wrapper
   JMP screen_loop
 write_turret_wrapper:
@@ -191,7 +193,7 @@ advance_asteroid_line:
   JSR advance_cursor
 skip_advance:
   LDA .bss + 4
-  CPI .screen_width
+  CMP .screen_width_sub1
   JPC write_asteroid_end
   ADI 1
   STA .bss + 4
@@ -260,68 +262,68 @@ wait_100:
   LDI 0
   STA .bss + 11       ; hold_count = 0
   LDI 0
-  STA .no_input       ; ensure this press is handled now
+  STA .__no_input       ; ensure this press is handled now
   JMP after_repeat_gate
 same_key_held:
   LDA .bss + 11
   ADI 1
   STA .bss + 11       ; ++hold_count
-  ; if hold_count >= repeat_delay and at a gated interval -> clear no_input to allow repeat
+  ; if hold_count >= repeat_delay and at a gated interval -> clear __no_input to allow repeat
   CPI .repeat_delay
   JPC chk_rate        ; carry set when A >= 64
   JMP after_repeat_gate
 chk_rate:
   ; allow repeat only when hold_count is a multiple of 2^repeat_shift:
   ; ((n >> repeat_shift) << repeat_shift) == n
-  ; Save original n in work3
+  ; Save original n in __work3
   LDA .bss + 11
-  STA .work3
-  ; work1 = n
-  LDA .work3
-  STA .work1
-  ; work2 = repeat_shift (right shift count)
+  STA .__work3
+  ; __work1 = n
+  LDA .__work3
+  STA .__work1
+  ; __work2 = repeat_shift (right shift count)
   LDI .repeat_shift
-  STA .work2
+  STA .__work2
 crs_loop:
-  LDA .work2
+  LDA .__work2
   CPI 0
   JPZ cls_prep
-  LDA .work1
+  LDA .__work1
   RSA
-  STA .work1
-  LDA .work2
+  STA .__work1
+  LDA .__work2
   SUI 1
-  STA .work2
+  STA .__work2
   JMP crs_loop
 cls_prep:
   ; Left shift back by repeat_shift
   LDI .repeat_shift
-  STA .work2
+  STA .__work2
 cls_loop:
-  LDA .work2
+  LDA .__work2
   CPI 0
   JPZ chk_cmp
-  LDA .work1
+  LDA .__work1
   LSA
-  STA .work1
-  LDA .work2
+  STA .__work1
+  LDA .__work2
   SUI 1
-  STA .work2
+  STA .__work2
   JMP cls_loop
 chk_cmp:
-  LDA .work1
-  CMP .work3
+  LDA .__work1
+  CMP .__work3
   JPZ allow_repeat
   JMP after_repeat_gate
 allow_repeat:
   LDI 0
-  STA .no_input
+  STA .__no_input
 after_repeat_gate:
-  LDA .no_input
+  LDA .__no_input
   CPI 1
   JPZ after_input_handling
   LDI 1
-  STA .no_input
+  STA .__no_input
   LDA .bss + 8
   CPI 52
   JPZ handle_left
@@ -357,8 +359,8 @@ handle_left:
 
 handle_right:
   LDA .bss
-  CPI .screen_width
-  JPZ after_input_handling    ; return immediately if position is screen_width
+  CMP .screen_width_sub1
+  JPZ after_input_handling    ; return immediately if position is at max
   ADI 1
   STA .bss
   JMP after_input_handling
@@ -382,7 +384,7 @@ input_entered:
 
 set_no_input:
   LDI 0
-  STA .no_input
+  STA .__no_input
   ; reset repeat tracking when key released
   LDI 0
   STA .bss + 10
@@ -404,7 +406,6 @@ end:
   PHA
   JSR @printez
   LDA .bss + 9
-  PHA
   JSR @display_number
   JSR @newline
   RET

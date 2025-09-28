@@ -11,9 +11,9 @@
 ; Call signature: get_os_abi_var(SP - 2) = get_os_abi_var(input_string_pointer)
 ; Inputs:
 ;   Stack Pointer - 2 = pointer to input string
-; Returns: .res1 = result; A = result
+; Returns: .__res1 = result; A = result
 
-; --- Compare the string pointed to by the input argument to OS ABI variables and return (in res1 and A) the corresponding memory location, if it exists (otherwise null) ---
+; --- Compare the string pointed to by the input argument to OS ABI variables and return (in __res1 and A) the corresponding memory location, if it exists (otherwise null) ---
 
 get_os_abi_var:
   PLA                ; get return address from stack
@@ -30,5 +30,5 @@ get_os_abi_var:
   LDI .abi_vars      ; load pointer to abi vars string
   PHA
   JSR @compare_get
-  ; result in .res1 and A
+  ; result in .__res1 and A
   RET

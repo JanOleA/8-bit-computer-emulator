@@ -10,16 +10,16 @@
 
 
 ; --- Get the address of a program from the program table, based on its name ---
-; --- Pointer to name as input in .arg1, result is a number in .res1, null if not found ---
+; --- Pointer to name as input in .__arg1, result is a number in .__res1, null if not found ---
 
 
 get_program_address:
-  LDA .arg1
+  LDA .__arg1
   STA .bss
   LDI 0
-  STA .bss + 1          ; current location in prog_table
+  STA .bss + 1          ; current location in __sys_prog_table
 compare_loop:
-  LDI .prog_table
+  LDI .__sys_prog_table
   ADD .bss + 1
   STA .bss + 2          ; store in bss + 2 to use in string_compare later
   LAP                   ; push memory address to stack, load value at memory address
@@ -30,7 +30,7 @@ compare_loop:
   LDA .bss
   PHA
   JSR @string_compare
-                        ; result is in res1 and in A register
+                        ; result is in __res1 and in A register
   CPI 1
   JPZ match
   ; -- no match --
@@ -39,19 +39,19 @@ compare_loop:
   STA .bss + 1
   JMP compare_loop
 match:
-  LDI .prog_table
+  LDI .__sys_prog_table
   ADD .bss + 1          ; location of string in program table
   ADI 22                ; location of flags 
   LAP                   ; get stored "callable" flag from the pointer
-  STA .res2
-  LDI .prog_table
+  STA .__res2
+  LDI .__sys_prog_table
   ADD .bss + 1          ; location of string in program table
   ADI 16                ; location of base (unchanged: base field still at index 16 within 32-word row)
   LAP                   ; get stored base from the pointer
-  STA .res1
+  STA .__res1
   RET
 no_match:
   LDI 0
-  STA .res1
-  STA .res2
+  STA .__res1
+  STA .__res2
   RET

@@ -27,19 +27,19 @@ hp_advance:
   PHA
   JSR @buffer_to_separator
   PLA
-  STA .res1
+  STA .__res1
   PLA
-  STA .res2
+  STA .__res2
   PLA
   STA .bss + 2
-  LDA .res2
+  LDA .__res2
   CPI 0
   JPZ hp_done                 ; end if length of returned string is 0
   ADD .bss + 1                ; add current string length to pointer
   ADI 1                       ; add one for the separator
 
   STA .bss + 1
-  LDA .res1
+  LDA .__res1
   PHA
   JSR @printez
 

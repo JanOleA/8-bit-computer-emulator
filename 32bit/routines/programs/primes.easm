@@ -17,7 +17,6 @@ main:
 begin:
   ; print 2
   LDI 2
-  PHA
   JSR @display_number
   JSR @newline
   ; start from 3
@@ -48,11 +47,11 @@ prime_loop_os:
   JPC prime_os
   ; divide check_value by loop_index
   LDA .bss
-  STA .arg1
+  STA .__arg1
   LDA .bss + 1
-  STA .arg2
+  STA .__arg2
   JSR @divide
-  LDA .res2
+  LDA .__res2
   CPI 0
   JPZ not_prime_os
   LDA .bss + 1
@@ -64,7 +63,6 @@ not_prime_os:
 prime_os:
   ; print the prime then newline
   LDA .bss
-  PHA
   JSR @display_number
   JSR @newline
   RET

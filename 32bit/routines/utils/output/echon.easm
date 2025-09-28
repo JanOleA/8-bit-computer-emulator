@@ -7,21 +7,21 @@
 
 ; backwards compatibility wrapper for print
 
-; Prints exactly N characters from pointer .arg1, then newline.
+; Prints exactly N characters from pointer .__arg1, then newline.
 ; Inputs:
-;   .arg1 = pointer to first character
-;   .arg2 = if 1, skip newline. Else print it.
-;   .num_digits = count (N)
+;   .__arg1 = pointer to first character
+;   .__arg2 = if 1, skip newline. Else print it.
+;   .__num_digits = count (N)
 
 echon:
-  LDA .arg1
+  LDA .__arg1
   PHA
-  LDA .arg2
+  LDA .__arg2
   PHA
-  LDA .num_digits
+  LDA .__num_digits
   PHA
   JSR @print
-  ADD .arg1  ; adjust pointer to after printed characters
-  STA .arg1  ; store adjusted pointer back, for backwards compatibility
+  ADD .__arg1  ; adjust pointer to after printed characters
+  STA .__arg1  ; store adjusted pointer back, for backwards compatibility
 return:
   RET

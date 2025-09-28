@@ -14,20 +14,17 @@ start:
   STA .bss
   LDI 0
   STA .bss + 1
-  PHA
   JSR @display_number
   JSR @newline
 add:
   LDA .bss
   ADD .bss + 1
-  PHA
   STA .bss
   JSR @display_number
   JSR @newline
   CPI 30
   JPC done
   ADD .bss + 1
-  PHA
   STA .bss + 1
   JSR @display_number
   JSR @newline

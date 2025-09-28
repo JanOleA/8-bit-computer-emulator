@@ -9,12 +9,12 @@ divide:             ; optimized binary long division with fast paths
   ; Locals layout:
   ;   .bss       = dividend (mutable)
   ;   .bss + 1   = divisor (mutable)
-  ;   .bss + 2   = pow2 (scaling factor)
+  ;   .bss + 2   = __pow2 (scaling factor)
 
   ; Copy inputs into locals
-  LDA .arg1
+  LDA .__arg1
   STA .bss          ; dividend
-  LDA .arg2
+  LDA .__arg2
   STA .bss + 1      ; divisor
 
   ; Fast paths
@@ -33,19 +33,19 @@ divide:             ; optimized binary long division with fast paths
   JPC div_a_gt_b    ; carry set → a > b
   ; a < b → q=0, r=a
   LDA .bss
-  STA .res2
+  STA .__res2
   LDI 0
   RET
 
 div_equal:
   LDI 0
-  STA .res2
+  STA .__res2
   LDI 1
   RET
 
 div_a_zero:
   LDI 0
-  STA .res2
+  STA .__res2
   LDI 0
   RET
 
@@ -57,14 +57,14 @@ div_a_gt_b:
 
   ; Initialize
   LDI 0
-  STA .res1          ; quotient = 0
+  STA .__res1          ; quotient = 0
   LDI 1
-  STA .bss + 2       ; pow2 = 1
+  STA .bss + 2       ; __pow2 = 1
   JMP inc_b
 
 div_b_one:
   LDI 0
-  STA .res2
+  STA .__res2
   LDA .bss
   RET
 
@@ -80,24 +80,24 @@ pass:
   STA .bss + 1      ; divisor = divisor * 2
   LDA .bss + 2
   LSA
-  STA .bss + 2      ; pow2 *= 2
+  STA .bss + 2      ; __pow2 *= 2
   ; Continue aligning until next doubling would exceed dividend
   JMP inc_b
 
 div_loop:
-  ; While pow2 > 0
+  ; While __pow2 > 0
   LDA .bss + 2
   CPI 0
   JPZ div_end
-  ; If dividend >= divisor: quotient += pow2; dividend -= divisor
+  ; If dividend >= divisor: quotient += __pow2; dividend -= divisor
   LDA .bss
   CMP .bss + 1
   JPC a_geq_b
   JMP continue
 a_geq_b:
-  LDA .res1
+  LDA .__res1
   ADD .bss + 2
-  STA .res1         ; quotient += pow2
+  STA .__res1         ; quotient += __pow2
   LDA .bss
   SUB .bss + 1
   STA .bss          ; dividend -= divisor
@@ -111,18 +111,18 @@ continue:
   STA .bss + 1      ; divisor >>= 1
   LDA .bss + 2
   RSA
-  STA .bss + 2      ; pow2 >>= 1
+  STA .bss + 2      ; __pow2 >>= 1
   JMP div_loop
 
 div_end:
   ; remainder in dividend, quotient in A
   LDA .bss
-  STA .res2
-  LDA .res1
+  STA .__res2
+  LDA .__res1
   RET
 
 div_zero:
   LDA .bss
-  STA .res2
+  STA .__res2
   LDI 0
   RET

@@ -5,7 +5,7 @@
 ;! bss: auto
 ;! align: 1
 
-; Compute (arg1 * arg2) mod mod, where mod is in .res1.
+; Compute (__arg1 * __arg2) mod mod, where mod is in .__res1.
 ; Returns A = result.
 ; Locals:
 ;   .bss     = res
@@ -15,11 +15,11 @@
 
 modmul:
   ; Load inputs
-  LDA .arg1
+  LDA .__arg1
   STA .bss + 1      ; x
-  LDA .arg2
+  LDA .__arg2
   STA .bss + 2      ; y
-  LDA .res1
+  LDA .__res1
   STA .bss + 3      ; mod
   LDI 0
   STA .bss          ; res = 0
@@ -27,11 +27,11 @@ modmul:
   ; Reduce x modulo mod to ensure doubling step needs at most one subtraction
   ; x = x % mod
   LDA .bss + 1
-  STA .arg1
+  STA .__arg1
   LDA .bss + 3
-  STA .arg2
+  STA .__arg2
   JSR @divide
-  LDA .res2
+  LDA .__res2
   STA .bss + 1
 
 mm_loop:

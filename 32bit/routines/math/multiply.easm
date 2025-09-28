@@ -7,17 +7,17 @@
 
 ; --- Multiply two inputs (retrieve first two from stack) store the result in the A register
 
-; Output: .res1 and A
+; Output: .__res1 and A
 ; Temps:  .bss + 1, .bss + 2, .bss + 3, bss + 4
 
 multiply:
   PLA                     ; get return address from stack
   MOVAB                   ; move return address to B for now
 
-  PLA                     ; arg1
+  PLA                     ; __arg1
   ; m1 = bss + 1, m2 = bss + 2
   STA .bss + 1
-  PLA                     ; arg2
+  PLA                     ; __arg2
   STA .bss + 2
   
   MOVBA                   ; move return address back to A

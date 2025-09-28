@@ -25,41 +25,41 @@ line_len = 40
 
 main:
   ; require at least 1 argument
-  LDA .argv_base
+  LDA .__argv_base
   CPI 1
   JPZ me_go
   RET
 
 me_go:
   ; parse first arg -> write_base
-  LDA .argv_base + 1
-  STA .res2           ; res2 = pointer to string
+  LDA .__argv_base + 1
+  STA .__res2           ; __res2 = pointer to string
   LDI 0
-  STA .res1
+  STA .__res1
 me_pn:
-  LPA .res2                ; load mem[mem[.res2]] into A
+  LPA .__res2                ; load mem[mem[.__res2]] into A
   CPI 0
   JPZ me_pn_done
   CPI 32
   JPZ me_pn_done
   SUI 48
   STA .char
-  LDA .res1
+  LDA .__res1
   LSA
-  STA .pow2
+  STA .__pow2
   LSA
   LSA
-  ADD .pow2
-  STA .res1
-  LDA .res1
+  ADD .__pow2
+  STA .__res1
+  LDA .__res1
   ADD .char
-  STA .res1
-  LDA .res2
+  STA .__res1
+  LDA .__res2
   ADI 1
-  STA .res2
+  STA .__res2
   JMP me_pn
 me_pn_done:
-  LDA .res1
+  LDA .__res1
   STA .bss
   STA .bss + 1
 
@@ -79,12 +79,12 @@ me_pn_done:
 
 me_loop:
   JSR check_input
-  LDA .res2
+  LDA .__res2
   CPI 0
   JPZ me_loop
 
   ; Enter?
-  LDA .res1
+  LDA .__res1
   CPI 31
   JPZ me_enter
   CPI 32
@@ -95,8 +95,8 @@ me_loop:
   JPZ me_backspace
 
   ; Regular character: convert via ascii_map and append to buffer
-  LDA .ascii_start
-  ADD .res1
+  LDA .__ascii_start
+  ADD .__res1
   LAP
   STA .char
   JSR @write_char
@@ -112,9 +112,9 @@ me_loop:
   ; clamp buf_ptr <= (buf_base + line_len)
   LDA .bss + 4
   ADI .line_len
-  STA .res2
+  STA .__res2
   LDA .bss + 2
-  CMP .res2
+  CMP .__res2
   JPZ me_clamp_ptr
   JMP me_after_ptr
 me_clamp_ptr:
@@ -193,7 +193,7 @@ me_exit:
   JSR @newline
   JSR flush_input
   LDI 0
-  STA .no_input
+  STA .__no_input
   RET
 
 ; --- Parsing and writing ---
@@ -218,7 +218,7 @@ pas_start:
   LDI 0
   STA .bss + 6
   LDI 0
-  STA .num_digits
+  STA .__num_digits
 pas_digits:
   LPA .bss + 5                ; load mem[mem[.bss + 5]] into A
   CPI 48
@@ -232,10 +232,10 @@ pas_check_hi:
   STA .char
   LDA .bss + 6
   LSA
-  STA .pow2
+  STA .__pow2
   LSA
   LSA
-  ADD .pow2
+  ADD .__pow2
   STA .bss + 6
   LDA .bss + 6
   ADD .char
@@ -244,13 +244,13 @@ pas_check_hi:
   LDA .bss + 5
   ADI 1
   STA .bss + 5
-  LDA .num_digits
+  LDA .__num_digits
   ADI 1
-  STA .num_digits
+  STA .__num_digits
   JMP pas_digits
 pas_after_num:
   ; if no digits, treat current char as separator: advance and continue
-  LDA .num_digits
+  LDA .__num_digits
   CPI 0
   JPZ pas_sep_adv
   ; write value to memory at write_ptr
@@ -282,7 +282,6 @@ print_prompt:
   LDI 91              ; '['
   JSR @write_char
   LDA .bss + 1        ; current write address
-  PHA
   JSR @display_number
   LDI 93              ; ']'
   JSR @write_char
@@ -302,21 +301,21 @@ check_input:
   JPC input_entered     ; handle input if keyboard register is >= 128, since the 128 bit is signal bit
   PLA
   LDI 0
-  STA .res2
+  STA .__res2
   RET
 input_entered:
   PLA
   SUI 128
   OUT
-  STA .res1
+  STA .__res1
   LDI 1
-  STA .res2
+  STA .__res2
   RET
 
 ; Drain any pending keypresses so we start with a clean state
 flush_input:
   JSR check_input
-  LDA .res2
+  LDA .__res2
   CPI 0
   JPZ fi_done
   JMP flush_input

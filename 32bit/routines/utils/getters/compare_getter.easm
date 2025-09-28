@@ -13,7 +13,7 @@
 ; Inputs:
 ;   Stack Pointer - 3 = pointer to input string
 ;   Stack Pointer - 2 = pointer to key_value_string (comma separated key,value pairs)
-; Returns: .res1 = result; A = result
+; Returns: .__res1 = result; A = result
 
 ; Two input arguments:
 ; 1: pointer to input string
@@ -35,7 +35,7 @@ compare_get:
   PHA                ; push it back to stack
 compare:
   JSR buf_to_sep
-  LDA .res1
+  LDA .__res1
   PHA                     ; store pointer to buffered string as first argument
   LDA .bss
   PHA                     ; push pointer to input string from .bss as second argument
@@ -48,15 +48,15 @@ compare:
   JPZ end_no_match
   JMP compare
 match:
-  JSR buf_to_sep          ; parse numeric token buffered by buffer_to_separator (pointer returned in .res1)
-  LDA .res1
+  JSR buf_to_sep          ; parse numeric token buffered by buffer_to_separator (pointer returned in .__res1)
+  LDA .__res1
   PHA
   JSR @parse_number
-  STA .res1               ; return memory location in .res1
+  STA .__res1               ; return memory location in .__res1
   RET
 end_no_match:
   LDI 0
-  STA .res1
+  STA .__res1
   RET
 
 ; --- helper to buffer the next string to compare ---
@@ -67,16 +67,16 @@ buf_to_sep:
   PHA
   JSR @buffer_to_separator
   PLA                           ; buffer pointer
-  STA .res1                     ; return buffer pointer in .res1
+  STA .__res1                     ; return buffer pointer in .__res1
   PLA                           ; length
-  STA .res2                     ; return length in .res2
+  STA .__res2                     ; return length in .__res2
   PLA                           ; end_on_null
-  STA .res3                     ; return end_on_null in .res3
-  LDA .res2
+  STA .__res3                     ; return end_on_null in .__res3
+  LDA .__res2
   CPI 0                         ; compare with 0
   JPZ bts_done                  ; jump to end if so
   LDA .bss + 1
-  ADD .res2                     ; Advance current pointer by token length
+  ADD .__res2                     ; Advance current pointer by token length
   STA .bss + 1
   LPA .bss + 1                  ; If current char is the separator, skip it as well; if null, do not                ; load mem[mem[.bss + 1]] into A
   ; Check if the current character is the separator

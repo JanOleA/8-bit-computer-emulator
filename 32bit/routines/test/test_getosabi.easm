@@ -8,17 +8,16 @@
 
 main:
   ; require at least 1 argument
-  LDA .argv_base
+  LDA .__argv_base
   CPI 1
   JPZ test_go
   RET
 
 test_go:
   ; first arg -> string to compare
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @get_os_abi_var
-  PHA
   JSR @display_number
   JSR @newline
   RET

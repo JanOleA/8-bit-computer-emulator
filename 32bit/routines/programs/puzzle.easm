@@ -42,22 +42,22 @@ its_prime:
   JPC done
   ; add n^2 into 64-bit sum at (sum_lo,sum_hi)
   LDA .bss
-  STA .arg1              ; p
+  STA .__arg1              ; p
   LDI .bss               ; base of bss
   ADI 8
-  STA .arg2              ; &sum_lo
+  STA .__arg2              ; &sum_lo
   LDI .bss
   ADI 9
-  STA .res1              ; &sum_hi
+  STA .__res1              ; &sum_hi
   JSR @add_square64
   ; (sum of squares) % (#primes) == 0 ?
   ; remainder = (sum_hi:sum_lo) % num_primes
   LDA .bss + 8
-  STA .arg1              ; lo
+  STA .__arg1              ; lo
   LDA .bss + 9
-  STA .arg2              ; hi
+  STA .__arg2              ; hi
   LDA .bss + 6
-  STA .res1              ; mod = num_primes
+  STA .__res1              ; mod = num_primes
   JSR @rem64
   ; A holds remainder
   CPI 0
@@ -66,7 +66,6 @@ its_prime:
 found_one:
   ; print bss + 6
   LDA .bss + 6
-  PHA
   JSR @display_number
   JSR @newline
   ; store bss + 6 at *(bss + 7); then increment pointer
@@ -106,11 +105,11 @@ pl_check_eq:
   JMP prime_os        ; strictly greater → prime
 pl_do_div:
   LDA .bss            ; n
-  STA .arg1
+  STA .__arg1
   LDA .bss + 1        ; divisor
-  STA .arg2
+  STA .__arg2
   JSR @divide
-  LDA .res2
+  LDA .__res2
   CPI 0
   JPZ not_prime_os
   LDA .bss + 1

@@ -7,9 +7,9 @@
 
 ; Add p^2 into a 64-bit sum stored at [sum_lo_addr],[sum_hi_addr]
 ; Inputs:
-;   .arg1 = p
-;   .arg2 = sum_lo_addr
-;   .res1 = sum_hi_addr
+;   .__arg1 = p
+;   .__arg2 = sum_lo_addr
+;   .__res1 = sum_hi_addr
 ; Returns: none (A undefined). Updates memory at given addresses.
 ; Locals:
 ;   .bss     = multiplicand_lo (p << k)
@@ -23,9 +23,9 @@
 
 add_square64:
   ; Setup multiplicand and multiplier
-  LDA .arg1
+  LDA .__arg1
   STA .bss           ; multiplicand_lo = p
-  LDA .arg1
+  LDA .__arg1
   STA .bss + 1       ; multiplier = p
   LDI 0
   STA .bss + 2       ; prod_lo = 0
@@ -84,10 +84,10 @@ asq_shift_done:
 
 asq_add_to_sum:
   ; Load current sum_lo into tmp_lo
-  LPA .arg2                ; load mem[mem[.arg2]] into A
+  LPA .__arg2                ; load mem[mem[.__arg2]] into A
   STA .bss + 4
   ; Load sum_hi into tmp_hi
-  LPA .res1                ; load mem[mem[.res1]] into A
+  LPA .__res1                ; load mem[mem[.__res1]] into A
   STA .bss + 5
   ; tmp_lo += prod_lo
   LDA .bss + 4
@@ -105,11 +105,11 @@ asq_add_hi:
   ADD .bss + 3
   STA .bss + 5
   ; Store back
-  LDA .arg2
+  LDA .__arg2
   PHA
   LDA .bss + 4
   SAS
-  LDA .res1
+  LDA .__res1
   PHA
   LDA .bss + 5
   SAS

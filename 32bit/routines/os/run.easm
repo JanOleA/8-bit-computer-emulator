@@ -15,21 +15,21 @@
 
 run:
   ; argc must be >= 1
-  LDA .argv_base
+  LDA .__argv_base
   CPI 1
   JPC rn_have_arg
   RET
 
 rn_have_arg:
-  ; parse argv[1] into .res1
+  ; parse argv[1] into .__res1
   ; save current CALL_STUB operand (19997)
   LDA 19997
   STA .bss
 
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @parse_number
-  CMP .reserved_region_end
+  CMP .__sys_reserved_region_end
   JPC rn_ok_addr
   JMP rn_error                ; address is in reserved region - error
 rn_ok_addr:

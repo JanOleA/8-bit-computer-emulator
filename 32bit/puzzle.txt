@@ -14,7 +14,7 @@ finds = 2012                ; storing the finds at this address and higher
 multiplicand = 2013         ; multiplicand for multiply routine
 multiplier = 2014           ; etc.
 product = 2015              ; ...
-pow2 = 2016                 ;
+__pow2 = 2016                 ;
 
 start:
   LDI 4
@@ -95,7 +95,7 @@ divide:             ; divides .dividend with .divisor, stores the quotient in .q
   LDI 0
   STA .quotient     ; initialize quotient as 0
   LDI 1
-  STA .pow2         ; initialize pow2 as 1
+  STA .__pow2         ; initialize __pow2 as 1
 inc_b:              ; increase the .divisor by dividing by 2 as many times as possible
                     ; while keeping it below the dividend
   LDA .divisor      ; load divisor into A
@@ -106,13 +106,13 @@ inc_b:              ; increase the .divisor by dividing by 2 as many times as po
   JPC div_loop      ; done increasing .divisor
 pass:
   STA .divisor      ; store divisor*2 as new divisor
-  LDA .pow2
-  LSA               ; multiply pow2 by 2 as well
-  STA .pow2         ; store it as new pow2
+  LDA .__pow2
+  LSA               ; multiply __pow2 by 2 as well
+  STA .__pow2         ; store it as new __pow2
   JMP inc_b         ; go back to inc_b
 div_loop:
-  LDA .pow2
-  CPI 0             ; compare pow2 to zero
+  LDA .__pow2
+  CPI 0             ; compare __pow2 to zero
   JPZ div_end       ; if zero, done divide
   LDA .dividend
   CMP .divisor      ; compare dividend to divisor
@@ -120,8 +120,8 @@ div_loop:
   JMP continue      ; else
 a_geq_b:
   LDA .quotient
-  ADD .pow2         
-  STA .quotient     ; add pow2 to the quotient and store it
+  ADD .__pow2         
+  STA .quotient     ; add __pow2 to the quotient and store it
   LDA .dividend
   SUB .divisor
   STA .dividend     ; subtract divisor from the dividend and store it
@@ -129,9 +129,9 @@ continue:
   LDA .divisor
   RSA
   STA .divisor      ; divide divisor by 2 and store
-  LDA .pow2
+  LDA .__pow2
   RSA
-  STA .pow2         ; divide pow2 by 2 and store
+  STA .__pow2         ; divide __pow2 by 2 and store
   JMP div_loop
 div_end:
   LDA .dividend

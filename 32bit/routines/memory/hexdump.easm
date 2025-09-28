@@ -7,8 +7,8 @@
 ;! callable: yes
 
 ; HEXDUMP <addr> <nwords>
-; Dynamic formatting based on OS ABI symbol .bits_avail:
-;   if .bits_avail <= 16  => 16-bit mode: 8 columns, width 4 (space padded)
+; Dynamic formatting based on OS ABI symbol ..__sys_bits_avail:
+;   if ..__sys_bits_avail <= 16  => 16-bit mode: 8 columns, width 4 (space padded)
 ;   else                  => 32-bit mode: 4 columns, width 8 (space padded)
 ; This lets the same routine adapt to different machine configurations.
 
@@ -19,27 +19,27 @@
 addr       = .bss          ; current address pointer (others via .bss + N)
 
 main:
-  ; argc at [argv_base]
-  LDA .argv_base
+  ; argc at [__argv_base]
+  LDA .__argv_base
   CPI 2               ; need at least 2 args
   JPZ hx_go
   RET
 
 hx_go:
   ; parse first arg -> addr
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @parse_number
   STA .addr
 
   ; parse second arg -> length
-  LDA .argv_base + 2
+  LDA .__argv_base + 2
   PHA
   JSR @parse_number
   STA .bss + 1
 
-  ; Determine formatting mode from .bits_avail
-  LDA .bits_avail
+  ; Determine formatting mode from ..__sys_bits_avail
+  LDA ..__sys_bits_avail
   CPI 17
   JPC hx_set_32          ; if A >= 17 (carry clear until A < 17?) we branch (Using CPI semantics: carry set if A >= immediate; we want >16 so >=17) -> if A >= 17 jump to 32-bit
   ; 16-bit mode
@@ -62,7 +62,7 @@ hx_loop:
 
   ; read word at [addr] into A (cell interpreted per mode)
   LPA .addr                ; load mem[mem[.addr]] into A
-  STA .arg1           ; keep a copy if needed
+  STA .__arg1           ; keep a copy if needed
   ; conditional print based on mode
   LDA .bss + 6
   CPI 0
@@ -114,12 +114,12 @@ hx_end:
   JSR @newline
   RET
 
-; Prints .arg1 as up to 4 hex digits (most significant first),
+; Prints .__arg1 as up to 4 hex digits (most significant first),
 ; space-padded on the left to width 4
 print_hex4:
-  ; Capture the input word from .arg1 into a local temp (.bss + 4)
-  ; Caller stored the memory word into .arg1 before calling us.
-  LDA .arg1
+  ; Capture the input word from .__arg1 into a local temp (.bss + 4)
+  ; Caller stored the memory word into .__arg1 before calling us.
+  LDA .__arg1
   STA .bss + 4       ; local working value
   LDI 0
   STA .bss + 3       ; digit counter
@@ -130,15 +130,15 @@ print_hex4:
 ph_loop:
   ; Divide current value by 16, push remainder as hex digit
   LDA .bss + 4
-  STA .arg1           ; dividend for divide
+  STA .__arg1           ; dividend for divide
   LDI 16
-  STA .arg2
-  ; A = quotient, .res2 = remainder (0..15)
+  STA .__arg2
+  ; A = quotient, .__res2 = remainder (0..15)
   JSR @divide
   ; carry quotient forward locally (A holds quotient)
   STA .bss + 4
   ; map remainder (0..15) to ASCII and push to stack
-  LDA .res2
+  LDA .__res2
   CPI 10
   JPC ph_hex_ge10
   ADI 48              ; '0'..'9'
@@ -189,10 +189,10 @@ ph_print:
 ph_done:
   RET
 
-; Prints .arg1 as up to 8 hex digits (most significant first),
+; Prints .__arg1 as up to 8 hex digits (most significant first),
 ; space-padded on the left to width 8 (legacy 32-bit mode)
 print_hex8:
-  LDA .arg1
+  LDA .__arg1
   STA .bss + 4
   LDI 0
   STA .bss + 3
@@ -201,12 +201,12 @@ print_hex8:
   JPZ ph8_zero
 ph8_loop:
   LDA .bss + 4
-  STA .arg1
+  STA .__arg1
   LDI 16
-  STA .arg2
+  STA .__arg2
   JSR @divide
   STA .bss + 4
-  LDA .res2
+  LDA .__res2
   CPI 10
   JPC ph8_ge10
   ADI 48

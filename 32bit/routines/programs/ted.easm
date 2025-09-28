@@ -23,25 +23,28 @@
 ; bss + 12      : no input
 ; bss + 13      : tmp
 
-screen_width = 40
-screen_height = 20
+screen_height_sub1 = bss + 14
 
 .mode_text = "Mode: "
 .wc_text = "  wc="
 .lc_text = "  lc="
 .mode0_text = "insert"
 .mode1_text = "command"
+.mode2_text = "spchars"
 .compiling_text = "Compiling to mem[%u:]"
 
 ted_start:
-  LDA .argv_base
+  LDA .__sys_screen_height
+  SUI 1
+  STA .screen_height_sub1
+  LDA .__argv_base
   CPI 1
   JPC ted_go
   RET
 
 ted_go:
   LDI 0
-  STA .argv_base        ; reset argv_base so CAT can use .arg1 later
+  STA .__argv_base        ; reset __argv_base so CAT can use .__arg1 later
   STA .bss + 1
   STA .bss + 4
   STA .bss + 5
@@ -51,7 +54,7 @@ ted_go:
   STA .bss + 9
   LDI 1
   STA .bss + 12         ; initialize this as 1, so we don't get spurious inputs on startup
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @parse_number
   STA .bss + 0
@@ -66,13 +69,17 @@ main_loop:
   CPI 1
   JPZ main_loop             ; if the key hasn't been released yet
   LDI 1
-  STA .bss + 12             ; set no_input toggle
+  STA .bss + 12             ; set __no_input toggle
   LDA .bss + 11
-  CPI 44
+  CPI 44                    ; command mode switch
   JPZ handle_ctrl
+  CPI 46                    ; special character mode switch
+  JPZ handle_shift
   LDA .bss + 9
   CPI 1
   JPZ command_handling
+  CPI 2
+  JPZ specials_handling
   LDA .bss + 11
   CPI 42
   JPZ handle_up
@@ -89,8 +96,9 @@ main_loop:
   CPI 43
   JPZ handle_backspace
   ; -- insert ascii --
-  ADD .ascii_start
+  ADD .__ascii_start
   LAP
+insert_char_ml:
   STA .char
   JSR insert_character
   LDA .bss + 7
@@ -98,9 +106,9 @@ main_loop:
   STA .bss + 7
   JSR count_lines
   LDI 1
-  STA .res1
+  STA .__res1
 post_key_input:
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ refresh_screen
   JSR move_cursor_pointer   ; if we don't refresh the entire screen, do the cursor logic alone
@@ -118,6 +126,24 @@ command_handling:
   JPZ compile
   JMP main_loop
 
+specials_handling:
+  LDI 0
+  STA .bss + 9
+  LDA .bss + 11
+  CPI 20                    ; P
+  JPZ add_pct
+  CPI 2                     ; 2
+  JPZ add_quote
+  JMP main_loop
+
+add_pct:
+  LDI 37                    ; '%'
+  JMP insert_char_ml
+
+add_quote:
+  LDI 34                    ; '"'
+  JMP insert_char_ml
+
 set_no_input:
   LDI 0
   STA .bss + 12
@@ -125,16 +151,34 @@ set_no_input:
 
 handle_ctrl:
   LDI 1
-  STA .res1
+  STA .__res1
   LDA .bss + 9
   CPI 0
-  JPZ set_mode_1
-set_mode_0:
-  LDI 0
-  STA .bss + 9
-  JMP post_key_input
+  JPZ set_mode_1      ; if mode != 1, set mode 1
+  CPI 2
+  JPZ set_mode_1      ; if mode != 1, set mode 1, otherwise fallthrough to set mode 0
+  JMP set_mode_0
 set_mode_1:
   LDI 1
+  STA .bss + 9
+  JMP post_key_input
+
+handle_shift:
+  LDI 1
+  STA .__res1
+  LDA .bss + 9
+  CPI 1
+  JPZ set_mode_2
+  CPI 0
+  JPZ set_mode_2
+  JMP set_mode_0
+set_mode_2:
+  LDI 2
+  STA .bss + 9
+  JMP post_key_input
+
+set_mode_0:
+  LDI 0
   STA .bss + 9
   JMP post_key_input
 
@@ -150,9 +194,9 @@ compile:
   PHA
   JSR @printf
   LDA .bss + 0
-  STA .arg1
+  STA .__arg1
   LDA .bss + 13
-  STA .arg2
+  STA .__arg2
   JSR @compile
   RET
 
@@ -172,7 +216,8 @@ handle_enter:
   ADI 1                   ; look at the next line after the split
   CMP .bss + 3
   JPC he_set_refresh      ; no new line available (shouldn't happen, but guard)
-  LDI .screen_height - 3
+  LDA .__sys_screen_height
+  SUI 3
   CMP .bss + 6
   JPC he_add_y_check
   LDA .bss + 4
@@ -190,7 +235,7 @@ he_increment_y:
   STA .bss + 6
 he_set_refresh:
   LDI 1
-  STA .res1
+  STA .__res1
   JMP post_key_input
 
 handle_backspace:
@@ -201,32 +246,32 @@ handle_backspace:
   CPI 0
   JPZ post_key_input
   LDA .bss + 1
-  STA .work2            ; remember original cursor offset
+  STA .__work2            ; remember original cursor offset
   LDA .bss + 0
-  ADD .work2
-  STA .arg1             ; source pointer (start + cursor)
-  LDA .arg1
+  ADD .__work2
+  STA .__arg1             ; source pointer (start + cursor)
+  LDA .__arg1
   SUI 1
-  STA .arg2             ; destination assumes single byte delete for now
+  STA .__arg2             ; destination assumes single byte delete for now
   LDI 1
-  STA .work1            ; delete size = 1 byte by default
-  LPA .arg2                ; load mem[mem[.arg2]] into A
+  STA .__work1            ; delete size = 1 byte by default
+  LPA .__arg2                ; load mem[mem[.__arg2]] into A
   STA .char             ; byte immediately before cursor
   CPI 92                ; backslash?
   JPZ hb_prev_backslash
   JMP hb_delete_prev
 
 hb_prev_backslash:
-  LPA .arg1                ; load mem[mem[.arg1]] into A
+  LPA .__arg1                ; load mem[mem[.__arg1]] into A
   CPI 92
   JPZ hb_set_double_delete
-  LDA .work2
+  LDA .__work2
   CPI 2
   JPC hb_check_prev_byte
   JMP hb_delete_prev
 
 hb_check_prev_byte:
-  LDA .arg2
+  LDA .__arg2
   SUI 1
   LAP
   CPI 92
@@ -235,32 +280,32 @@ hb_check_prev_byte:
 
 hb_set_double_delete:
   LDI 2
-  STA .work1
+  STA .__work1
 
 hb_delete_prev:
   LDA .bss + 2
-  SUB .work2
+  SUB .__work2
   ADI 1
-  STA .num_digits       ; bytes to copy (tail + null)
-  LDA .work1
+  STA .__num_digits       ; bytes to copy (tail + null)
+  LDA .__work1
   CPI 2
   JPZ hb_adjust_dest_two
   JMP hb_copy_tail
 
 hb_adjust_dest_two:
-  LDA .arg2
+  LDA .__arg2
   SUI 1
-  STA .arg2             ; shift destination back one more byte
+  STA .__arg2             ; shift destination back one more byte
 
 hb_copy_tail:
   JSR @copy_mem
   JSR count_lines
   LDI 1
-  STA .res1
-  LDA .work2
+  STA .__res1
+  LDA .__work2
   SUI 1
   STA .bss + 1          ; move cursor pointer back by one
-  LDA .work1
+  LDA .__work1
   CPI 2
   JPZ hb_dec_ptr_extra
   JMP hb_update_cursor_x
@@ -309,7 +354,7 @@ hb_ls_after_move:
   JMP hb_no_break
 hb_break_literal:
   LDI 1
-  STA .work1
+  STA .__work1
   JMP hb_delete_merge
 hb_break_escape:
   LDA .bss + 0
@@ -321,55 +366,55 @@ hb_break_escape:
   CPI 92                ; '\\'
   JPZ hb_set_break_two
   LDI 1
-  STA .work1
+  STA .__work1
   JMP hb_delete_merge
 hb_set_break_two:
   LDI 2
-  STA .work1
+  STA .__work1
   JMP hb_delete_merge
 hb_no_break:
   LDI 1
-  STA .res1             ; still refresh to reflect cursor move
+  STA .__res1             ; still refresh to reflect cursor move
   JMP post_key_input
 hb_delete_merge:
   LDA .bss + 0
   ADD .bss + 1
-  STA .arg2             ; destination = current cursor position
-  LDA .work1
+  STA .__arg2             ; destination = current cursor position
+  LDA .__work1
   CPI 2
   JPZ hb_set_src_plus2
 hb_set_src_plus1:
-  LDA .arg2
+  LDA .__arg2
   ADI 1
-  STA .arg1
+  STA .__arg1
   JMP hb_calc_tail
 hb_set_src_plus2:
-  LDA .arg2
+  LDA .__arg2
   ADI 2
-  STA .arg1
+  STA .__arg1
 hb_calc_tail:
   LDA .bss + 2
   SUB .bss + 1
-  SUB .work1
+  SUB .__work1
   ADI 1
-  STA .num_digits
+  STA .__num_digits
   JSR @copy_mem
   JSR count_lines
   LDI 1
-  STA .res1
+  STA .__res1
   JMP post_key_input
 
 insert_character:   ; --- insert character in .char into current location pointed to by cursor buffer pointer
   LDA .bss + 0          ; start of file
   ADD .bss + 1          ; cursor pointer in text buffer
-  STA .arg1             ; add them to get source
+  STA .__arg1             ; add them to get source
   ADI 1
-  STA .arg2             ; destination is one higher
+  STA .__arg2             ; destination is one higher
   ; length is len(file) - pointer loc + 1 (add 1 for null terminator)
   LDA .bss + 2
   SUB .bss + 1
   ADI 1
-  STA .num_digits
+  STA .__num_digits
   JSR @copy_mem
   LDA .bss + 0
   ADD .bss + 1
@@ -380,7 +425,7 @@ insert_character:   ; --- insert character in .char into current location pointe
 
 handle_left:
   LDI 0
-  STA .res1
+  STA .__res1
   LDA .bss + 7
   CPI 0
   JPZ post_key_input
@@ -390,7 +435,7 @@ handle_left:
 
 handle_right:
   LDI 0
-  STA .res1
+  STA .__res1
   LDA .bss + 7
   ADI 1
   STA .bss + 7          ; clamping is handled by move_cursor_pointer
@@ -398,7 +443,7 @@ handle_right:
 
 handle_up:
   LDI 0
-  STA .res1
+  STA .__res1
   LDA .bss + 6
   CPI 1
   JPC sub_y
@@ -410,7 +455,7 @@ sub_lineskip:
   SUI 1
   STA .bss + 4
   LDI 1
-  STA .res1                         ; res1 is 1 -> redraw screen
+  STA .__res1                         ; __res1 is 1 -> redraw screen
   JMP post_key_input
 sub_y:
   SUI 1
@@ -419,22 +464,23 @@ sub_y:
 
 handle_down:
   LDI 0
-  STA .res1
+  STA .__res1
   LDA .bss + 4
   ADD .bss + 6                      ; line number we are on in the actual file
   ADI 1
   CMP .bss + 3                      ; compare to total number in file
   JPC post_key_input                ; do nothing if we're maxed
 
-  LDI .screen_height - 3
+  LDA .__sys_screen_height
+  SUI 3
   CMP .bss + 6
-  JPC add_y_check                   ; if 17 >= Y (aka Y < 18) (assumes screen_height = 20)
-  ; Y >= 19 (assumes screen_height = 20)
+  JPC add_y_check                   ; if 17 >= Y (aka Y < 18) (assumes __sys_screen_height = 20)
+  ; Y >= 19 (assumes __sys_screen_height = 20)
   LDA .bss + 4
   ADI 1                             ; increment skipped lines
   STA .bss + 4
   LDI 1
-  STA .res1
+  STA .__res1
   JMP post_key_input
 add_y_check:
   LDA .bss + 3                      ; number of lines in text file
@@ -453,39 +499,39 @@ update_display:
   STA .bss + 1          ; cursor buffer pointer
   STA .bss + 5          ; read buffer pointer
   LDA .bss + 4
-  STA .work1
+  STA .__work1
   JSR clear_display
 skip_lines_loop:
-  LDA .work1
+  LDA .__work1
   CPI 0
   JPZ end_skip_lines    ; branch away if skip count is at 0
   LDA .bss + 0
   ADD .bss + 5          ; bss[0] + bss[5] = current location
-  STA .arg1
+  STA .__arg1
   JSR @skip_line
   LDA .bss + 5
-  ADD .res2             ; add N-characters that were skipped to pointer
+  ADD .__res2             ; add N-characters that were skipped to pointer
   STA .bss + 5
-  LDA .work1
+  LDA .__work1
   SUI 1                 ; subtract one from count
-  STA .work1
+  STA .__work1
   JMP skip_lines_loop
 end_skip_lines:
   LDA .bss + 5
   ADD .bss + 0
-  STA .arg1
+  STA .__arg1
   LDI 20
-  STA .arg2
+  STA .__arg2
   LDI 1
-  STA .res1
+  STA .__res1
   JSR @cat
 skip_to_bottom_row_loop:
-  LDA .res2
-  CPI .screen_height - 1
+  LDA .__res2
+  CMP .screen_height_sub1
   JPC end_bottom_row_loop
   JSR @newline
   ADI 1
-  STA .res2
+  STA .__res2
   JMP skip_to_bottom_row_loop
 end_bottom_row_loop:
   LDI .mode_text
@@ -493,8 +539,14 @@ end_bottom_row_loop:
   LDA .bss + 9
   CPI 0
   JPZ print_mode0_text
+  CPI 2
+  JPZ print_mode2_text
 print_mode1_text:
   LDI .mode1_text
+  JSR print_no_newline
+  JMP end_mode_text
+print_mode2_text:
+  LDI .mode2_text
   JSR print_no_newline
   JMP end_mode_text
 print_mode0_text:
@@ -504,12 +556,10 @@ end_mode_text:
   LDI .wc_text
   JSR print_no_newline
   LDA .bss + 2
-  PHA
   JSR @display_number
   LDI .lc_text
   JSR print_no_newline
   LDA .bss + 3
-  PHA
   JSR @display_number
 move_cursor_pointer:    ; -- move the pointer for where the cursor is in the current text buffer --
   DIS 2                 ; set cursor to top left
@@ -517,99 +567,99 @@ move_cursor_pointer:    ; -- move the pointer for where the cursor is in the cur
   LDA .bss + 5
   STA .bss + 1          ; set cursor pointer to be the same as read buffer
   LDA .bss + 6
-  STA .work1
+  STA .__work1
 mcp_loop:
-  LDA .work1
+  LDA .__work1
   CPI 0
   JPZ end_mcp           ; branch away if Y count is at 0
   LDA .bss + 0
   ADD .bss + 1          ; cursor position in buffer
-  STA .arg1
+  STA .__arg1
   JSR @skip_line
   LDA .bss + 1
-  ADD .res2             ; add N-characters that were skipped to pointer
+  ADD .__res2             ; add N-characters that were skipped to pointer
   STA .bss + 1
-  LDA .work1
+  LDA .__work1
   SUI 1                 ; subtract one from count
-  STA .work1
+  STA .__work1
   DIS 20
   JSR @toggle_display_enable
   JMP mcp_loop
 end_mcp:
   LDA .bss + 0
   ADD .bss + 1
-  STA .arg1             ; use skip line to get the length of the line the cursor is on
+  STA .__arg1             ; use skip line to get the length of the line the cursor is on
   JSR @skip_line
-  LDA .res1             ; length without break/escape
+  LDA .__res1             ; length without break/escape
   STA .bss + 8
   CMP .bss + 7          ; if len(line) >= X
   JPC no_clamp_x        ; skip clamp
   STA .bss + 7          ; else, clamp to length of line
 no_clamp_x:
   LDA .bss + 1
-  STA .work2             ; byte offset from start of text for current line
+  STA .__work2             ; byte offset from start of text for current line
   LDA .bss + 7
-  STA .work1
+  STA .__work1
 mcp_byte_loop:
-  LDA .work1
+  LDA .__work1
   CPI 0
   JPZ mcp_bytes_done
   LDA .bss + 0
-  ADD .work2
-  STA .arg1
+  ADD .__work2
+  STA .__arg1
   LAP
   CPI 92                ; backslash -> possible escape sequence
   JPZ mcp_handle_escape
   CPI 10                ; literal newline (0x0A)
   JPZ mcp_advance_literal_newline
-  LDA .work2
+  LDA .__work2
   ADI 1
-  STA .work2
+  STA .__work2
   JMP mcp_step_complete
 
 mcp_handle_escape:
   LDA .bss + 0
-  ADD .work2
+  ADD .__work2
   ADI 1
   LAP
   CPI 78                ; 'N' newline escape
   JPZ mcp_advance_escape_two
   CPI 92                ; '\\' literal backslash escape
   JPZ mcp_advance_escape_two
-  LDA .work2
+  LDA .__work2
   ADI 2
-  STA .work2
+  STA .__work2
   JMP mcp_step_complete
 
 mcp_advance_escape_two:
-  LDA .work2
+  LDA .__work2
   ADI 2
-  STA .work2
+  STA .__work2
   JMP mcp_step_complete
 
 mcp_advance_literal_newline:
-  LDA .work2
+  LDA .__work2
   ADI 1
-  STA .work2
+  STA .__work2
 
 mcp_step_complete:
-  LDA .work1
+  LDA .__work1
   SUI 1
-  STA .work1
+  STA .__work1
   JMP mcp_byte_loop
 
 mcp_bytes_done:
-  LDA .work2
+  LDA .__work2
   STA .bss + 1          ; update cursor buffer pointer with byte offset
   OUT
   LDA .bss + 7
-  STA .work1
+  STA .__work1
 mcr_loop:               ; move cursor right loop
-  LDA .work1
+  LDA .__work1
   CPI 0
   JPZ end_mcr_loop
   SUI 1
-  STA .work1
+  STA .__work1
   DIS 17
   JSR @toggle_display_enable
   JMP mcr_loop
@@ -643,51 +693,51 @@ count_lines:
   STA .bss + 2
   STA .bss + 3
   STA .bss + 5
-  STA .work1           ; last line had newline flag
-  STA .work2           ; last line had characters flag
+  STA .__work1           ; last line had newline flag
+  STA .__work2           ; last line had characters flag
 cl_loop:
   LDA .bss + 0
   ADD .bss + 5
-  STA .arg1
+  STA .__arg1
   JSR @skip_line
-  LDA .res2
+  LDA .__res2
   CPI 0
   JPZ count_end
   LDI 0
-  STA .work1
-  STA .work2
-  LDA .res2
-  STA .work3
-  LDA .res1
-  STA .work4
-  LDA .work3
-  SUB .work4
+  STA .__work1
+  STA .__work2
+  LDA .__res2
+  STA .__work3
+  LDA .__res1
+  STA .__work4
+  LDA .__work3
+  SUB .__work4
   CPI 0
   JPZ cl_no_newline_flag
   LDI 1
-  STA .work1
+  STA .__work1
 cl_no_newline_flag:
-  LDA .work4
+  LDA .__work4
   CPI 0
   JPZ cl_no_chars_flag
   LDI 1
-  STA .work2
+  STA .__work2
 cl_no_chars_flag:
   LDA .bss + 3
   ADI 1             ; increase line count
   STA .bss + 3
   LDA .bss + 2
-  ADD .work3        ; add current number of bytes to bss + 2
+  ADD .__work3        ; add current number of bytes to bss + 2
   STA .bss + 2
   STA .bss + 5      ; pointer will be the same as text length while we are counting
   JMP cl_loop  
 count_end:
-  LDA .work1
+  LDA .__work1
   CPI 1
   JPZ cl_maybe_add_blank
   JMP cl_finish
 cl_maybe_add_blank:
-  LDA .work2
+  LDA .__work2
   CPI 1
   JPZ cl_add_blank
   JMP cl_finish

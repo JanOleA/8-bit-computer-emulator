@@ -5,15 +5,15 @@
 ;! bss: auto
 ;! align: 1
 
-; Compute gcd(arg1, arg2) using Euclid's algorithm.
-; Inputs: .arg1 = a, .arg2 = b
-; Returns: .res1 = gcd(a,b); A = gcd
+; Compute gcd(__arg1, __arg2) using Euclid's algorithm.
+; Inputs: .__arg1 = a, .__arg2 = b
+; Returns: .__res1 = gcd(a,b); A = gcd
 
 gcd:
   ; a -> .bss, b -> .bss+1
-  LDA .arg1
+  LDA .__arg1
   STA .bss
-  LDA .arg2
+  LDA .__arg2
   STA .bss + 1
 
 gcd_loop:
@@ -21,22 +21,22 @@ gcd_loop:
   LDA .bss + 1
   CPI 0
   JPZ gcd_done
-  ; r = a % b  (divide returns A=quot, .res2=remainder)
+  ; r = a % b  (divide returns A=quot, .__res2=remainder)
   LDA .bss
-  STA .arg1
+  STA .__arg1
   LDA .bss + 1
-  STA .arg2
+  STA .__arg2
   JSR @divide
   ; a = b, b = r
   LDA .bss + 1
   STA .bss
-  LDA .res2
+  LDA .__res2
   STA .bss + 1
   JMP gcd_loop
 
 gcd_done:
   LDA .bss
-  STA .res1
-  LDA .res1
+  STA .__res1
+  LDA .__res1
   RET
 

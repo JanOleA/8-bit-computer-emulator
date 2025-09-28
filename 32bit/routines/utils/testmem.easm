@@ -131,7 +131,6 @@ print_no_newline:
 
 display_current:
   LDA .bss + 1
-  PHA
   JSR @display_number
   LDI 32
   JSR @write_char
@@ -139,14 +138,12 @@ display_current:
   JSR @write_char
   LDA .bss + 1
   ADD .bss + 2
-  PHA
   JSR @display_number
   LDI 32
   JSR @write_char
   JSR @write_char
   JSR @write_char
   LDA .bss + 2
-  PHA
   JSR @display_number
   JSR @newline
   RET

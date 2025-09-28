@@ -1,0 +1,53 @@
+;! name: ISPOSITIVE
+;! entry: is_positive
+;! deps: 
+;! abi: sysinfo
+;! bss: auto
+;! align: 1
+
+; Returns 1 if the number in the A register is positive, 0 otherwise.
+; Result is in the A register and in the C flag (set if positive, clear otherwise).
+
+; Interprets A as a signed two's-complement value with bit width = ..__sys_bits_avail.
+; Implementation: compute sign mask = 1 << (.__sys_bits_avail - 1),
+; then check if A < sign_mask (unsigned compare). If true → non-negative.
+
+val    = .bss + 0
+mask   = .bss + 1
+count  = .bss + 2
+
+is_positive:
+  ; preserve input value
+  STA .val
+
+  ; build sign mask = 1 << (.__sys_bits_avail - 1)
+  LDI 1
+  STA .mask
+  LDA ..__sys_bits_avail
+  SUI 1
+  STA .count
+ip_mloop:
+  LDA .count
+  CPI 0
+  JPZ ip_mdone
+  LDA .mask
+  LSA
+  STA .mask
+  LDA .count
+  SUI 1
+  STA .count
+  JMP ip_mloop
+ip_mdone:
+  ; unsigned compare: if val >= mask -> negative, else non-negative
+  LDA .val
+  CMP .mask
+  JPC ip_negative
+  ; non-negative (>= 0)
+  LDI 1
+  JMP ip_setc_ret
+ip_negative:
+  LDI 0
+ip_setc_ret:
+  ; set carry = (A >= 1) so C reflects positivity
+  CPI 1
+  RET

@@ -23,40 +23,40 @@ randint:
   CPI 0
   JPZ ri_zero
   ; Branch on available bits
-  LDA .bits_avail
+  LDA ..__sys_bits_avail
   CPI 32
   JPC ri_32
 
 ; --- 16-bit style LCG path ---
 ri_16:
-  LDA .random_seed
+  LDA .__random_seed
   PHA
   LDI 25173
   PHA
   JSR @multiply
   ADI 13849
-  STA .arg1
-  STA .random_seed
+  STA .__arg1
+  STA .__random_seed
   LDA .bss
-  STA .arg2
+  STA .__arg2
   JSR @divide
-  LDA .res2
+  LDA .__res2
   RET
 
 ; --- 32-bit LCG path (A-reg >= 32 bits) ---
 ri_32:
-  LDA .random_seed
+  LDA .__random_seed
   PHA
   LDI 1664525
   PHA
   JSR @multiply
   ADI 1013904223
-  STA .arg1
-  STA .random_seed
+  STA .__arg1
+  STA .__random_seed
   LDA .bss
-  STA .arg2
+  STA .__arg2
   JSR @divide
-  LDA .res2
+  LDA .__res2
   RET
 
 ri_zero:

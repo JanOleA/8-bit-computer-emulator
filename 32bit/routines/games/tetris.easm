@@ -163,7 +163,7 @@ spawn_new_piece:
   LDI .bss + 244
   STA .bss + 222
   JSR can_place
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ snp_place_ok
   LDI 0
@@ -252,7 +252,7 @@ dt_drop:
   LDA .bss + 208
   STA .bss + 207
   JSR drop_step
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ dt_moved
   LDI 1
@@ -274,20 +274,20 @@ drop_step:
   LDI .bss + 236
   STA .bss + 222
   JSR can_place
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ ds_move
   JSR lock_piece
   JSR spawn_new_piece
   LDI 0
-  STA .res1
+  STA .__res1
   RET
 ds_move:
   LDA .bss + 214
   STA .bss + 203
   JSR update_piece_cells
   LDI 1
-  STA .res1
+  STA .__res1
   RET
 
 move_left:
@@ -299,7 +299,7 @@ move_left:
   LDI .bss + 236
   STA .bss + 222
   JSR can_place
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ ml_apply
   RET
@@ -320,7 +320,7 @@ move_right:
   LDI .bss + 236
   STA .bss + 222
   JSR can_place
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ mr_apply
   RET
@@ -340,7 +340,7 @@ hd_loop:
   CPI 0
   JPZ hd_done
   JSR drop_step
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ hd_continue
   LDI 1
@@ -376,7 +376,7 @@ rp_keep:
   LDI .bss + 244
   STA .bss + 222
   JSR can_place
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ rp_commit
   LDA .bss + 202
@@ -387,53 +387,53 @@ rp_keep:
   LDI .bss + 244
   STA .bss + 222
   JSR can_place
-  LDA .res1
-  CPI 1
-  JPZ rp_commit
-  LDA .bss + 202
-  ADI 1
-  STA .bss + 213
-  LDA .bss + 203
-  STA .bss + 214
-  LDI .bss + 244
-  STA .bss + 222
-  JSR can_place
-  LDA .res1
-  CPI 1
-  JPZ rp_commit
-  LDA .bss + 202
-  STA .bss + 213
-  LDA .bss + 203
-  SUI 1
-  STA .bss + 214
-  LDI .bss + 244
-  STA .bss + 222
-  JSR can_place
-  LDA .res1
-  CPI 1
-  JPZ rp_commit
-  LDA .bss + 202
-  SUI 1
-  STA .bss + 213
-  LDA .bss + 203
-  SUI 1
-  STA .bss + 214
-  LDI .bss + 244
-  STA .bss + 222
-  JSR can_place
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ rp_commit
   LDA .bss + 202
   ADI 1
   STA .bss + 213
   LDA .bss + 203
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .__res1
+  CPI 1
+  JPZ rp_commit
+  LDA .bss + 202
+  STA .bss + 213
+  LDA .bss + 203
   SUI 1
   STA .bss + 214
   LDI .bss + 244
   STA .bss + 222
   JSR can_place
-  LDA .res1
+  LDA .__res1
+  CPI 1
+  JPZ rp_commit
+  LDA .bss + 202
+  SUI 1
+  STA .bss + 213
+  LDA .bss + 203
+  SUI 1
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .__res1
+  CPI 1
+  JPZ rp_commit
+  LDA .bss + 202
+  ADI 1
+  STA .bss + 213
+  LDA .bss + 203
+  SUI 1
+  STA .bss + 214
+  LDI .bss + 244
+  STA .bss + 222
+  JSR can_place
+  LDA .__res1
   CPI 1
   JPZ rp_commit
   RET
@@ -760,7 +760,7 @@ upc_done:
 
 can_place:
   LDI 0
-  STA .res1
+  STA .__res1
   LDA .bss + 222
   STA .bss + 235
   LDI 0
@@ -807,11 +807,11 @@ cp_cell_ok:
   JMP cp_loop
 cp_fail:
   LDI 0
-  STA .res1
+  STA .__res1
   RET
 cp_success:
   LDI 1
-  STA .res1
+  STA .__res1
   RET
 
 coords_to_ptr:
@@ -887,7 +887,7 @@ cl_loop:
   CPI 255
   JPZ cl_finish
   JSR row_full
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ cl_remove
 cl_advance:
@@ -999,7 +999,7 @@ row_full:
   LDI .board_width
   STA .bss + 216
   LDI 1
-  STA .res1
+  STA .__res1
 rf_loop:
   LDA .bss + 216
   CPI 0
@@ -1016,7 +1016,7 @@ rf_loop:
   JMP rf_loop
 rf_not_full:
   LDI 0
-  STA .res1
+  STA .__res1
   RET
 rf_done:
   RET
@@ -1227,19 +1227,16 @@ render_scoreboard:
   LDI .score_text
   JSR print_z
   LDA .bss + 204
-  PHA
   JSR @display_number
   JSR @newline
   LDI .lines_text
   JSR print_z
   LDA .bss + 205
-  PHA
   JSR @display_number
   JSR @newline
   LDI .level_text
   JSR print_z
   LDA .bss + 206
-  PHA
   JSR @display_number
   JSR @newline
   LDI .controls_line1
@@ -1276,7 +1273,6 @@ render_game_over:
   LDI .final_score_text
   JSR print_z
   LDA .bss + 204
-  PHA
   JSR @display_number
   JSR @newline
   LDI .exit_text
@@ -1287,7 +1283,7 @@ render_game_over:
 wait_for_exit:
   LDI 0
   STA .bss + 210
-  STA .no_input
+  STA .__no_input
   STA .bss + 260
   STA .bss + 261
 wfe_loop:
@@ -1296,6 +1292,8 @@ wfe_loop:
   CPI 0
   JPZ wfe_loop
   JSR @newline
+  DIS 15            ; set on, display cursor, cursor blink
+  JSR @toggle_display_enable
   RET
 
 handle_input_value:
@@ -1328,7 +1326,7 @@ hi_right:
   RET
 hi_down:
   JSR drop_step
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ hi_down_moved
   LDI 1
@@ -1369,7 +1367,7 @@ check_input:
   LDI 0
   STA .bss + 210
   LDI 0
-  STA .no_input
+  STA .__no_input
   STA .bss + 260
   STA .bss + 261
   RET
@@ -1377,7 +1375,7 @@ ci_entered:
   PLA
   SUI 128
   STA .bss + 211
-  LDA .no_input
+  LDA .__no_input
   CPI 0
   JPZ ci_new_press
   LDA .bss + 211
@@ -1389,7 +1387,7 @@ ci_new_press:
   LDI 1
   STA .bss + 210
   LDI 1
-  STA .no_input
+  STA .__no_input
   LDI 0
   STA .bss + 261
   RET
@@ -1438,7 +1436,7 @@ wait_100:
   LDI 0
   STA .bss + 261       ; hold_count = 0
   LDI 0
-  STA .no_input        ; allow handling now
+  STA .__no_input        ; allow handling now
   JMP w100_after_gate
 w100_same_key:
   LDA .bss + 261
@@ -1450,18 +1448,18 @@ w100_same_key:
   JMP w100_after_gate
 w100_allow_repeat:
   LDI 0
-  STA .no_input
+  STA .__no_input
 w100_after_gate:
-  ; If no_input is cleared, mark it handled for this cycle and return.
+  ; If __no_input is cleared, mark it handled for this cycle and return.
   ; Caller (frame_wait) will invoke handle_input_value after this wrapper.
-  LDA .no_input
+  LDA .__no_input
   CPI 1
   JPZ w100_before_sleep
   LDI 1
-  STA .no_input
+  STA .__no_input
 w100_set_no_input:
   LDI 0
-  STA .no_input
+  STA .__no_input
   JMP w100_before_sleep
 w100_before_sleep:
   ; call the real external sleep for 100 units

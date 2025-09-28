@@ -1,7 +1,7 @@
 ;! name: CAT
 ;! entry: cat
 ;! deps: write_char, newline, parse_number, skip_line
-;! abi: all
+;! abi: sysinfo args argv
 ;! bss: auto
 ;! align: 1
 ;! callable: yes
@@ -13,10 +13,10 @@
 ; 0x0A (10)     - newline
 
 ; if an argument is provided, interpret it as initial memory address
-; if not, use value in .arg1 as initial memory address and .arg2 as max lines (0 = all)
-; .res1 on input is whether to truncate lines (1=truncate, else=wrap)
+; if not, use value in .__arg1 as initial memory address and .__arg2 as max lines (0 = all)
+; .__res1 on input is whether to truncate lines (1=truncate, else=wrap)
 ; 
-; -- .res1 = number of characters that were printed. .res2 = number of newlines that were printed --
+; -- .__res1 = number of characters that were printed. .__res2 = number of newlines that were printed --
 
 escape_mode = bss + 0           ; 1 if we are in escape mode
 chars_printed = bss + 1         ; chars printed on current line
@@ -25,7 +25,7 @@ newlines_printed = bss + 3      ; number of printed newlines
 max_lines = bss + 4             ; max lines
 truncate_lines = bss + 5        ; If 1 truncate lines, else wrap
 
-screen_width = 40               ; screen width in characters
+__sys_screen_width = 40               ; screen width in characters
 
 cat:
   LDI 0
@@ -34,23 +34,23 @@ cat:
   STA .total_chars_printed
   LDI 1
   STA .newlines_printed          ; there will always be at least one newline (end of program)
-  LDA .argv_base
+  LDA .__argv_base
   CPI 0
   JPZ print_init
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @parse_number
-  STA .arg1
+  STA .__arg1
   LDI 0
-  STA .arg2
-  STA .res1
+  STA .__arg2
+  STA .__res1
 print_init:
-  LDA .res1
+  LDA .__res1
   STA .truncate_lines
-  LDA .arg2
+  LDA .__arg2
   STA .max_lines
 print_loop:
-  LPA .arg1                ; load mem[mem[.arg1]] into A
+  LPA .__arg1                ; load mem[mem[.__arg1]] into A
   STA .char
   CPI 0
   JPZ end
@@ -99,12 +99,12 @@ check_max_lines:
   JMP end
 pass_check_max_lines:
   JSR @newline
-advance:                ; -- advance the pointer by one, also makes a newline if we have printed >= screen_width number of characters, jump to start of loop
-  LDA .arg1
+advance:                ; -- advance the pointer by one, also makes a newline if we have printed >= __sys_screen_width number of characters, jump to start of loop
+  LDA .__arg1
   ADI 1
-  STA .arg1
+  STA .__arg1
   LDA .chars_printed
-  CPI .screen_width     ; if printed characters >= screen width, make a new line
+  CMP .__sys_screen_width     ; if printed characters >= screen width, make a new line
   JPC wrap_or_truncate
   JMP print_loop        ; continue main loop if line not full
 wrap_or_truncate:
@@ -114,12 +114,12 @@ wrap_or_truncate:
   JMP newline_helper
 truncate:
   JSR @skip_line
-  LDA .res1
+  LDA .__res1
   ADD .total_chars_printed
   STA .total_chars_printed
-  LDA .arg1
-  SUI 1                       ; Compensate for upcoming advance which always increments .arg1; skip_line returns next-line start so step back 1 here so the shared advance landing position is correct.
-  STA .arg1
+  LDA .__arg1
+  SUI 1                       ; Compensate for upcoming advance which always increments .__arg1; skip_line returns next-line start so step back 1 here so the shared advance landing position is correct.
+  STA .__arg1
   JMP escape_newline
 newline_helper:         ; -- write a newline, but also set the characters printed on current line to 0
   LDI 0
@@ -139,8 +139,8 @@ write_char_wrapper:     ; -- Subroutine. Write character (in .char) and incremen
 
 end:
   LDA .total_chars_printed
-  STA .res1
+  STA .__res1
   LDA .newlines_printed
-  STA .res2
+  STA .__res2
   JSR @newline
   RET

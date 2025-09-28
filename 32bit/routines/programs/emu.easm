@@ -10,85 +10,85 @@
 
 main:
   LDI .l1
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l2
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l3
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l4
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l5
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l6
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l7
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l8
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l9
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l10
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l11
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l12
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l13
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l14
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l15
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l16
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   LDI .l17
-  STA .arg1
+  STA .__arg1
   JSR print_zstr
   JSR @newline
   RET
 
-; Print zero-terminated string at .arg1
+; Print zero-terminated string at .__arg1
 print_zstr:
-  LPA .arg1                ; load mem[mem[.arg1]] into A
+  LPA .__arg1                ; load mem[mem[.__arg1]] into A
   STA .char
   CPI 0
   JPZ pzs_done
   JSR @write_char
-  LDA .arg1
+  LDA .__arg1
   ADI 1
-  STA .arg1
+  STA .__arg1
   JMP print_zstr
 pzs_done:
   RET

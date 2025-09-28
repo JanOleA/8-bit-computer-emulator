@@ -6,7 +6,7 @@
 ;! align: 1
 
 ; Parse a text decimal number from pointer (first argument) into integer in .bss (stops at first non-digit)
-; returns the number in A and the updated pointer in .arg1 (backwards compat)
+; returns the number in A and the updated pointer in .__arg1 (backwards compat)
 parse_number:
   PLA                 ; pull return address into A
   MOVAB               ; move it to B temporarily
@@ -27,7 +27,7 @@ pn_loop:
 pn_ge_48:
   CPI 58              ; if A >= ':' -> done
   JPC pn_done
-  ; convert to digit and accumulate: res1 = res1*10 + digit
+  ; convert to digit and accumulate: __res1 = __res1*10 + digit
   SUI 48
   STA .bss + 2        ; temp digit
   LDA .bss
@@ -44,10 +44,10 @@ pn_ge_48:
   STA .bss + 3
   JMP pn_loop
 pn_done:
-  ; return pointer to the first non-digit character in .arg1 so callers
+  ; return pointer to the first non-digit character in .__arg1 so callers
   ; can verify token boundaries (maintains old behaviour expected by callers)
   LDA .bss + 3
-  STA .arg1
+  STA .__arg1
   LDA .bss
-  STA .res1
+  STA .__res1
   RET

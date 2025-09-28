@@ -1,8 +1,8 @@
 char = 255
-textloc = 254
+__textloc = 254
 text = 240
 
-.textloc  = 240
+.__textloc  = 240
 .text     = " Hello World!"
 
 start:
@@ -23,7 +23,7 @@ end_1:
   DIS 7                 ; 0000 0110 - Set entry mode, cursor direction to increment and display shift
   JSR instruction
   LDI 240
-  STA .textloc
+  STA .__textloc
 helloworld_2:
   JSR get_next_char
   CPI 0
@@ -33,12 +33,12 @@ helloworld_2:
 end_printloop:
   HLT  
 
-get_next_char:  ; gets the next character from .textloc and increases .textloc by 1
-  LDA .textloc
+get_next_char:  ; gets the next character from .__textloc and increases .__textloc by 1
+  LDA .__textloc
   PHA
   ADI 1
-  STA .textloc
-  LAS         ; get the value from .textloc into A
+  STA .__textloc
+  LAS         ; get the value from .__textloc into A
   STA .char
   RET
 

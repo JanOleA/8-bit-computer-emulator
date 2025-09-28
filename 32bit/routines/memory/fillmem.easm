@@ -14,23 +14,23 @@
 
 start:
   ; require at least 3 args
-  LDA .argv_base
+  LDA .__argv_base
   CPI 3
   JPZ cl_go
   RET
 
 cl_go:
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @parse_number
   STA .bss
 
-  LDA .argv_base + 2
+  LDA .__argv_base + 2
   PHA
   JSR @parse_number
   STA .bss + 1
 
-  LDA .argv_base + 3
+  LDA .__argv_base + 3
   PHA
   JSR @parse_number
   STA .bss + 2
@@ -42,26 +42,26 @@ fill:
   JPZ fl_ret
   ; ptr = dst
   LDA .bss
-  STA .work2
+  STA .__work2
   ; cnt = len
   LDA .bss + 1
-  STA .work4
+  STA .__work4
 fl_loop:
-  LDA .work4
+  LDA .__work4
   CPI 0
   JPZ fl_ret
   ; *ptr = value
-  LDA .work2
+  LDA .__work2
   PHA
   LDA .bss + 2
   SAS
   ; advance
-  LDA .work2
+  LDA .__work2
   ADI 1
-  STA .work2
-  LDA .work4
+  STA .__work2
+  LDA .__work4
   SUI 1
-  STA .work4
+  STA .__work4
   JMP fl_loop
 
 fl_ret:

@@ -13,30 +13,30 @@
 ;   bss + 2 = len
 
 copy_mem:
-  ; take three arguments. If less are given, use numbers in arg1, arg2 and num_digits (src, dst, len)
-  LDA .argv_base
+  ; take three arguments. If less are given, use numbers in __arg1, __arg2 and __num_digits (src, dst, len)
+  LDA .__argv_base
   CPI 3
   JPZ cl_go
-  LDA .arg1
+  LDA .__arg1
   STA .bss
-  LDA .arg2
+  LDA .__arg2
   STA .bss + 1
-  LDA .num_digits
+  LDA .__num_digits
   STA .bss + 2
   JMP cpy
 
 cl_go:
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @parse_number
   STA .bss
 
-  LDA .argv_base + 2
+  LDA .__argv_base + 2
   PHA
   JSR @parse_number
   STA .bss + 1
 
-  LDA .argv_base + 3
+  LDA .__argv_base + 3
   PHA
   JSR @parse_number
   STA .bss + 2
@@ -47,10 +47,10 @@ cpy:
   CPI 0
   JPZ cpy_ret
 
-  ; work1 = src_end = src + len
+  ; __work1 = src_end = src + len
   LDA .bss
   ADD .bss + 2
-  STA .work1
+  STA .__work1
 
   ; if dst >= src and dst < src_end then backward else forward
   LDA .bss + 1
@@ -60,40 +60,40 @@ cpy:
 
 cpy_ge_src:
   LDA .bss + 1
-  CMP .work1
+  CMP .__work1
   JPC cpy_forward     ; dst >= src_end -> forward
   JMP cpy_backward    ; overlap -> backward
 
 ; forward copy
 cpy_forward:
   LDA .bss
-  STA .work2          ; src_ptr
+  STA .__work2          ; src_ptr
   LDA .bss + 1
-  STA .work3          ; dst_ptr
+  STA .__work3          ; dst_ptr
   LDA .bss + 2
-  STA .work4          ; count
+  STA .__work4          ; count
 cf_loop:
-  LDA .work4          ; load count
+  LDA .__work4          ; load count
   CPI 0               ; compare count to 0
   JPZ cpy_ret         ; if count is 0, return
   ; A = *dst_ptr
-  LDA .work3
+  LDA .__work3
   PHA ; push dst_prt to stack
   ; A = *src_ptr
-  LDA .work2
+  LDA .__work2
   PHA ; push src_ptr to stack
   LAS ; pop pointer from stack, get source mem content to A
   SAS ; pop dst_ptr from stack, store A
   ; advance ptrs and dec count
-  LDA .work2
+  LDA .__work2
   ADI 1
-  STA .work2
-  LDA .work3
+  STA .__work2
+  LDA .__work3
   ADI 1
-  STA .work3
-  LDA .work4
+  STA .__work3
+  LDA .__work4
   SUI 1
-  STA .work4
+  STA .__work4
   JMP cf_loop
 
 ; backward copy
@@ -102,36 +102,36 @@ cpy_backward:
   LDA .bss
   ADD .bss + 2
   SUI 1
-  STA .work2
+  STA .__work2
   ; dst_ptr = dst + len - 1
   LDA .bss + 1
   ADD .bss + 2
   SUI 1
-  STA .work3
+  STA .__work3
   LDA .bss + 2
-  STA .work4
+  STA .__work4
 cb_loop:
-  LDA .work4
+  LDA .__work4
   CPI 0
   JPZ cpy_ret
   ; A = *dst_ptr
-  LDA .work3
+  LDA .__work3
   PHA ; push dst_prt to stack
   ; A = *src_ptr
-  LDA .work2
+  LDA .__work2
   PHA ; push src_ptr to stack
   LAS ; pop pointer from stack, get source mem content to A
   SAS ; pop dst_ptr from stack, store A
   ; decrement ptrs and count
-  LDA .work2
+  LDA .__work2
   SUI 1
-  STA .work2
-  LDA .work3
+  STA .__work2
+  LDA .__work3
   SUI 1
-  STA .work3
-  LDA .work4
+  STA .__work3
+  LDA .__work4
   SUI 1
-  STA .work4
+  STA .__work4
   JMP cb_loop
 
 cpy_ret:

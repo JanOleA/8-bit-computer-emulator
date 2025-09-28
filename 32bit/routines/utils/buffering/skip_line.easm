@@ -6,55 +6,55 @@
 ;! align: 1
 
 skip_line:
-  ; -- Subroutine. Starts at .arg1, increments until \n, 0x0A, or null. Returns location of next line, or of the first null, in .arg1 and A --
-  ; -- .res1 has number of characters without the break character(s). .res2 includes the break character(s) in the count --
+  ; -- Subroutine. Starts at .__arg1, increments until \n, 0x0A, or null. Returns location of next line, or of the first null, in .__arg1 and A --
+  ; -- .__res1 has number of characters without the break character(s). .__res2 includes the break character(s) in the count --
   LDI 0
-  STA .res1
-  STA .res2
+  STA .__res1
+  STA .__res2
 sl_loop:
-  LPA .arg1                ; load mem[mem[.arg1]] into A
+  LPA .__arg1                ; load mem[mem[.__arg1]] into A
   CPI 0
   JPZ sl_end        ; end immediately on null
   CPI 92            ; backslash
   JPZ sl_backslash
   CPI 10            ; 0x0A
   JPZ sl_newline_literal
-  LDA .arg1         ; if not backslash, increment and continue loop
+  LDA .__arg1         ; if not backslash, increment and continue loop
   ADI 1
-  STA .arg1
-  LDA .res1
+  STA .__arg1
+  LDA .__res1
   ADI 1
-  STA .res1
-  STA .res2
+  STA .__res1
+  STA .__res2
   JMP sl_loop
 sl_backslash:
-  LDA .arg1
+  LDA .__arg1
   ADI 1
   LAP
   CPI 78            ; N
   JPZ sl_newline
-  LDA .arg1
+  LDA .__arg1
   ADI 2             ; not a newline, add two to skip both the backslash and escape character, then continue loop
-  STA .arg1
-  LDA .res1
+  STA .__arg1
+  LDA .__res1
   ADI 2             ; also increment number of bytes in the count
-  STA .res1
-  STA .res2
+  STA .__res1
+  STA .__res2
   JMP sl_loop
 sl_newline:                 ; skipping two if we have \n
-  LDA .arg1
+  LDA .__arg1
   ADI 1
-  STA .arg1
-  LDA .res2
+  STA .__arg1
+  LDA .__res2
   ADI 1
-  STA .res2
+  STA .__res2
 sl_newline_literal:         ; skipping one if we have 0x0A. Handles the second skip for sl_newline
-  LDA .arg1
+  LDA .__arg1
   ADI 1
-  STA .arg1
-  LDA .res2
+  STA .__arg1
+  LDA .__res2
   ADI 1
-  STA .res2
+  STA .__res2
 sl_end:
-  LDA .arg1
+  LDA .__arg1
   RET

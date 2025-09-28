@@ -35,7 +35,7 @@ args_pointer    = .bss + 1
 chars_printed   = .bss + 2
 _tmp            = .bss + 3
 _saved_arg      = .bss + 4
-; no extra locals needed for digit counting; display_* will set .res3
+; no extra locals needed for digit counting; display_* will set .__res3
 
 printf:
   PLA                       ; get return address from stack
@@ -120,11 +120,10 @@ print_unsigned_decimal:
   LPA .args_pointer                   ; A = value
   STA ._saved_arg
   LDA ._saved_arg
-  PHA
   JSR @display_number
-  ; .res3 = digits printed
+  ; .__res3 = digits printed
   LDA .chars_printed
-  ADD .res3
+  ADD .__res3
   STA .chars_printed
   JSR increment_args_pointer
   JSR increment_string_pointer
@@ -134,12 +133,10 @@ print_hexadecimal:
   ; Argument value
   LPA .args_pointer                   ; A = value
   STA ._saved_arg
-  LDA ._saved_arg
-  PHA
   JSR @display_hex
-  ; .res3 = digits printed
+  ; .__res3 = digits printed
   LDA .chars_printed
-  ADD .res3
+  ADD .__res3
   STA .chars_printed
   JSR increment_args_pointer
   JSR increment_string_pointer
@@ -149,12 +146,10 @@ print_signed_decimal:
   ; Argument value
   LPA .args_pointer                   ; A = value
   STA ._saved_arg
-  LDA ._saved_arg
-  PHA
   JSR @display_int
-  ; .res3 = digits + optional '-'
+  ; .__res3 = digits + optional '-'
   LDA .chars_printed
-  ADD .res3
+  ADD .__res3
   STA .chars_printed
   JSR increment_args_pointer
   JSR increment_string_pointer

@@ -11,9 +11,9 @@
 ; Call signature: get_mnemonic(SP - 2) = get_mnemonic(input_string_pointer)
 ; Inputs:
 ;   Stack Pointer - 2 = pointer to input string
-; Returns: .res1 = result; A = result
+; Returns: .__res1 = result; A = result
 
-; --- Compare the string pointed to by the input argument to assembly mnemonics and return (in res1 and A) the corresponding instruction value, if it exists (otherwise null) ---
+; --- Compare the string pointed to by the input argument to assembly mnemonics and return (in __res1 and A) the corresponding instruction value, if it exists (otherwise null) ---
 
 get_mnemonic:
   PLA                ; get return address from stack
@@ -30,5 +30,5 @@ get_mnemonic:
   LDI .mnemonics     ; load pointer to mnemonics string
   PHA
   JSR @compare_get
-  ; result in .res1 and A
+  ; result in .__res1 and A
   RET

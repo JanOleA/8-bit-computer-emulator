@@ -6,26 +6,19 @@
 ;! align: 1
 
 ; -- Prints a signed (2s complement) number in decimal --
-; Input: Stack Pointer - 2: argument: value to print (signed, use A register to determine number of bits)
+; Input: A register: argument: value to print (signed, use A register to determine number of bits)
 
-sign_bit_mask = .bss + 1   ; mask for sign bit based on .bits_avail
+sign_bit_mask = .bss + 1   ; mask for sign bit based on ..__sys_bits_avail
 print_count   = .bss + 3   ; local counter for total chars printed ('-' + digits)
 
 display_int:
-  PLA                     ; get return address from stack
-  MOVAB                   ; move return address to B for now
-
-  PLA                     ; Argument. Copy input value into local working storage
   STA .bss
   STA .bss + 2
-
-  MOVBA                   ; move return address back to A
-  PHA                     ; push it back to stack
 
   ; pow(2, bits-1) to get sign bit mask
   LDI 2
   PHA
-  LDA .bits_avail
+  LDA ..__sys_bits_avail
   SUI 1
   PHA
   JSR @pow
@@ -53,12 +46,11 @@ di_negative:
 di_positive:
   ; Print absolute value
   LDA .bss
-  PHA
   JSR @display_number
-  ; add any leading '-' to digit count: .res3 = digits + print_count
-  LDA .res3
+  ; add any leading '-' to digit count: .__res3 = digits + print_count
+  LDA .__res3
   ADD .print_count
-  STA .res3
+  STA .__res3
 
   ; Restore original value to A before returning
   LDA .bss + 2

@@ -156,46 +156,46 @@ def assemble_dynamic_module(src_path: str,
     lines = []
     if "args" in abi or "all" in abi:
         lines += [
-            "char = 2000",
-            "textloc = 2001",
-            "arg1 = 2002",
-            "arg2 = 2003",
-            "res1 = 2004",
-            "res2 = 2005",
-            "res3 = 2014",
-            "pow2 = 2006",
-            "num_digits = 2007",
-            "work1 = 2010",
-            "work2 = 2011",
-            "work3 = 2012",
-            "work4 = 2013",
+            "__char = 2000",
+            "__textloc = 2001",
+            "__arg1 = 2002",
+            "__arg2 = 2003",
+            "__res1 = 2004",
+            "__res2 = 2005",
+            "__res3 = 2014",
+            "__pow2 = 2006",
+            "__num_digits = 2007",
+            "__work1 = 2010",
+            "__work2 = 2011",
+            "__work3 = 2012",
+            "__work4 = 2013",
         ]
     if "stdin" in abi or "all" in abi:
         lines += [
-            "ascii_start = 2008",
-            "no_input = 2009",
-            "input_buf = 2122",        # start of input buffer (80 bytes reserved)
-            "input_ptr = 2202",
-            "cmd_len = 2203",
-            "cmd_ready = 2204",
+            "__ascii_start = 2008",
+            "__no_input = 2009",
+            "__input_buf = 2122",        # start of input buffer (80 bytes reserved)
+            "__input_ptr = 2202",
+            "__cmd_len = 2203",
+            "__cmd_ready = 2204",
         ]
     if "argv" in abi or "all" in abi:
         lines += [
-            "argv_base = 2400",
-            "argv_buf = 2500",
+            "__argv_base = 2400",
+            "__argv_buf = 2500",
         ]
     if "random" in abi or "all" in abi:
         lines += [
-            "random_seed = 2600",
-            "inc_random_seed = 2601",
+            "__random_seed = 2600",
+            "__inc_random_seed = 2601",
         ]
     if "sysinfo" in abi or "all" in abi:
         lines += [
-            "bits_avail = 2602",
-            "screen_width = 2603",
-            "screen_height = 2604",
-            "prog_table = 3000",
-            "reserved_region_end = 2605"
+            "__sys_bits_avail = 2602",
+            "__sys_screen_width = 2603",
+            "__sys_screen_height = 2604",
+            "__sys_prog_table = 3000",
+            "__sys_reserved_region_end = 2605"
         ]
 
     # BSS injection with size/overlap checks
@@ -353,7 +353,7 @@ def main():
     data: Dict[str, Dict] = {}
     known_symbols: Dict[str, int] = {}
     used_ranges: List[Tuple[int, int]] = []
-    base_cursor = 5000
+    base_cursor = 6000
 
     # Optionally scan 32bit/routines for extra modules
     routines_dir = os.path.join(Path(__file__).parent.parent, "32bit", "routines")

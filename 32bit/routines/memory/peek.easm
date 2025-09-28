@@ -7,15 +7,14 @@
 ;! callable: yes
 
 peek:
-  ; argc at [argv_base]
-  LDA .argv_base
+  ; argc at [__argv_base]
+  LDA .__argv_base
   CPI 0
   JPZ pk_end
-  LDA .argv_base + 1      ; load pointer at [argv_base+1]
+  LDA .__argv_base + 1      ; load pointer at [__argv_base+1]
   PHA
   JSR @parse_number
   LAP                     ; read number at mem[A]
-  PHA
   JSR @display_number
   JSR @newline
 pk_end:

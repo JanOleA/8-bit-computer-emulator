@@ -22,29 +22,29 @@
 ; JSR +PROGNAME         ; it can also jump to programs/routines installed in the OS (get address with get_program_address())
 
 ; if an argument is provided, use it as initial memory address to read from
-; if not, use value in .arg1 as initial memory address
+; if not, use value in .__arg1 as initial memory address
 
 ; if a second argument is provided, use it as the start of compiled program
-; if not, use .arg2
+; if not, use .__arg2
 
 ; - bss table overview - ;
 ; bss + 0       : start of file
 ; bss + 1       : start of compiled program
 
 compile_start:
-  LDA .argv_base
+  LDA .__argv_base
   CPI 1
   JPC parse_arg
   JMP compile_init
 parse_arg:
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   STA .bss + 0          ; store temporarily
-  LDA .argv_base
+  LDA .__argv_base
   CPI 2
   JPC parse_arg_2
   JMP parse_finish
 parse_arg_2:
-  LDA .argv_base + 2
+  LDA .__argv_base + 2
   PHA
   JSR @parse_number
   STA .bss + 1          ; store temporarily
@@ -52,13 +52,13 @@ parse_finish:
   LDA .bss + 0          ; get the temp bss + 0, parse it
   PHA
   JSR @parse_number
-  STA .arg1
+  STA .__arg1
   LDA .bss + 1
-  STA .arg2             ; store temp bss + 1 in arg2
+  STA .__arg2             ; store temp bss + 1 in __arg2
 compile_init:
-  LDA .arg1
+  LDA .__arg1
   STA .bss + 0
-  LDA .arg2
+  LDA .__arg2
   STA .bss + 1          ; store variables internally to avoid clobbering
   JMP compile_main   
 
@@ -140,12 +140,10 @@ compile_main:
   LDI .dbg_start
   JSR print_no_newline
   LDA .bss + 0
-  PHA
   JSR @display_number
   LDI .dbg_mid
   JSR print_no_newline
   LDA .bss + 1
-  PHA
   JSR @display_number
   JSR @newline
   LDI 0
@@ -155,17 +153,14 @@ compile_main:
   LDI .dbg_pass1
   JSR print_no_newline
   LDA .bss + 4
-  PHA
   JSR @display_number
   LDI .dbg_consts
   JSR print_no_newline
   LDA .bss + 5
-  PHA
   JSR @display_number
   LDI .dbg_labels
   JSR print_no_newline
   LDA .bss + 6
-  PHA
   JSR @display_number
   JSR @newline
   LDA .bss + 13
@@ -183,13 +178,12 @@ cm_run_pass2:
   RET
 cm_success:
   LDA .bss + 1
-  STA .res1
+  STA .__res1
   LDA .bss + 4
-  STA .res2
+  STA .__res2
   LDI .success_prefix
   JSR print_no_newline
   LDA .bss + 4
-  PHA
   JSR @display_number
   LDI .success_suffix
   JSR print_newline
@@ -226,23 +220,23 @@ cp1_check_end:
   CPI 0
   JPZ cp1_done
   LDA .bss + 2
-  STA .work1
+  STA .__work1
   LDA .bss + 2
-  STA .arg1
+  STA .__arg1
   JSR @skip_line
-  LDA .arg1
+  LDA .__arg1
   STA .bss + 2
-  LDA .res1
-  STA .work2
-  LDA .work1
-  STA .work3
-  LDA .work2
-  STA .work4
-  LDA .work3
-  ADD .work4
-  STA .work3
+  LDA .__res1
+  STA .__work2
+  LDA .__work1
+  STA .__work3
+  LDA .__work2
+  STA .__work4
+  LDA .__work3
+  ADD .__work4
+  STA .__work3
   JSR next_token
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ cp1_got_token
   JMP cp1_next_line
@@ -263,32 +257,32 @@ cp1_maybe_const:
 cp1_handle_const:
   ; const syntax: I <name> <value>
   JSR next_token
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ cp1_const_name
   LDI .err_const_missing_name
   JSR report_error
   JMP cp1_next_line
 cp1_const_name:
-  LDA .work1
+  LDA .__work1
   STA .bss + 16
-  LDA .work3
+  LDA .__work3
   STA .bss + 17
   JSR alloc_const_entry
   LDA .bss + 16
-  STA .work1
+  STA .__work1
   LDA .bss + 17
-  STA .work3
-  LDA .res2
+  STA .__work3
+  LDA .__res2
   CPI 1
   JPZ cp1_const_have_entry
   JMP cp1_next_line
 cp1_const_have_entry:
-  LDA .res1
-  STA .work4
+  LDA .__res1
+  STA .__work4
   STA .bss + 18
   JSR next_token
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ cp1_const_value_token
   LDI .err_const_missing_val
@@ -296,45 +290,45 @@ cp1_const_have_entry:
   JMP cp1_next_line
 cp1_const_value_token:
   LDA .bss + 18
-  STA .work4
+  STA .__work4
   LDA .bss + 11
-  STA .work2
+  STA .__work2
   PHA
   JSR @parse_number
-  STA .work3
+  STA .__work3
   JMP cp1_store_const_value
   ; Verify that parse_number stopped at the token boundary (token start + length)
   ; Caller pushed the token pointer before calling parse_number. parse_number
-  ; will return the pointer to the first non-digit in .arg1. We compute
-  ; expected_end = token_pointer + token_length and compare to .arg1.
-  LDA .work2      ; token pointer
+  ; will return the pointer to the first non-digit in .__arg1. We compute
+  ; expected_end = token_pointer + token_length and compare to .__arg1.
+  LDA .__work2      ; token pointer
   MOVAB
   LDA .bss + 12   ; token length
   SUM
-  STA .pow2       ; expected_end
-  LDA .arg1       ; pointer returned by parse_number
-  CMP .pow2
+  STA .__pow2       ; expected_end
+  LDA .__arg1       ; pointer returned by parse_number
+  CMP .__pow2
   JPZ cp1_store_const_value
   LDI .err_const_value
   JSR report_error
   JMP cp1_next_line
 cp1_store_const_value:
-  LDA .work4
+  LDA .__work4
   PHA
-  LDA .work3
+  LDA .__work3
   SAS
   JMP cp1_next_line
 cp1_store_label:
   ; labels start with '-', map them to the current code length
-  LDA .work1
+  LDA .__work1
   STA .bss + 16
-  LDA .work3
+  LDA .__work3
   STA .bss + 17
   JSR store_label_entry
   LDA .bss + 16
-  STA .work1
+  STA .__work1
   LDA .bss + 17
-  STA .work3
+  STA .__work3
   JMP cp1_next_line
 cp1_instruction:
   ; any other token is treated as an instruction; bump length (operand optional)
@@ -342,7 +336,7 @@ cp1_instruction:
   ADI 1
   STA .bss + 4
   JSR next_token
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ cp1_has_operand
   JMP cp1_next_line
@@ -350,8 +344,8 @@ cp1_has_operand:
   LDA .bss + 4
   ADI 1
   STA .bss + 4
-  LDA .work3
-  STA .work1
+  LDA .__work3
+  STA .__work1
   JMP cp1_next_line
 cp1_next_line:
   LDA .bss + 14
@@ -381,23 +375,23 @@ cp2_check_end:
   CPI 0
   JPZ cp2_after_loop
   LDA .bss + 2
-  STA .work1
+  STA .__work1
   LDA .bss + 2
-  STA .arg1
+  STA .__arg1
   JSR @skip_line
-  LDA .arg1
+  LDA .__arg1
   STA .bss + 2
-  LDA .res1
-  STA .work2
-  LDA .work1
-  STA .work3
-  LDA .work2
-  STA .work4
-  LDA .work3
-  ADD .work4
-  STA .work3
+  LDA .__res1
+  STA .__work2
+  LDA .__work1
+  STA .__work3
+  LDA .__work2
+  STA .__work4
+  LDA .__work3
+  ADD .__work4
+  STA .__work3
   JSR next_token
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ cp2_got_token
   JMP cp2_next_line
@@ -416,8 +410,8 @@ cp2_maybe_const:
   JPZ cp2_skip_line
   JMP cp2_instruction
 cp2_skip_line:
-  LDA .work3
-  STA .work1
+  LDA .__work3
+  STA .__work1
   JMP cp2_next_line
 cp2_instruction:
   ; look up mnemonic and write opcode, then handle optional operand
@@ -426,29 +420,29 @@ cp2_instruction:
   JSR @get_mnemonic
   CPI 0
   JPZ cp2_unknown_cmd
-  STA .work4
+  STA .__work4
   LDA .bss + 3
   PHA
-  LDA .work4
+  LDA .__work4
   SAS
   LDA .bss + 3
   ADI 1
   STA .bss + 3
   JSR next_token
-  LDA .res1
+  LDA .__res1
   CPI 1
   JPZ cp2_operand
   JMP cp2_next_line
 cp2_operand:
   JSR resolve_operand
-  LDA .res2
+  LDA .__res2
   CPI 1
   JPZ cp2_store_operand
   JMP cp2_next_line
 cp2_store_operand:
   LDA .bss + 3
   PHA
-  LDA .res1
+  LDA .__res1
   SAS
   LDA .bss + 3
   ADI 1
@@ -466,9 +460,9 @@ cp2_next_line:
 cp2_after_loop:
   LDA .bss + 1
   ADD .bss + 4
-  STA .work1
+  STA .__work1
   LDA .bss + 3
-  CMP .work1
+  CMP .__work1
   JPZ cp2_done
   LDI .err_len_mismatch
   JSR report_error
@@ -477,15 +471,15 @@ cp2_done:
 
 
 next_token:
-  ; Grab the next whitespace-delimited token between .work1 and .work3, copying it to .bss+736
-  LDA .work1
-  CMP .work3
+  ; Grab the next whitespace-delimited token between .__work1 and .__work3, copying it to .bss+736
+  LDA .__work1
+  CMP .__work3
   JPZ nt_none
 nt_skip:
-  LDA .work1
-  CMP .work3
+  LDA .__work1
+  CMP .__work3
   JPZ nt_none
-  LPA .work1                ; load mem[mem[.work1]] into A
+  LPA .__work1                ; load mem[mem[.__work1]] into A
   STA .char
   CPI 32
   JPZ nt_skip_ws
@@ -495,13 +489,13 @@ nt_skip:
   JPZ nt_comment
   JMP nt_start
 nt_skip_ws:
-  LDA .work1
+  LDA .__work1
   ADI 1
-  STA .work1
+  STA .__work1
   JMP nt_skip
 nt_comment:
-  LDA .work3
-  STA .work1
+  LDA .__work3
+  STA .__work1
   JMP nt_none
 nt_start:
   LDI .bss + 736
@@ -509,12 +503,12 @@ nt_start:
   LDI 0
   STA .bss + 12
   LDA .bss + 11
-  STA .work4
+  STA .__work4
 nt_copy:
-  LDA .work1
-  CMP .work3
+  LDA .__work1
+  CMP .__work3
   JPZ nt_finish
-  LPA .work1                ; load mem[mem[.work1]] into A
+  LPA .__work1                ; load mem[mem[.__work1]] into A
   STA .char
   CPI 32
   JPZ nt_finish
@@ -525,25 +519,25 @@ nt_copy:
   LDA .bss + 12
   CPI 79
   JPZ nt_too_long
-  LDA .work4
+  LDA .__work4
   PHA
   LDA .char
   SAS
-  LDA .work4
+  LDA .__work4
   ADI 1
-  STA .work4
-  LDA .work1
+  STA .__work4
+  LDA .__work1
   ADI 1
-  STA .work1
+  STA .__work1
   LDA .bss + 12
   ADI 1
   STA .bss + 12
   JMP nt_copy
 nt_comment_finish:
-  LDA .work3
-  STA .work1
+  LDA .__work3
+  STA .__work1
 nt_finish:
-  LDA .work4
+  LDA .__work4
   PHA
   LDI 0
   SAS
@@ -551,17 +545,17 @@ nt_finish:
   CPI 0
   JPZ nt_none
   LDI 1
-  STA .res1
+  STA .__res1
   RET
 nt_too_long:
   LDI .err_token_long
   JSR report_error
-  LDA .work3
-  STA .work1
+  LDA .__work3
+  STA .__work1
   JMP nt_finish
 nt_none:
   LDI 0
-  STA .res1
+  STA .__res1
   LDI 0
   STA .bss + 12
   RET
@@ -570,9 +564,9 @@ nt_none:
 alloc_const_entry:
   ; copy tokenised const name into the const table (name ptr + value slot)
   LDA .bss + 11
-  STA .arg1
+  STA .__arg1
   JSR find_const
-  LDA .res2
+  LDA .__res2
   CPI 1
   JPZ ace_duplicate
   LDA .bss + 5
@@ -580,69 +574,69 @@ alloc_const_entry:
   JPZ ace_full
   LDA .bss + 12
   ADI 1
-  STA .pow2
+  STA .__pow2
   LDA .bss + 7
-  ADD .pow2
-  STA .work3
+  ADD .__pow2
+  STA .__work3
   LDI .bss + 352
-  STA .work4
-  LDA .work3
-  CMP .work4
+  STA .__work4
+  LDA .__work3
+  CMP .__work4
   JPZ ace_copy
   JPC ace_name_full
 ace_copy:
   LDA .bss + 7
-  STA .work2
+  STA .__work2
   JSR copy_token_buffer
-  LDA .res2
+  LDA .__res2
   STA .bss + 7
-  LDA .res1
-  STA .work2
+  LDA .__res1
+  STA .__work2
   LDA .bss + 9
   PHA
-  LDA .work2
+  LDA .__work2
   SAS
   LDA .bss + 9
   ADI 1
   STA .bss + 9
   LDA .bss + 9
-  STA .work4
+  STA .__work4
   ADI 1
   STA .bss + 9
   LDA .bss + 5
   ADI 1
   STA .bss + 5
-  LDA .work4
-  STA .res1
+  LDA .__work4
+  STA .__res1
   LDI 1
-  STA .res2
+  STA .__res2
   RET
 ace_duplicate:
   LDI .err_const_dup
   JSR report_error
   LDI 0
-  STA .res2
+  STA .__res2
   RET
 ace_full:
   LDI .err_const_table
   JSR report_error
   LDI 0
-  STA .res2
+  STA .__res2
   RET
 ace_name_full:
   LDI .err_const_names
   JSR report_error
   LDI 0
-  STA .res2
+  STA .__res2
   RET
 
 
 store_label_entry:
   ; record label names with their resolved addresses (dst base + current code length)
   LDA .bss + 11
-  STA .arg1
+  STA .__arg1
   JSR find_label
-  LDA .res2
+  LDA .__res2
   CPI 1
   JPZ sle_duplicate
   LDA .bss + 6
@@ -650,37 +644,37 @@ store_label_entry:
   JPZ sle_full
   LDA .bss + 12
   ADI 1
-  STA .pow2
+  STA .__pow2
   LDA .bss + 8
-  ADD .pow2
-  STA .work2
+  ADD .__pow2
+  STA .__work2
   LDI .bss + 736
-  STA .work3
-  LDA .work2
-  CMP .work3
+  STA .__work3
+  LDA .__work2
+  CMP .__work3
   JPZ sle_copy
   JPC sle_name_full
 sle_copy:
   LDA .bss + 8
-  STA .work2
+  STA .__work2
   JSR copy_token_buffer
-  LDA .res2
+  LDA .__res2
   STA .bss + 8
-  LDA .res1
-  STA .work2
+  LDA .__res1
+  STA .__work2
   LDA .bss + 1
   ADD .bss + 4
-  STA .work3
+  STA .__work3
   LDA .bss + 10
   PHA
-  LDA .work2
+  LDA .__work2
   SAS
   LDA .bss + 10
   ADI 1
   STA .bss + 10
   LDA .bss + 10
   PHA
-  LDA .work3
+  LDA .__work3
   SAS
   LDA .bss + 10
   ADI 1
@@ -706,145 +700,145 @@ sle_name_full:
 copy_token_buffer:
   ; helper: write the current token buffer into sequential memory
   LDA .bss + 11
-  STA .work4
-  LDA .work2
-  STA .work1
+  STA .__work4
+  LDA .__work2
+  STA .__work1
 ct_loop:
-  LPA .work4                ; load mem[mem[.work4]] into A
+  LPA .__work4                ; load mem[mem[.__work4]] into A
   STA .char
   CPI 0
   JPZ ct_end
-  LDA .work1
+  LDA .__work1
   PHA
   LDA .char
   SAS
-  LDA .work4
+  LDA .__work4
   ADI 1
-  STA .work4
-  LDA .work1
+  STA .__work4
+  LDA .__work1
   ADI 1
-  STA .work1
+  STA .__work1
   JMP ct_loop
 ct_end:
-  LDA .work1
+  LDA .__work1
   PHA
   LDI 0
   SAS
-  LDA .work1
+  LDA .__work1
   ADI 1
-  STA .work1
-  LDA .work2
-  STA .res1
-  LDA .work1
-  STA .res2
+  STA .__work1
+  LDA .__work2
+  STA .__res1
+  LDA .__work1
+  STA .__res2
   RET
 
 
 find_const:
   ; linear search through the const table entries
-  LDA .arg1
-  STA .work2
+  LDA .__arg1
+  STA .__work2
   LDA .bss + 5
   CPI 0
   JPZ fc_not_found
   LDI .bss + 32
-  STA .work1
+  STA .__work1
   LDA .bss + 5
-  STA .work3
+  STA .__work3
 fc_loop:
-  LDA .work3
+  LDA .__work3
   CPI 0
   JPZ fc_not_found
-  LPA .work1                ; load mem[mem[.work1]] into A
-  STA .work4
-  LDA .work4
+  LPA .__work1                ; load mem[mem[.__work1]] into A
+  STA .__work4
+  LDA .__work4
   PHA
-  LDA .work2
+  LDA .__work2
   PHA
   JSR @string_compare
   CPI 1
   JPZ fc_match
-  LDA .work2
-  STA .arg1
-  LDA .work1
+  LDA .__work2
+  STA .__arg1
+  LDA .__work1
   ADI 2
-  STA .work1
-  LDA .work3
+  STA .__work1
+  LDA .__work3
   SUI 1
-  STA .work3
+  STA .__work3
   JNZ fc_loop
   JMP fc_not_found
 fc_match:
-  LDA .work2
-  STA .arg1
-  LDA .work1
+  LDA .__work2
+  STA .__arg1
+  LDA .__work1
   ADI 1
-  STA .work4
-  LPA .work4                ; load mem[mem[.work4]] into A
-  STA .res1
+  STA .__work4
+  LPA .__work4                ; load mem[mem[.__work4]] into A
+  STA .__res1
   LDI 1
-  STA .res2
+  STA .__res2
   RET
 fc_not_found:
-  LDA .work2
-  STA .arg1
+  LDA .__work2
+  STA .__arg1
   LDI 0
-  STA .res1
-  STA .res2
+  STA .__res1
+  STA .__res2
   RET
 
 
 find_label:
   ; linear search through the label table entries
-  LDA .arg1
-  STA .work2
+  LDA .__arg1
+  STA .__work2
   LDA .bss + 6
   CPI 0
   JPZ fl_not_found
   LDI .bss + 352
-  STA .work1
+  STA .__work1
   LDA .bss + 6
-  STA .work3
+  STA .__work3
 fl_loop:
-  LDA .work3
+  LDA .__work3
   CPI 0
   JPZ fl_not_found
-  LPA .work1                ; load mem[mem[.work1]] into A
-  STA .work4
-  LDA .work4
+  LPA .__work1                ; load mem[mem[.__work1]] into A
+  STA .__work4
+  LDA .__work4
   PHA
-  LDA .work2
+  LDA .__work2
   PHA
   JSR @string_compare
   CPI 1
   JPZ fl_match
-  LDA .work2
-  STA .arg1
-  LDA .work1
+  LDA .__work2
+  STA .__arg1
+  LDA .__work1
   ADI 2
-  STA .work1
-  LDA .work3
+  STA .__work1
+  LDA .__work3
   SUI 1
-  STA .work3
+  STA .__work3
   JNZ fl_loop
   JMP fl_not_found
 fl_match:
-  LDA .work2
-  STA .arg1
-  LDA .work1
+  LDA .__work2
+  STA .__arg1
+  LDA .__work1
   ADI 1
-  STA .work4
-  LPA .work4                ; load mem[mem[.work4]] into A
-  STA .res1
+  STA .__work4
+  LPA .__work4                ; load mem[mem[.__work4]] into A
+  STA .__res1
   LDI 1
-  STA .res2
+  STA .__res2
   RET
 fl_not_found:
-  LDA .work2
-  STA .arg1
+  LDA .__work2
+  STA .__arg1
   LDI 0
-  STA .res1
-  STA .res2
+  STA .__res1
+  STA .__res2
   RET
 
 
@@ -870,9 +864,9 @@ ro_const:
   JPZ ro_missing
   LDA .bss + 11
   ADI 1
-  STA .arg1
+  STA .__arg1
   JSR find_const
-  LDA .res2
+  LDA .__res2
   CPI 1
   JPZ ro_return
   LDI .err_const_unknown
@@ -880,9 +874,9 @@ ro_const:
   JMP ro_fail
 ro_label:
   LDA .bss + 11
-  STA .arg1
+  STA .__arg1
   JSR find_label
-  LDA .res2
+  LDA .__res2
   CPI 1
   JPZ ro_return
   LDI .err_label_unknown
@@ -898,9 +892,9 @@ ro_abi:
   JSR @get_os_abi_var
   CPI 0
   JPZ ro_abi_fail
-  STA .res1
+  STA .__res1
   LDI 1
-  STA .res2
+  STA .__res2
   RET
 ro_abi_fail:
   LDI .err_abi_unknown
@@ -912,13 +906,13 @@ ro_prog:
   JPZ ro_missing
   LDA .bss + 11
   ADI 1
-  STA .arg1
+  STA .__arg1
   JSR @get_program_address
   CPI 0
   JPZ ro_prog_fail
-  STA .res1
+  STA .__res1
   LDI 1
-  STA .res2
+  STA .__res2
   RET
 ro_prog_fail:
   LDI .err_prog_unknown
@@ -926,41 +920,41 @@ ro_prog_fail:
   JMP ro_fail
 ro_number:
   LDA .bss + 11
-  STA .work2
+  STA .__work2
   ; push token pointer and parse number from that pointer
   PHA
   JSR @parse_number
-  STA .work4
+  STA .__work4
   ; Verify parse_number stopped exactly at token boundary:
   ; expected_end = token_pointer + token_length (stored in .bss + 12)
   LDA .bss + 12
-  STA .pow2
-  LDA .work2
-  ADD .pow2
-  STA .pow2
-  LDA .arg1
-  CMP .pow2
+  STA .__pow2
+  LDA .__work2
+  ADD .__pow2
+  STA .__pow2
+  LDA .__arg1
+  CMP .__pow2
   JPZ ro_num_ok
   LDI .err_number
   JSR report_error
   JMP ro_fail
 ro_num_ok:
-  LDA .work4
-  STA .res1
+  LDA .__work4
+  STA .__res1
   LDI 1
-  STA .res2
+  STA .__res2
   RET
 ro_return:
   LDI 1
-  STA .res2
+  STA .__res2
   RET
 ro_missing:
   LDI .err_missing_operand
   JSR report_error
 ro_fail:
   LDI 0
-  STA .res1
-  STA .res2
+  STA .__res1
+  STA .__res2
   RET
 
 
@@ -981,7 +975,6 @@ re_first:
   LDI .err_line
   JSR print_no_newline
   LDA .bss + 14
-  PHA
   JSR @display_number
   LDI .err_suffix
   JSR print_newline

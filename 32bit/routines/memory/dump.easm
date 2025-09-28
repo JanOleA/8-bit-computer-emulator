@@ -20,21 +20,21 @@ addr  = .bss          ; current address pointer
 ; .bss + 6  = original value (preserved)
 
 main:
-  ; argc at [argv_base]
-  LDA .argv_base
+  ; argc at [__argv_base]
+  LDA .__argv_base
   CPI 2               ; need at least 2 args
   JPZ dmp_go
   RET
 
 dmp_go:
   ; parse first arg -> addr
-  LDA .argv_base + 1
+  LDA .__argv_base + 1
   PHA
   JSR @parse_number
   STA .addr
 
   ; parse second arg -> length
-  LDA .argv_base + 2
+  LDA .__argv_base + 2
   PHA
   JSR @parse_number
   STA .bss + 1
@@ -48,9 +48,9 @@ dmp_loop:
   CPI 0
   JPZ dmp_end
 
-  ; read word at [addr] into .arg1 safely
+  ; read word at [addr] into .__arg1 safely
   LPA .addr                ; load mem[mem[.addr]] into A
-  STA .arg1
+  STA .__arg1
   STA .bss + 6        ; save original value
   STA .bss + 3        ; working copy for digit count
 
@@ -64,7 +64,6 @@ dmp_loop:
   JSR dmp_emit_padding
   ; print the number right-aligned in 9-char field
   LDA .bss + 6
-  PHA
   JSR @display_number
 
   ; advance
@@ -105,11 +104,11 @@ ddc_loop:
   LDA .bss + 3
   CPI 0
   JPZ ddc_done
-  ; divide by 10 (A=quotient, .res2=remainder)
+  ; divide by 10 (A=quotient, .__res2=remainder)
   LDA .bss + 3
-  STA .arg1
+  STA .__arg1
   LDI 10
-  STA .arg2
+  STA .__arg2
   JSR @divide
   STA .bss + 3       ; carry quotient forward
   LDA .bss + 4

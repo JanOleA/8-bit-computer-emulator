@@ -6,7 +6,7 @@
 ;! align: 1
 
 ; -- Prints a number in hexadecimal (uppercase) --
-; Input: Stack Pointer - 2: argument: value to print (unsigned)
+; Input: A register: argument: value to print (unsigned)
 
 ; BSS locals
 ; .bss      = working value (dividend)
@@ -14,15 +14,8 @@
 ; .bss + 2  = input value, to return it to the A register at the end
 
 display_hex:
-  PLA                     ; get return address from stack
-  MOVAB                   ; move return address to B for now
-
-  PLA                     ; Argument. Copy input value into local working storage
   STA .bss
   STA .bss + 2
-
-  MOVBA                   ; move return address back to A
-  PHA                     ; push it back to stack
 
   ; Handle zero specially -> print '0'
   LDA .bss
@@ -38,13 +31,13 @@ dn_loop:
   JPZ dn_print
   ; prepare args for divide
   LDA .bss
-  STA .arg1
+  STA .__arg1
   LDI 16
-  STA .arg2
-  ; divide by 16: returns A=quotient, .res2=remainder
+  STA .__arg2
+  ; divide by 16: returns A=quotient, .__res2=remainder
   JSR @divide
   STA .bss            ; carry quotient forward
-  LDA .res2
+  LDA .__res2
   CPI 10
   JPC dn_hex_alpha    ; if remainder >= 10 → A-F
   ADI 48              ; '0'..'9'
@@ -63,9 +56,9 @@ dn_pushed:
 
 dn_print:
   ; Pop and print digits
-  ; Save digit count to .res3 before we start decrementing it
+  ; Save digit count to .__res3 before we start decrementing it
   LDA .bss + 1
-  STA .res3
+  STA .__res3
   LDA .bss + 1
   CPI 0
   JPZ dn_done
@@ -83,7 +76,7 @@ dn_zero:
   JSR @write_char
   ; one character printed
   LDI 1
-  STA .res3
+  STA .__res3
   LDA .bss + 2
   RET
 
