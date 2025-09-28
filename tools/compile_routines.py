@@ -353,7 +353,7 @@ def assemble_dynamic_module(src_path: str,
     return out, base_cursor, used_bases, data_auto_start, bss_auto_start
 
 
-def main():
+def main(args):
     data: Dict[str, Dict] = {}
     known_symbols: Dict[str, int] = {}
     used_ranges: List[Tuple[int, int]] = []
@@ -405,6 +405,7 @@ def main():
                     bss_auto_start=bss_auto_start,
                     known_symbols=known_symbols,
                     data_auto_start=data_auto_start,
+                    verbose=args.verbose
                 )
                 # Merge module and record symbol
                 for k, v in mod_map.items():
@@ -710,5 +711,6 @@ def main():
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Assemble routines and emit program table")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose assembly output")
     args = parser.parse_args()
-    main()
+    main(args)

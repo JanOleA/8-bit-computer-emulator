@@ -1,4 +1,4 @@
-;! name: Q7_8_MUL
+;! name: Q78MUL
 ;! entry: q7_8_mul
 ;! deps: multiply
 ;! abi: sysinfo
@@ -12,24 +12,37 @@
 ;   Stack Pointer - 2 = b (Q7.8, sign-extended to word)
 ; Returns: A = result (Q7.8), rounded to nearest (away from zero on ties)
 
+; Notes on compare/branch convention used here (to avoid inverted conditions):
+; - "CPI k" / "CMP X" sets flags as A - k/X.
+; - "JPC label" is taken when A >= k/X (no borrow), used for tests like ">= threshold".
+; - "JPZ label" is taken when A == k/X (zero result), used for equality/overflow wrap checks.
+
 ; BSS locals
 a_val   = .bss + 0
 b_val   = .bss + 1
 sign    = .bss + 2      ; 0=positive, 1=negative
 mag_a   = .bss + 3
 mag_b   = .bss + 4
-prod    = .bss + 5      ; intermediate product (word-sized)
+prod    = .bss + 5      ; result magnitude (Q7.8)
 mask    = .bss + 6      ; sign bit mask (1<<(bits-1))
 cnt     = .bss + 7
+ip_a    = .bss + 8      ; |a| >> 8
+ip_b    = .bss + 9      ; |b| >> 8
+fr_a    = .bss + 10     ; |a| & 0xFF
+fr_b    = .bss + 11     ; |b| & 0xFF
+t1      = .bss + 12     ; (ip_a * ip_b) << 8
+t2      = .bss + 13     ; ip_a * fr_b
+t3      = .bss + 14     ; ip_b * fr_a
+t4      = .bss + 15     ; (fr_a * fr_b + 128) >> 8
 
 q7_8_mul:
   ; prologue and fetch args (following multiply.easm convention)
   PLA
   MOVAB
   PLA
-  STA .a_val
-  PLA
   STA .b_val
+  PLA
+  STA .a_val
   MOVBA
   PHA
 
@@ -103,29 +116,117 @@ qm_abs_b_neg:
   STA .mag_b
 
 qm_mul:
-  ; prod = mag_a * mag_b  (unsigned multiply routine)
-  LDA .mag_b
-  PHA
+  ; Decomposed Q7.8 multiply to avoid wide intermediate:
+  ; result = (ip_a*ip_b)<<8 + (ip_a*fr_b + ip_b*fr_a) + ((fr_a*fr_b + 128)>>8)
+
+  ; ip_a = mag_a >> 8
   LDA .mag_a
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  STA .ip_a
+  ; fr_a = mag_a - (ip_a<<8)
+  LDA .ip_a
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  STA .prod     ; use prod as tmp for ip_a<<8
+  LDA .mag_a
+  SUB .prod
+  STA .fr_a
+
+  ; ip_b = mag_b >> 8
+  LDA .mag_b
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  STA .ip_b
+  ; fr_b = mag_b - (ip_b<<8)
+  LDA .ip_b
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  STA .prod     ; reuse as tmp for ip_b<<8
+  LDA .mag_b
+  SUB .prod
+  STA .fr_b
+
+  ; t1 = (ip_a * ip_b) << 8
+  LDA .ip_b
+  PHA
+  LDA .ip_a
   PHA
   JSR @multiply
-  STA .prod
+  STA .t1
+  LDA .t1
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  STA .t1
 
-  ; rounding: add 1<<(8-1) = 128 to magnitude product
-  LDA .prod
+  ; t2 = ip_a * fr_b
+  LDA .fr_b
+  PHA
+  LDA .ip_a
+  PHA
+  JSR @multiply
+  STA .t2
+
+  ; t3 = ip_b * fr_a
+  LDA .fr_a
+  PHA
+  LDA .ip_b
+  PHA
+  JSR @multiply
+  STA .t3
+
+  ; t4 = (fr_a * fr_b + 128) >> 8
+  LDA .fr_b
+  PHA
+  LDA .fr_a
+  PHA
+  JSR @multiply
   ADI 128
-  STA .prod
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  STA .t4
 
-  ; rescale: >> 8 (logical ok since magnitude non-negative)
-  LDA .prod
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
+  ; prod = t1 + t2 + t3 + t4 (mod word)
+  LDA .t1
+  ADD .t2
+  ADD .t3
+  ADD .t4
   STA .prod
 
   ; apply sign

@@ -2,10 +2,19 @@
 ;! entry: main
 ;! abi: all
 ;! callable: yes
-;! dps: printf
+;! depends: printf, q7_8_div, q7_8_mul, q7_8_from_dec, q7_8_from_ratio, newline, display_number
+;! bss: auto
+;! align: 1
 
 .text_1 = "This %s has n=%d h=%x. 100%%!"
 .text_2 = "Test with %u and %d."
+.text_3 = "FP: %f, %b, %x"
+.text_4 = "Mafs: %f + %f = %f"
+.text_5 = "Mafs: %f - %f = %f"
+.text_6 = "Mafs: %f * %f = %f"
+.text_7 = "Mafs: %f / %f = %f"
+.text_8 = "Ratio 1/3 = %f"
+.text_9 = "Ratio -22/7 = %f"
 .insert_string = "string"
 
 args_1 = .bss
@@ -13,6 +22,20 @@ args_1_end = .bss + 3
 
 args_2 = .bss + 4
 args_2_end = .bss + 6
+
+args_3 = .bss + 7
+args_3_end = .bss + 10
+
+args_mafs = .bss + 11
+args_mafs_end = .bss + 14
+
+args_8 = .bss + 27
+args_8_end = .bss + 28
+
+args_9 = .bss + 28
+args_9_end = .bss + 29
+
+temp_a = .bss + 30
 
 main:
   LDI .insert_string
@@ -39,6 +62,107 @@ main:
   LDI .text_2
   PHA
   LDI .args_2
+  PHA
+  JSR @printf
+
+  LDI 42                ; load integer part, 42.0
+  PHA
+  LDI 500               ; load fractional part, .500
+  PHA
+  JSR @q7_8_from_dec
+  STA .args_3
+  STA .args_3 + 1
+  STA .args_3 + 2
+  LDI .text_3
+  PHA
+  LDI .args_3
+  PHA
+  JSR @printf
+
+  LDI 42                ; load integer part, 42.0
+  PHA
+  LDI 500               ; load fractional part, .500
+  PHA
+  JSR @q7_8_from_dec
+  STA .args_mafs
+  LDI 17                ; load integer part, 17.0
+  PHA
+  LDI 250               ; load fractional part, .250
+  PHA
+  JSR @q7_8_from_dec
+  STA .args_mafs + 1
+  LDA .args_mafs
+  ADD .args_mafs + 1
+  STA .args_mafs + 2
+  LDI .text_4
+  PHA
+  LDI .args_mafs
+  PHA
+  JSR @printf
+
+  LDA .args_mafs
+  SUB .args_mafs + 1
+  STA .args_mafs + 2
+  LDI .text_5
+  PHA
+  LDI .args_mafs
+  PHA
+  JSR @printf
+
+  LDI 2               ; load integer part, 2.0
+  PHA
+  LDI 600             ; load fractional part, .600
+  PHA
+  JSR @q7_8_from_dec
+  STA .args_mafs + 1
+  LDA .args_mafs
+  PHA
+  LDA .args_mafs + 1
+  PHA
+  JSR @q7_8_mul
+  STA .args_mafs + 2
+  LDI .text_6
+  PHA
+  LDI .args_mafs
+  PHA
+  JSR @printf
+
+  LDA .args_mafs
+  PHA
+  LDA .args_mafs + 1
+  PHA
+  JSR @q7_8_div
+  STA .args_mafs + 2
+  LDI .text_7
+  PHA
+  LDI .args_mafs
+  PHA
+  JSR @printf
+
+  ; Test q7_8_from_ratio 1/3
+  LDI 1
+  PHA
+  LDI 3
+  PHA
+  JSR @q7_8_from_ratio
+  STA .args_8
+  LDI .text_8
+  PHA
+  LDI .args_8
+  PHA
+  JSR @printf
+
+  ; Test q7_8_from_ratio -22/7 (form -22 in a width-agnostic way)
+  LDI 0
+  SUI 22
+  PHA
+  LDI 7
+  PHA
+  JSR @q7_8_from_ratio
+  STA .args_9
+  LDI .text_9
+  PHA
+  LDI .args_9
   PHA
   JSR @printf
   RET

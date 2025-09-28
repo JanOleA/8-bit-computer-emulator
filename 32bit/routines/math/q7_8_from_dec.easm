@@ -1,0 +1,190 @@
+;! name: Q78FROMDEC
+;! entry: q7_8_from_dec
+;! deps:
+;! abi: sysinfo args
+;! bss: auto
+;! align: 1
+
+; Build a Q7.8 fixed-point value from integer and decimal fractional parts.
+; Inputs (stack): q7_8_from_dec(SP-3, SP-2) = q7_8_from_dec(int_part, frac_dec)
+; Call by pushing integer part first, then fractional digits last:
+;   LDI int; PHA
+;   LDI frac; PHA
+;   JSR @q7_8_from_dec
+;   - int_part: signed integer part (two's complement), provides the sign
+;   - frac_dec: unsigned decimal fractional digits in [0..999]
+; Output: A = Q7.8 value with rounding to nearest (away from zero on ties)
+; Notes:
+;   - Scaling for fractional part: round(frac_dec * 2^8 / 1000)
+;   - To avoid overflow on narrow word sizes, we compute the 8 fractional bits
+;     via a restoring division loop using denominator 1000, then round.
+;   - Sign is derived from int_part; fractional magnitude is always treated positive.
+
+; Compare/branch convention (doc):
+; - CPI/CMP perform A - operand; JPC branches when A >= operand (no borrow).
+; - JPZ branches when A == operand.
+; These semantics are relied upon below for checks like ">= 1000", sign tests vs sign_mask,
+; and rounding/overflow decisions.
+
+int_part   = .bss + 0
+frac_dec   = .bss + 1
+sign_mask  = .bss + 2
+sign       = .bss + 3    ; 0 = non-negative, 1 = negative
+mag_int    = .bss + 4
+frac_byte  = .bss + 5
+remainder  = .bss + 6
+cnt        = .bss + 7
+tmp        = .bss + 8
+result     = .bss + 9
+
+q7_8_from_dec:
+  ; Prologue and fetch args (top of stack = frac_dec, next = int_part)
+  PLA
+  MOVAB
+  PLA
+  STA .frac_dec
+  PLA
+  STA .int_part
+  MOVBA
+  PHA
+
+  ; Clamp frac_dec to [0..999] (only clamp if >= 1000)
+  LDA .frac_dec
+  CPI 1000
+  JPC qfd_clamp_needed     ; if frac_dec >= 1000 -> clamp
+  JMP qfd_frac_ok
+qfd_clamp_needed:
+  LDI 999
+  STA .frac_dec
+qfd_frac_ok:
+
+  ; Build sign mask = 1 << (.__sys_bits_avail - 1)
+  LDI 1
+  STA .sign_mask
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .cnt
+qfd_mask_loop:
+  LDA .cnt
+  CPI 0
+  JPZ qfd_mask_done
+  LDA .sign_mask
+  LSA
+  STA .sign_mask
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qfd_mask_loop
+qfd_mask_done:
+
+  ; Determine sign from int_part
+  LDA .int_part
+  CMP .sign_mask
+  JPC qfd_is_neg
+  LDI 0
+  STA .sign
+  JMP qfd_abs_int
+qfd_is_neg:
+  LDI 1
+  STA .sign
+
+qfd_abs_int:
+  ; mag_int = abs(int_part)
+  LDA .int_part
+  CMP .sign_mask
+  JPC qfd_int_neg
+  STA .mag_int
+  JMP qfd_frac_bits
+qfd_int_neg:
+  LDI 0
+  SUB .int_part
+  STA .mag_int
+
+qfd_frac_bits:
+  ; Compute frac_byte = round(frac_dec * 256 / 1000) via 8-bit binary expansion
+  LDA .frac_dec
+  STA .remainder
+  LDI 0
+  STA .frac_byte
+  LDI 8
+  STA .cnt
+qfd_frac_loop:
+  LDA .cnt
+  CPI 0
+  JPZ qfd_frac_round
+  ; remainder *= 2
+  LDA .remainder
+  LSA
+  STA .remainder
+  ; frac_byte <<= 1
+  LDA .frac_byte
+  LSA
+  STA .frac_byte
+  ; if remainder >= 1000: remainder -= 1000; frac_byte |= 1
+  LDA .remainder
+  CPI 1000
+  JPC qfd_set_bit
+  ; next
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qfd_frac_loop
+qfd_set_bit:
+  LDA .remainder
+  SUI 1000
+  STA .remainder
+  LDA .frac_byte
+  ADI 1
+  STA .frac_byte
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qfd_frac_loop
+
+qfd_frac_round:
+  ; Round to nearest: if (remainder*2) >= 1000 then increment frac_byte
+  LDA .remainder
+  LSA
+  CPI 1000
+  JPC qfd_inc_frac
+  JMP qfd_combine
+qfd_inc_frac:
+  ; If frac_byte == 255 then carry into integer part; else increment frac_byte.
+  LDA .frac_byte
+  CPI 255
+  JPZ qfd_carry_int
+  ADI 1
+  STA .frac_byte
+  JMP qfd_combine
+qfd_carry_int:
+  ; frac overflowed 0xFF -> 0x00; carry 1 into integer part
+  LDI 0
+  STA .frac_byte
+  LDA .mag_int
+  ADI 1
+  STA .mag_int
+
+qfd_combine:
+  ; result magnitude = (mag_int << 8) | frac_byte
+  LDA .mag_int
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  ADD .frac_byte
+  STA .result
+
+  ; apply sign
+  LDA .sign
+  CPI 0
+  JPZ qfd_ret_pos
+  LDI 0
+  SUB .result
+  RET
+qfd_ret_pos:
+  LDA .result
+  RET

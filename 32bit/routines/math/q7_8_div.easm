@@ -1,7 +1,7 @@
-;! name: Q7_8_DIV
+;! name: Q78DIV
 ;! entry: q7_8_div
 ;! deps: divide
-;! abi: sysinfo
+;! abi: sysinfo args
 ;! bss: auto
 ;! align: 1
 
@@ -12,6 +12,11 @@
 ;   - Uses integer division to get the integer part and then computes 8 fractional bits
 ;     via a restoring division loop (avoids needing wider-than-word temporaries).
 ;   - Division by zero returns 0.
+
+; Compare/branch convention reminder:
+; - CPI/CMP compute A - imm/mem; carry clear indicates borrow, carry set (no borrow) indicates A >= operand.
+; - JPC is used for ">=" style checks and non-negativity (e.g., sign bit tests vs mask).
+; - JPZ is used for equality (e.g., zero checks and overflow wrap detection).
 
 a_val   = .bss + 0
 b_val   = .bss + 1
@@ -26,9 +31,9 @@ q7_8_div:
   PLA
   MOVAB
   PLA
-  STA .a_val
-  PLA
   STA .b_val
+  PLA
+  STA .a_val
   MOVBA
   PHA
 

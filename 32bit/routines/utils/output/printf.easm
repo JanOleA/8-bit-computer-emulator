@@ -1,6 +1,6 @@
 ;! name: PRINTF
 ;! entry: printf
-;! deps: print, display_int, display_hex, display_number, write_char, newline
+;! deps: print, display_int, display_hex, display_number, display_word, display_q7_8, write_char, newline
 ;! abi: args
 ;! bss: auto
 ;! align: 1
@@ -29,6 +29,8 @@
 ; %x - hexadecimal integer (uppercase)
 ; %s - string (no newline)
 ; %% - literal percent sign
+; %b - binary word (full width with leading zeros)
+; %f - Q7.8 fixed-point decimal "[-]I.FFF"
 
 string_pointer  = .bss + 0
 args_pointer    = .bss + 1
@@ -72,6 +74,10 @@ lp:
   JPZ print_hexadecimal
   CPI 115                             ; 's'
   JPZ print_string
+  CPI 98                              ; 'b'
+  JPZ print_binary
+  CPI 102                             ; 'f'
+  JPZ print_q78
   CPI 37                              ; '%'
   JPZ print_percent
   ; -- unknown specifier: print '%' then the char itself --
@@ -148,6 +154,32 @@ print_signed_decimal:
   STA ._saved_arg
   JSR @display_int
   ; .__res3 = digits + optional '-'
+  LDA .chars_printed
+  ADD .__res3
+  STA .chars_printed
+  JSR increment_args_pointer
+  JSR increment_string_pointer
+  JMP lp
+
+print_binary:
+  ; Argument value
+  LPA .args_pointer                   ; A = value
+  STA ._saved_arg
+  JSR @display_word
+  ; .__res3 = bits printed
+  LDA .chars_printed
+  ADD .__res3
+  STA .chars_printed
+  JSR increment_args_pointer
+  JSR increment_string_pointer
+  JMP lp
+
+print_q78:
+  ; Argument value (Q7.8 fixed-point)
+  LPA .args_pointer                   ; A = value
+  STA ._saved_arg
+  JSR @display_q7_8
+  ; .__res3 = chars printed
   LDA .chars_printed
   ADD .__res3
   STA .chars_printed

@@ -61,7 +61,7 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
     variables: Dict[str, int] = {}
     program: List[Tuple[List[str], int]] = []
     varnames_check_used = set()
-    original_lines: List[str] = []
+    original_lines: dict[int, str] = {}
 
     address = 0
     progline = 0
@@ -84,7 +84,7 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                 instruction = instruction[:2]
 
             program.append([instruction, address - progline])
-            original_lines.append(oline)
+            original_lines[i] = oline
             for item in instruction:
                 address += 1
             progline += 1
@@ -183,6 +183,10 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
     for i, line in enumerate(program):
         jump = False
         items = line[0]
+
+        original_line = list(original_lines.values())[i]
+        original_line_linenumber = list(original_lines.keys())[i] + 1
+
         for item in items:
             if item == items[0]:  # mnemonic
                 mem_ins = instruction_map[str(item)]
@@ -208,7 +212,7 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                         pos_val = terms_neg[0]
                         if pos_val.startswith('.'):
                             if not pos_val[1:] in variables:
-                                print(f"Warning: undefined pointer variable '{pos_val[1:]}' used in line: {original_lines[i]}. Program: {name}")
+                                print(f"Warning: undefined pointer variable '{pos_val[1:]}' used in line: {original_line}:{original_line_linenumber}. Program: {name}. Verify all variables are defined and required ABI entries are present.")
                             val += variables.get(pos_val[1:], 0)
                             if pos_val[1:] in varnames_check_used:
                                 varnames_check_used.remove(pos_val[1:])
@@ -217,14 +221,14 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                                 val += int(pos_val)
                             except Exception:
                                 if not pos_val in variables:
-                                    print(f"Warning: undefined pointer variable '{pos_val}' used in line: {original_lines[i]}. Program: {name}")
+                                    print(f"Warning: undefined pointer variable '{pos_val}' used in line: {original_line}:{original_line_linenumber}. Program: {name}. Verify all variables are defined and required ABI entries are present.")
                                 val += variables.get(pos_val, 0)
                                 if pos_val in varnames_check_used:
                                     varnames_check_used.remove(pos_val)
                         for t2 in terms_neg[1:]:
                             if t2.startswith('.'):
                                 if not t2[1:] in variables:
-                                    print(f"Warning: undefined pointer variable '{t2[1:]}' used in line: {original_lines[i]}. Program: {name}")
+                                    print(f"Warning: undefined pointer variable '{t2[1:]}' used in line: {original_line}:{original_line_linenumber}. Program: {name}. Verify all variables are defined and required ABI entries are present.")
                                 val -= variables.get(t2[1:], 0)
                                 if t2[1:] in varnames_check_used:
                                     varnames_check_used.remove(t2[1:])
@@ -235,8 +239,8 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                                     val -= variables.get(t2, 0)
                     program[i][0][1] = str(val)
                     mem_ins = int(val)
-                    if mem_ins == 0 and "." in original_lines[i] and verbose:
-                        print(f"{original_lines[i]}, mem_ins == 0, check if correct")
+                    if mem_ins == 0 and "." in original_line:
+                        print(f"{name} | {original_line}:{original_line_linenumber}, mem_ins == 0, check if correct")
             memory[memaddress] = mem_ins
             memaddress += 1
 

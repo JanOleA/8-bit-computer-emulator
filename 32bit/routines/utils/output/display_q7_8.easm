@@ -7,7 +7,7 @@
 
 ; Prints a signed Q7.8 fixed-point value as decimal: "[-]I.FFF"
 ; - Input: A = Q7.8 value (two's complement). Word size from .__sys_bits_avail
-; - Output: prints integer part, '.', and 3 fractional digits (rounded down),
+; - Output: prints integer part, '.', and 3 fractional digits (rounded to nearest),
 ;   returns total characters printed in .__res3. A restored to original input.
 
 orig_val    = .bss + 0
@@ -19,6 +19,10 @@ frac        = .bss + 5
 digit       = .bss + 6
 tmp         = .bss + 7
 cnt         = .bss + 8
+d1          = .bss + 9
+d2          = .bss + 10
+d3          = .bss + 11
+d4          = .bss + 12
 
 display_q7_8:
   ; save original
@@ -83,27 +87,19 @@ q78_abs_done:
   SUB .tmp
   STA .frac
 
-  ; print integer part (unsigned)
-  LDA .ipart
-  JSR @display_number
-  LDA .__res3
-  ADD .chars
-  STA .chars
-
-  ; print '.'
-  LDI 46
-  JSR @write_char
-  LDA .chars
-  ADI 1
-  STA .chars
-
-  ; print 3 fractional digits by repeated scaling
-  LDI 3
+  ; compute 4 fractional digits by repeated scaling (store first 4 digits)
+  ; d1, d2, d3, d4
+  LDI 0
+  STA .d1
+  STA .d2
+  STA .d3
+  STA .d4
+  LDI 4
   STA .cnt
-q78_frac_loop:
+q78_frac_prep_loop:
   LDA .cnt
   CPI 0
-  JPZ q78_done
+  JPZ q78_round
   ; frac *= 10 → (frac<<3) + (frac<<1)
   LDA .frac
   LSA
@@ -125,14 +121,6 @@ q78_frac_loop:
   RSA
   RSA
   STA .digit
-  ; print '0'+digit
-  LDA .digit
-  ADI 48
-  JSR @write_char
-  ; chars++
-  LDA .chars
-  ADI 1
-  STA .chars
   ; frac -= digit << 8
   LDA .digit
   LSA
@@ -147,11 +135,110 @@ q78_frac_loop:
   LDA .frac
   SUB .tmp
   STA .frac
-  ; next digit
+  ; store digit into d1..d4
+  LDA .cnt
+  CPI 4
+  JPZ q78_store_d1
+  CPI 3
+  JPZ q78_store_d2
+  CPI 2
+  JPZ q78_store_d3
+  ; else cnt==1 → d4
+  LDA .digit
+  STA .d4
+  JMP q78_prep_next
+q78_store_d1:
+  LDA .digit
+  STA .d1
+  JMP q78_prep_next
+q78_store_d2:
+  LDA .digit
+  STA .d2
+  JMP q78_prep_next
+q78_store_d3:
+  LDA .digit
+  STA .d3
+q78_prep_next:
   LDA .cnt
   SUI 1
   STA .cnt
-  JMP q78_frac_loop
+  JMP q78_frac_prep_loop
+
+q78_round:
+  ; Round to nearest based on d4 (away from zero on ties handled by >=5)
+  LDA .d4
+  CPI 5
+  JPC q78_do_round
+  JMP q78_after_round
+q78_do_round:
+  ; increment d3, cascade carries to d2, d1, and ipart
+  LDA .d3
+  ADI 1
+  CPI 10
+  JPC q78_carry_d3
+  STA .d3
+  JMP q78_after_round
+q78_carry_d3:
+  LDI 0
+  STA .d3
+  LDA .d2
+  ADI 1
+  CPI 10
+  JPC q78_carry_d2
+  STA .d2
+  JMP q78_after_round
+q78_carry_d2:
+  LDI 0
+  STA .d2
+  LDA .d1
+  ADI 1
+  CPI 10
+  JPC q78_carry_d1
+  STA .d1
+  JMP q78_after_round
+q78_carry_d1:
+  LDI 0
+  STA .d1
+  LDA .ipart
+  ADI 1
+  STA .ipart
+
+q78_after_round:
+  ; Now print integer part (unsigned)
+  LDA .ipart
+  JSR @display_number
+  LDA .__res3
+  ADD .chars
+  STA .chars
+
+  ; print '.'
+  LDI 46
+  JSR @write_char
+  LDA .chars
+  ADI 1
+  STA .chars
+
+  ; print d1, d2, d3
+  LDA .d1
+  ADI 48
+  JSR @write_char
+  LDA .chars
+  ADI 1
+  STA .chars
+
+  LDA .d2
+  ADI 48
+  JSR @write_char
+  LDA .chars
+  ADI 1
+  STA .chars
+
+  LDA .d3
+  ADI 48
+  JSR @write_char
+  LDA .chars
+  ADI 1
+  STA .chars
 
 q78_done:
   ; return count in .__res3, restore A

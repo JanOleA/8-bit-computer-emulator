@@ -15,7 +15,7 @@
 .installed_progs_text_2 =  "Words used for programs (k): "
 .bss_text =                "Words reserved for BSS (k) : "
 .data_text =               "Words reserved for data (k): "
-.end_data_text =           "Reserved memory            : [0, %u)"
+.end_data_text =           "Reserved memory: [0, %u)"
 
 .help_text = "Type HELP for a list of commands"
 .list_text = "Type LIST for a list of all installed"
@@ -31,7 +31,6 @@ osinfo:
   LDI .__sys_bits_avail
   PHA
   JSR @printf
-  LDI .__sys_bits_avail_text_2  
   LDI 0
   SUI 1
   STA .__arg1

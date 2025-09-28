@@ -1,0 +1,209 @@
+;! name: Q78FROMRATIO
+;! entry: q7_8_from_ratio
+;! deps: divide
+;! abi: sysinfo args
+;! bss: auto
+;! align: 1
+
+; Construct a Q7.8 fixed-point value from a signed ratio: numer/denom
+; Inputs (stack, args ABI): push numer, then denom; JSR @q7_8_from_ratio
+;   q7_8_from_ratio(SP-3, SP-2) = q7_8_from_ratio(numer, denom)
+; Returns: A = Q7.8 result, rounded to nearest (away from zero on ties)
+; Behavior: denom == 0 → return 0
+
+; Compare/branch convention reference:
+; - CPI/CMP compute A - operand; JPC is taken on A >= operand (no borrow).
+; - JPZ is taken on equality. These are used for sign checks, denom==0, rem >= mag_den,
+;   and rounding conditions.
+
+numer      = .bss + 0
+denom      = .bss + 1
+sign_mask  = .bss + 2
+sign       = .bss + 3     ; 0 = non-negative, 1 = negative
+mag_num    = .bss + 4
+mag_den    = .bss + 5
+ipart      = .bss + 6
+frac       = .bss + 7
+rem        = .bss + 8
+cnt        = .bss + 9
+res        = .bss + 10
+
+q7_8_from_ratio:
+  ; Prologue: fetch args (top of stack = denom, next = numer)
+  PLA
+  MOVAB
+  PLA
+  STA .denom
+  PLA
+  STA .numer
+  MOVBA
+  PHA
+
+  ; Build sign mask = 1 << (.__sys_bits_avail - 1)
+  LDI 1
+  STA .sign_mask
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .cnt
+qfr_mask_loop:
+  LDA .cnt
+  CPI 0
+  JPZ qfr_mask_done
+  LDA .sign_mask
+  LSA
+  STA .sign_mask
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qfr_mask_loop
+qfr_mask_done:
+
+  ; Determine sign = (numer < 0) XOR (denom < 0)
+  LDA .numer
+  CMP .sign_mask
+  JPC qfr_num_neg
+  LDI 0
+  STA .sign
+  JMP qfr_test_den
+qfr_num_neg:
+  LDI 1
+  STA .sign
+qfr_test_den:
+  LDA .denom
+  CMP .sign_mask
+  JPC qfr_den_neg
+  JMP qfr_abs
+qfr_den_neg:
+  LDA .sign
+  CPI 0
+  JPZ qfr_set1
+  LDI 0
+  STA .sign
+  JMP qfr_abs
+qfr_set1:
+  LDI 1
+  STA .sign
+
+qfr_abs:
+  ; magnitudes
+  LDA .numer
+  CMP .sign_mask
+  JPC qfr_abs_num_neg
+  STA .mag_num
+  JMP qfr_abs_den
+qfr_abs_num_neg:
+  LDI 0
+  SUB .numer
+  STA .mag_num
+qfr_abs_den:
+  LDA .denom
+  CMP .sign_mask
+  JPC qfr_abs_den_neg
+  STA .mag_den
+  JMP qfr_div
+qfr_abs_den_neg:
+  LDI 0
+  SUB .denom
+  STA .mag_den
+
+qfr_div:
+  ; denom == 0 → return 0
+  LDA .mag_den
+  CPI 0
+  JPZ qfr_div_zero
+
+  ; Integer part and remainder: ipart = mag_num / mag_den; rem = mag_num % mag_den
+  LDA .mag_num
+  STA .__arg1
+  LDA .mag_den
+  STA .__arg2
+  JSR @divide
+  STA .ipart
+  LDA .__res2
+  STA .rem
+
+  ; Fractional part: compute 8 bits via restoring division
+  LDI 0
+  STA .frac
+  LDI 8
+  STA .cnt
+qfr_frac_loop:
+  LDA .cnt
+  CPI 0
+  JPZ qfr_round
+  ; frac <<= 1
+  LDA .frac
+  LSA
+  STA .frac
+  ; rem <<= 1
+  LDA .rem
+  LSA
+  STA .rem
+  ; if rem >= mag_den: rem -= mag_den; frac |= 1
+  LDA .rem
+  CMP .mag_den
+  JPC qfr_set_bit
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qfr_frac_loop
+qfr_set_bit:
+  LDA .rem
+  SUB .mag_den
+  STA .rem
+  LDA .frac
+  ADI 1
+  STA .frac
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qfr_frac_loop
+
+qfr_round:
+  ; Rounding to nearest: if rem*2 >= mag_den then increment frac
+  LDA .rem
+  LSA
+  CMP .mag_den
+  JPC qfr_inc_frac
+  JMP qfr_combine
+qfr_inc_frac:
+  LDA .frac
+  ADI 1
+  JPZ qfr_carry_int
+  STA .frac
+  JMP qfr_combine
+qfr_carry_int:
+  ; carry into integer part on overflow
+  STA .frac       ; (A==0)
+  LDA .ipart
+  ADI 1
+  STA .ipart
+
+qfr_combine:
+  ; result magnitude = (ipart << 8) | frac
+  LDA .ipart
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  ADD .frac
+  STA .res
+
+  ; apply sign
+  LDA .sign
+  CPI 0
+  JPZ qfr_ret_pos
+  LDI 0
+  SUB .res
+  RET
+qfr_ret_pos:
+  LDA .res
+  RET
+
+qfr_div_zero:
+  LDI 0
+  RET

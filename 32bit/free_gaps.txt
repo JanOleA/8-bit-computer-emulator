@@ -1,6 +1,5 @@
 ; Free gaps between modules (start,end,words)
-15385,15400,15 ; between testlsa and testprintf
-17971,25008,7037 ; between writechar and asteroids_data
+18897,25008,6111 ; between writechar and asteroids_data
 25052,25072,20 ; between asteroids_data and calc_data
 25107,25136,29 ; between calc_data and compareget_data
 25138,25168,30 ; between compareget_data and compile_data
@@ -13,9 +12,9 @@
 28693,28720,27 ; between help_data and hexdump_data
 28737,28768,31 ; between hexdump_data and list_data
 28795,28816,21 ; between list_data and osinfo_data
-29204,29232,28 ; between osinfo_data and poke_data
-29268,29296,28 ; between poke_data and run_data
-29337,29360,23 ; between run_data and ted_data
-29424,29440,16 ; between ted_data and testprintf_data
-29498,29520,22 ; between testprintf_data and testmem_data
-29572,29600,28 ; between testmem_data and tetris_data
+29192,29216,24 ; between osinfo_data and poke_data
+29252,29280,28 ; between poke_data and run_data
+29321,29344,23 ; between run_data and ted_data
+29408,29424,16 ; between ted_data and testprintf_data
+29605,29632,27 ; between testprintf_data and testmem_data
+29684,29712,28 ; between testmem_data and tetris_data

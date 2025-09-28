@@ -1,0 +1,66 @@
+;! name: DISPWORD
+;! entry: display_word
+;! deps: write_char
+;! abi: sysinfo args
+;! bss: auto
+;! align: 1
+
+; Prints the entire word in binary (MSB..LSB) including leading zeros.
+; Input: A = word to print. Word size determined by .__sys_bits_avail
+; Output: Prints .__sys_bits_avail characters ('0'/'1').
+;         Returns total characters printed in .__res3. A is restored.
+
+orig   = .bss + 0
+work   = .bss + 1
+cnt    = .bss + 2
+chars  = .bss + 3
+
+display_word:
+  ; Save original and create working copy
+  STA .orig
+  STA .work
+
+  ; Initialize counter to number of bits in a word
+  LDA .__sys_bits_avail
+  STA .cnt
+  ; Reset char count
+  LDI 0
+  STA .chars
+
+dw_loop:
+  ; while (cnt > 0)
+  LDA .cnt
+  CPI 0
+  JPZ dw_done
+
+  ; Shift left to move next MSB into carry
+  LDA .work
+  LSA
+  STA .work
+  ; If carry set, print '1', else '0'
+  JPC dw_print1
+dw_print0:
+  LDI 48          ; '0'
+  JSR @write_char
+  JMP dw_after_print
+dw_print1:
+  LDI 49          ; '1'
+  JSR @write_char
+
+dw_after_print:
+  ; chars++
+  LDA .chars
+  ADI 1
+  STA .chars
+  ; cnt-- and continue
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP dw_loop
+
+dw_done:
+  ; Return total chars in .__res3 and restore A
+  LDA .chars
+  STA .__res3
+  LDA .orig
+  RET
