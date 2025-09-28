@@ -26,12 +26,12 @@ osinfo:
   JSR write_40_dash
   LDI .version
   JSR print_newline
-  LDI ..__sys_bits_avail_text_1
+  LDI .__sys_bits_avail_text_1
   PHA
-  LDI ..__sys_bits_avail
+  LDI .__sys_bits_avail
   PHA
   JSR @printf
-  LDI ..__sys_bits_avail_text_2  
+  LDI .__sys_bits_avail_text_2  
   LDI 0
   SUI 1
   STA .__arg1

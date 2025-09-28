@@ -25,8 +25,6 @@ newlines_printed = bss + 3      ; number of printed newlines
 max_lines = bss + 4             ; max lines
 truncate_lines = bss + 5        ; If 1 truncate lines, else wrap
 
-__sys_screen_width = 40               ; screen width in characters
-
 cat:
   LDI 0
   STA .escape_mode

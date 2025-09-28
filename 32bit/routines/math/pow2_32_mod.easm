@@ -1,11 +1,11 @@
 ;! name: POW232
-;! entry: __pow2_32_mod
+;! entry: pow2_32_mod
 ;! deps:
 ;! abi:
 ;! bss: auto
 ;! align: 1
 
-; Call signature: __pow2_32_mod(SP - 2) = __pow2_32_mod(input_mod)
+; Call signature: pow2_32_mod(SP - 2) = pow2_32_mod(input_mod)
 ; Inputs:
 ;   Stack Pointer - 2 = input_mod
 ; Returns: A = (2^32) % input_mod
@@ -15,7 +15,7 @@ mod =     bss + 0
 r =       bss + 1
 counter = bss + 2
 
-__pow2_32_mod:
+pow2_32_mod:
   PLA             ; get return address from stack
   MOVAB           ; move return address to B for now
   PLA             ; get mod from stack

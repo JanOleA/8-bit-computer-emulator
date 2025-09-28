@@ -19,7 +19,12 @@
 
 .more_text = "              --- more ---"
 
+screen_height_sub1 = .bss + 3
+
 list_commands:
+  LDA .__sys_screen_height
+  SUI 1
+  STA .screen_height_sub1
   LDI .__sys_prog_table
   STA .bss + 1
   LDI 0
@@ -92,7 +97,7 @@ lc_newline:
   LDA .bss
   ADI 1
   STA .bss
-  CPI 19
+  CMP .screen_height_sub1
   JPZ lc_more
   LDI 0
   STA .bss + 2

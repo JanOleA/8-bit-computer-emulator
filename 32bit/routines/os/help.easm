@@ -14,8 +14,12 @@
 ; bss + 0                 : line count
 ; bss + 1                 : current pointer in .help_items
 ; bss + 2                 : whether buffer_to_separator ended on a null
+screen_height_sub1 = bss + 3
 
 help:
+  LDA .__sys_screen_height
+  SUI 1
+  STA .screen_height_sub1
   LDI 0
   STA .bss
   STA .bss + 1
@@ -50,7 +54,7 @@ hp_newline:
   LDA .bss
   ADI 1
   STA .bss
-  CPI 19
+  CMP .screen_height_sub1
   JPZ hp_more
   JMP hp_advance
 hp_more:

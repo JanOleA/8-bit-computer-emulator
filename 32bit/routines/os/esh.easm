@@ -55,7 +55,7 @@ main_loop:
   JSR check_input
   LDA .bss + 1
   CPI 0
-  JPZ __no_input
+  JPZ no_input
   LDA .__no_input
   CPI 1
   JPZ main_loop
@@ -111,7 +111,7 @@ after_len:
   STA .__no_input
   JMP main_loop
 
-__no_input:
+no_input:
   LDI 0
   STA .__no_input
   JMP main_loop
