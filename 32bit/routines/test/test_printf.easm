@@ -109,9 +109,9 @@ main:
   PHA
   JSR @printf
 
-  LDI 2               ; load integer part, 2.0
+  LDI 0               ; load integer part, 0.0
   PHA
-  LDI 600             ; load fractional part, .600
+  LDI 4               ; load fractional part, .004
   PHA
   JSR @q7_8_from_dec
   STA .args_mafs + 1

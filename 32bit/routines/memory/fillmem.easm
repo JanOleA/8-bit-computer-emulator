@@ -1,10 +1,13 @@
 ;! name: FILLMEM
 ;! entry: start
-;! deps:
+;! deps: printf
 ;! abi: all
 ;! bss: auto
 ;! align: 1
 ;! callable: yes
+
+.invalid_address = "Invalid mem.addr. in fillmem: %u"
+.usage = "Usage: FILLMEM <addr> <len> <value>"
 
 ; Fill memory range with a value.
 ; Inputs (OS ABI):
@@ -16,7 +19,11 @@ start:
   ; require at least 3 args
   LDA .__argv_base
   CPI 3
-  JPZ cl_go
+  JPC cl_go
+  LDI .usage
+  PHA
+  PHA             ; no replacement in the string, but printf pulls two arguments from stack, so give it an extra
+  JSR @printf
   RET
 
 cl_go:
@@ -52,6 +59,10 @@ fl_loop:
   JPZ fl_ret
   ; *ptr = value
   LDA .__work2
+  CMP .__sys_reserved_region_end         ; if address >= reserved region end, OK
+  JPC fill_forward_address_ok
+  JMP fill_invalid_address
+fill_forward_address_ok:
   PHA
   LDA .bss + 2
   SAS
@@ -64,6 +75,12 @@ fl_loop:
   STA .__work4
   JMP fl_loop
 
+fill_invalid_address:
+  LDI .invalid_address
+  PHA
+  LDI .__work2
+  PHA
+  JSR @printf
 fl_ret:
   RET
 

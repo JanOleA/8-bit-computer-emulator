@@ -6,6 +6,8 @@
 ;! align: 1
 ;! callable: yes
 
+; Find values of n so that if you take the first n primes, square them, then sum them, and if that value is a multiple of n. Then n is a valid solution.
+
 bss         ; check_value
 bss + 1     ; loop_index
 bss + 2     ; half_check
@@ -38,8 +40,6 @@ its_prime:
   ADI 1
   STA .bss + 6
   OUT
-  CPI 500000
-  JPC done
   ; add n^2 into 64-bit sum at (sum_lo,sum_hi)
   LDA .bss
   STA .__arg1              ; p
@@ -84,38 +84,40 @@ next_val:
 
 ; primality test using OS divide; returns A=1 if prime else A=0
 check_prime_os:
-  ; limit divisor up to floor(sqrt(n)) for fewer trials
-  LDA .bss
-  PHA
-  JSR @sqrt
-  PLA
-  PLA
-  PLA
-  STA .bss + 2        ; sqrt_n
+  ; Trial division with incremental square to avoid sqrt and multiply
   LDI 3
-  STA .bss + 1
+  STA .bss + 1        ; divisor d = 3
+  LDI 9
+  STA .bss + 2        ; square = d*d = 9
 prime_loop_os:
-  ; if divisor > sqrt_n → prime; if divisor == sqrt_n → still test divisibility
-  LDA .bss + 1        ; divisor
-  CMP .bss + 2        ; compare to sqrt_n
-  JPC pl_check_eq     ; carry set when divisor >= sqrt_n
-  JMP pl_do_div       ; divisor < sqrt_n → test
-pl_check_eq:
-  JPZ pl_do_div       ; equal → still test divisibility by sqrt_n
-  JMP prime_os        ; strictly greater → prime
+  ; if square > n → prime; if square == n → still test divisibility by d
+  LDA .bss + 2        ; square
+  CMP .bss            ; compare to n
+  JPC pl_square_ge
+  ; square < n → test divisibility by d
 pl_do_div:
   LDA .bss            ; n
   STA .__arg1
-  LDA .bss + 1        ; divisor
+  LDA .bss + 1        ; divisor d
   STA .__arg2
   JSR @divide
   LDA .__res2
   CPI 0
   JPZ not_prime_os
+  ; advance d by 2 and square by 4d + 4 (using old d)
+  LDA .bss + 1        ; old d
+  LSA
+  LSA                 ; 4d
+  ADI 4               ; 4d + 4
+  ADD .bss + 2        ; square += 4d + 4
+  STA .bss + 2
   LDA .bss + 1
   ADI 2
   STA .bss + 1
   JMP prime_loop_os
+pl_square_ge:
+  JPZ pl_do_div       ; if square == n, test divisibility
+  JMP prime_os        ; square > n → prime
 not_prime_os:
   LDI 0
   RET

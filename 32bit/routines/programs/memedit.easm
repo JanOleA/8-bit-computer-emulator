@@ -23,6 +23,8 @@ line_len = 40
 ;   .bss + 5  = tokenizer scan pointer (scan_ptr)
 ;   .bss + 6  = parsed number accumulator (val_acc)
 
+.invalid_address = "Invalid mem.addr. in memedit: %u"
+
 main:
   ; require at least 1 argument
   LDA .__argv_base
@@ -188,6 +190,15 @@ me_enter:
   JSR flush_input
   JMP me_loop
 
+pas_invalid_address:
+  ; print "Invalid memory address in memedit"
+  JSR @newline
+  LDI .invalid_address
+  PHA
+  LDI .bss + 1
+  PHA
+  JSR @printf
+  PLA                   ; pull once from stack so we get to return from memedit
 me_exit:
   ; print newline, wait for key release, then clear any debounce flag
   JSR @newline
@@ -255,6 +266,10 @@ pas_after_num:
   JPZ pas_sep_adv
   ; write value to memory at write_ptr
   LDA .bss + 1
+  CMP .__sys_reserved_region_end         ; if address >= reserved region end, OK
+  JPC pas_address_ok
+  JMP pas_invalid_address
+pas_address_ok:
   PHA
   LDA .bss + 6
   SAS

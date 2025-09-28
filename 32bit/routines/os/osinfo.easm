@@ -1,6 +1,6 @@
 ;! name: OSINFO
 ;! entry: osinfo
-;! deps: newline, print, printez, printf,display_number, divide, write_char, multiply
+;! deps: newline, print, printez, printf, display_number, divide, write_char, multiply, q7_8_from_ratio
 ;! abi: args sysinfo
 ;! bss: auto
 ;! align: 1
@@ -9,12 +9,12 @@
 .linechar = "-"
 .version =                 "EShell (ESH) 25.9.0a5 - 2025-09-28"
 .sys_bits_avail_text_1 =       "AReg size       : %u bits"
-.memory_available_text =   "Memory available: %u kwords"
+.memory_available_text =   "Memory available: %f kwords"
 .memory_available_text_2 = "                  (%u bits/word)"
 .installed_progs_text =    "Installed routines/programs: "
-.installed_progs_text_2 =  "Words used for programs (k): "
-.bss_text =                "Words reserved for BSS (k) : "
-.data_text =               "Words reserved for data (k): "
+.installed_progs_text_2 =  "Words used for programs (k): %f"
+.bss_text =                "Words reserved for BSS (k) : %f"
+.data_text =               "Words reserved for data (k): %f"
 .end_data_text =           "Reserved memory: [0, %u)"
 
 .help_text = "Type HELP for a list of commands"
@@ -31,12 +31,17 @@ osinfo:
   LDI .__sys_bits_avail
   PHA
   JSR @printf
-  LDI 0
-  SUI 1
-  STA .__arg1
-  LDI 1000
-  STA .__arg2
-  JSR @divide
+  LDI 2
+  PHA
+  LDA .__sys_bits_avail
+  SUI 2
+  PHA
+  JSR @pow
+  PHA                     ; now have 2^(bits_per_word - 2) in A reg
+  LDI 250                 ; construct fraction of (2^(bits_per_word - 2)) / 250, i.e. 2^(bits_per_word)/1000
+  PHA
+  JSR @q7_8_from_ratio
+  STA .__res1
   LDI .memory_available_text
   PHA
   LDI .__res1
@@ -54,29 +59,20 @@ osinfo:
   JSR @display_number
   JSR @newline
   LDI .installed_progs_text_2
-  JSR print_no_newline
-  LDA .bss + 3                    ; words used for programs
-  STA .bss + 10
-  LDA .bss + 7
-  STA .bss + 11
-  JSR print_decimal
-  JSR @newline
+  PHA
+  LDI .bss + 7                   ; words used for programs
+  PHA
+  JSR @printf
   LDI .bss_text
-  JSR print_no_newline
-  LDA .bss + 4                    ; words used for bss
-  STA .bss + 10
-  LDA .bss + 8
-  STA .bss + 11
-  JSR print_decimal
-  JSR @newline
+  PHA
+  LDI .bss + 4                   ; words used for BSS
+  PHA
+  JSR @printf
   LDI .data_text
-  JSR print_no_newline
-  LDA .bss + 5                    ; words used for data
-  STA .bss + 10
-  LDA .bss + 9
-  STA .bss + 11
-  JSR print_decimal
-  JSR @newline
+  PHA
+  LDI .bss + 5                   ; words used for data
+  PHA
+  JSR @printf
   LDI .end_data_text
   PHA
   LDA .bss + 14
@@ -122,14 +118,12 @@ get_num_progs:
   STA .bss + 3  ; size of the current program's code in the table (and final program after the loop)
   STA .bss + 4  ; total words used for BSS
   STA .bss + 5  ; total words used for data
-  STA .bss + 7  ; decimal for words used for programs
-  STA .bss + 8  ; decimal for words used for BSS
-  STA .bss + 9  ; decimal for words used for data
+  STA .bss + 7  ; words used for programs
+  STA .bss + 8 ; data used for current program (and final program after the loop)
+  STA .bss + 9 ; start of data region
   STA .bss + 12 ; base of current program (and final program after the loop)
   STA .bss + 13 ; data base of current program (and final program after the loop)
   STA .bss + 14 ; end of final program's data region (ceil to nearest 10)
-  STA .bss + 15 ; data used for current program (and final program after the loop)
-  STA .bss + 16 ; start of data region
 check_prog_loop:
   LDI .__sys_prog_table
   ADD .bss + 1
@@ -174,17 +168,17 @@ check_prog_loop:
   STA .bss + 1
   ADI .__sys_prog_table
   LAP                 ; get data words reserved for this program
-  STA .bss + 15       ; store it temporarily
+  STA .bss + 8       ; store it temporarily
 
   CPI 0
   JPZ skip_data_end
-  LDA .bss + 16       ; start of data region
+  LDA .bss + 9       ; start of data region
   CPI 1
   JPC skip_set_data_start
   LDA .bss + 13       ; data base of this program
-  STA .bss + 16       ; set start of data region
+  STA .bss + 9       ; set start of data region
 skip_set_data_start:
-  LDA .bss + 15       ; data words reserved for this program
+  LDA .bss + 8       ; data words reserved for this program
   ADD .bss + 13       ; add data base to get end of data region
   STA .bss + 14       ; store it
 skip_data_end:
@@ -198,44 +192,26 @@ get_n_progs_end:
   LDA .bss + 12       ; base of final program
   ADD .bss + 3        ; size of final program
   SUB .bss + 10       ; base of first program
-  STA .__arg1
+  PHA                 ; push words used for programs onto stack
   LDI 1000
-  STA .__arg2
-  JSR @divide
-  STA .bss + 3        ; result from divide is stored in A reg
-  LDA .__res2           ; get remainder
-  STA .__arg1
-  LDI 10
-  STA .__arg2
-  JSR @divide
+  PHA                 ; push 1000 onto stack
+  JSR @q7_8_from_ratio
   STA .bss + 7        ; store value after decimal
 
   LDA .bss + 4
-  STA .__arg1
+  PHA                 ; push words used for BSS onto stack
   LDI 1000
-  STA .__arg2
-  JSR @divide 
-  STA .bss + 4        ; result from divide is stored in A reg
-  LDA .__res2           ; get remainder
-  STA .__arg1
-  LDI 10
-  STA .__arg2
-  JSR @divide
-  STA .bss + 8        ; store value after decimal
+  PHA                 ; push 1000 onto stack
+  JSR @q7_8_from_ratio
+  STA .bss + 4        ; result from decimal construction is stored in A reg
 
   LDA .bss + 14       ; end of data region
-  SUB .bss + 16       ; - (start of data region) = get total data words used
-  STA .__arg1
+  SUB .bss + 9       ; - (start of data region) = get total data words used
+  PHA                 ; push words used for data onto stack
   LDI 1000
-  STA .__arg2
-  JSR @divide
-  STA .bss + 5        ; result from divide is stored in A reg
-  LDA .__res2           ; get remainder
-  STA .__arg1
-  LDI 10
-  STA .__arg2
-  JSR @divide
-  STA .bss + 9        ; store value after decimal
+  PHA                 ; push 1000 onto stack
+  JSR @q7_8_from_ratio
+  STA .bss + 5        ; result from decimal construction is stored in A reg
 
   LDA .bss + 14
   ADI 1               ; add one for safety margin
