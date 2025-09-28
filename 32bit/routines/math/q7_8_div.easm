@@ -1,0 +1,203 @@
+;! name: Q7_8_DIV
+;! entry: q7_8_div
+;! deps: divide
+;! abi: sysinfo
+;! bss: auto
+;! align: 1
+
+; Divide two Q7.8 fixed-point signed values (two's complement): r = a / b
+; Call signature: q7_8_div(SP - 3, SP - 2) = q7_8_div(a, b)
+; Returns: A = result (Q7.8), rounded to nearest (away from zero on ties)
+; Notes:
+;   - Uses integer division to get the integer part and then computes 8 fractional bits
+;     via a restoring division loop (avoids needing wider-than-word temporaries).
+;   - Division by zero returns 0.
+
+a_val   = .bss + 0
+b_val   = .bss + 1
+sign    = .bss + 2
+mag_a   = .bss + 3
+mag_b   = .bss + 4
+num     = .bss + 5
+mask    = .bss + 6
+cnt     = .bss + 7
+
+q7_8_div:
+  PLA
+  MOVAB
+  PLA
+  STA .a_val
+  PLA
+  STA .b_val
+  MOVBA
+  PHA
+
+  ; build sign mask
+  LDI 1
+  STA .mask
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .cnt
+qd_mask_loop:
+  LDA .cnt
+  CPI 0
+  JPZ qd_mask_done
+  LDA .mask
+  LSA
+  STA .mask
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qd_mask_loop
+qd_mask_done:
+
+  ; sign = (a<0) XOR (b<0)
+  LDA .a_val
+  CMP .mask
+  JPC qd_a_neg
+  LDI 0
+  STA .sign
+  JMP qd_test_b
+qd_a_neg:
+  LDI 1
+  STA .sign
+qd_test_b:
+  LDA .b_val
+  CMP .mask
+  JPC qd_b_neg
+  JMP qd_abs
+qd_b_neg:
+  LDA .sign
+  CPI 0
+  JPZ qd_set1
+  LDI 0
+  STA .sign
+  JMP qd_abs
+qd_set1:
+  LDI 1
+  STA .sign
+
+qd_abs:
+  ; mag_a = abs(a), mag_b = abs(b)
+  LDA .a_val
+  CMP .mask
+  JPC qd_abs_a_neg
+  STA .mag_a
+  JMP qd_abs_b
+qd_abs_a_neg:
+  LDI 0
+  SUB .a_val
+  STA .mag_a
+qd_abs_b:
+  LDA .b_val
+  CMP .mask
+  JPC qd_abs_b_neg
+  STA .mag_b
+  JMP qd_div
+qd_abs_b_neg:
+  LDI 0
+  SUB .b_val
+  STA .mag_b
+
+  ; Guard: division by zero → return 0
+  LDA .mag_b
+  CPI 0
+  JPZ qd_div_zero
+
+qd_div:
+  ; Integer part: q = mag_a / mag_b, remainder r = mag_a % mag_b
+  LDA .mag_a
+  STA .__arg1
+  LDA .mag_b
+  STA .__arg2
+  JSR @divide
+  STA .num       ; q
+  LDA .__res2
+  STA .a_val     ; r (reuse a_val as remainder)
+
+  ; Fractional part: compute 8 bits by repeated doubling
+  LDI 0
+  STA .mask      ; frac = 0 (reuse .mask as frac)
+  LDI 8
+  STA .cnt
+qd_frac_loop:
+  LDA .cnt
+  CPI 0
+  JPZ qd_round_frac
+  ; frac <<= 1
+  LDA .mask
+  LSA
+  STA .mask
+  ; r <<= 1
+  LDA .a_val
+  LSA
+  STA .a_val
+  ; if r >= mag_b then r -= mag_b; frac |= 1
+  LDA .a_val
+  CMP .mag_b
+  JPC qd_set_bit
+  ; dec cnt and continue
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qd_frac_loop
+qd_set_bit:
+  LDA .a_val
+  SUB .mag_b
+  STA .a_val
+  LDA .mask
+  ADI 1
+  STA .mask
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qd_frac_loop
+
+qd_round_frac:
+  ; Rounding to nearest on remaining remainder r
+  LDA .a_val
+  LSA
+  CMP .mag_b
+  JPC qd_inc_frac
+  JMP qd_combine
+qd_inc_frac:
+  LDA .mask
+  ADI 1
+  JPZ qd_frac_overflow
+  STA .mask
+  JMP qd_combine
+qd_frac_overflow:
+  ; frac overflowed from 0xFF to 0x00 → increment integer part
+  STA .mask      ; (A == 0 here)
+  LDA .num
+  ADI 1
+  STA .num
+
+qd_combine:
+  ; result magnitude = (q << 8) | frac
+  LDA .num
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  ADD .mask
+  STA .num
+
+qd_apply_sign:
+  LDA .sign
+  CPI 0
+  JPZ qd_ret_pos
+  LDI 0
+  SUB .num
+  RET
+qd_ret_pos:
+  LDA .num
+  RET
+
+qd_div_zero:
+  LDI 0
+  RET

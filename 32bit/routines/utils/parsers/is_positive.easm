@@ -8,7 +8,7 @@
 ; Returns 1 if the number in the A register is positive, 0 otherwise.
 ; Result is in the A register and in the C flag (set if positive, clear otherwise).
 
-; Interprets A as a signed two's-complement value with bit width = ..__sys_bits_avail.
+; Interprets A as a signed two's-complement value with bit width = .__sys_bits_avail.
 ; Implementation: compute sign mask = 1 << (.__sys_bits_avail - 1),
 ; then check if A < sign_mask (unsigned compare). If true → non-negative.
 
@@ -23,7 +23,7 @@ is_positive:
   ; build sign mask = 1 << (.__sys_bits_avail - 1)
   LDI 1
   STA .mask
-  LDA ..__sys_bits_avail
+  LDA .__sys_bits_avail
   SUI 1
   STA .count
 ip_mloop:

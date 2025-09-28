@@ -1,14 +1,14 @@
 ;! name: DISPINT
 ;! entry: display_int
 ;! deps: display_number, pow, write_char
-;! abi: sysinfo
+;! abi: sysinfo args
 ;! bss: auto
 ;! align: 1
 
 ; -- Prints a signed (2s complement) number in decimal --
 ; Input: A register: argument: value to print (signed, use A register to determine number of bits)
 
-sign_bit_mask = .bss + 1   ; mask for sign bit based on ..__sys_bits_avail
+sign_bit_mask = .bss + 1   ; mask for sign bit based on .__sys_bits_avail
 print_count   = .bss + 3   ; local counter for total chars printed ('-' + digits)
 
 display_int:
@@ -18,7 +18,7 @@ display_int:
   ; pow(2, bits-1) to get sign bit mask
   LDI 2
   PHA
-  LDA ..__sys_bits_avail
+  LDA .__sys_bits_avail
   SUI 1
   PHA
   JSR @pow

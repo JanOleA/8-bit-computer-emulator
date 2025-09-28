@@ -27,17 +27,17 @@ cl_go:
   JSR @parse_number
   STA .__work1
 
-  ; read operator char -> .char
+  ; read operator char -> .__char
   LDA .__argv_base + 2
   STA .__work2          ; pointer to operator token
   LPA .__work2                ; load mem[mem[.__work2]] into A
-  STA .char
+  STA .__char
 
   ; check if we have three arguments
   LDA .__argv_base
   CPI 3
   JPZ get_second_num
-  LDA .char
+  LDA .__char
   JMP check_sqrt        ; if we don't have three numbers, immediately if we're trying to do a square root, skip other operators
 get_second_num:
   ; parse second number -> __work2
@@ -47,7 +47,7 @@ get_second_num:
   STA .__work2
 
   ; dispatch by operator
-  LDA .char
+  LDA .__char
   CPI 43              ; '+'
   JPZ do_add
   CPI 45              ; '-'

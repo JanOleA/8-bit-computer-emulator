@@ -43,7 +43,7 @@ me_pn:
   CPI 32
   JPZ me_pn_done
   SUI 48
-  STA .char
+  STA .__char
   LDA .__res1
   LSA
   STA .__pow2
@@ -52,7 +52,7 @@ me_pn:
   ADD .__pow2
   STA .__res1
   LDA .__res1
-  ADD .char
+  ADD .__char
   STA .__res1
   LDA .__res2
   ADI 1
@@ -98,12 +98,12 @@ me_loop:
   LDA .__ascii_start
   ADD .__res1
   LAP
-  STA .char
+  STA .__char
   JSR @write_char
   ; store into buffer
   LDA .bss + 2
   PHA
-  LDA .char
+  LDA .__char
   SAS
   ; advance ptr and len with clamps
   LDA .bss + 2
@@ -229,7 +229,7 @@ pas_check_hi:
   JPC pas_after_num
   ; digit: val = val*10 + (ch-48)
   SUI 48
-  STA .char
+  STA .__char
   LDA .bss + 6
   LSA
   STA .__pow2
@@ -238,7 +238,7 @@ pas_check_hi:
   ADD .__pow2
   STA .bss + 6
   LDA .bss + 6
-  ADD .char
+  ADD .__char
   STA .bss + 6
   ; advance
   LDA .bss + 5

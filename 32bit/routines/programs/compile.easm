@@ -243,7 +243,7 @@ cp1_check_end:
 cp1_got_token:
   ; classify the first token on the line to decide how to account for it
   LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
-  STA .char
+  STA .__char
   CPI 73
   JPZ cp1_maybe_const
   CPI 45
@@ -398,7 +398,7 @@ cp2_check_end:
 cp2_got_token:
   ; branch by leading token type
   LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
-  STA .char
+  STA .__char
   CPI 73
   JPZ cp2_maybe_const
   CPI 45
@@ -480,7 +480,7 @@ nt_skip:
   CMP .__work3
   JPZ nt_none
   LPA .__work1                ; load mem[mem[.__work1]] into A
-  STA .char
+  STA .__char
   CPI 32
   JPZ nt_skip_ws
   CPI 9
@@ -509,7 +509,7 @@ nt_copy:
   CMP .__work3
   JPZ nt_finish
   LPA .__work1                ; load mem[mem[.__work1]] into A
-  STA .char
+  STA .__char
   CPI 32
   JPZ nt_finish
   CPI 9
@@ -521,7 +521,7 @@ nt_copy:
   JPZ nt_too_long
   LDA .__work4
   PHA
-  LDA .char
+  LDA .__char
   SAS
   LDA .__work4
   ADI 1
@@ -705,12 +705,12 @@ copy_token_buffer:
   STA .__work1
 ct_loop:
   LPA .__work4                ; load mem[mem[.__work4]] into A
-  STA .char
+  STA .__char
   CPI 0
   JPZ ct_end
   LDA .__work1
   PHA
-  LDA .char
+  LDA .__char
   SAS
   LDA .__work4
   ADI 1
@@ -848,7 +848,7 @@ resolve_operand:
   CPI 0
   JPZ ro_missing
   LPA .bss + 11                ; load mem[mem[.bss + 11]] into A
-  STA .char
+  STA .__char
   CPI 42
   JPZ ro_const
   CPI 46

@@ -39,11 +39,11 @@ get_next_char:  ; gets the next character from .__textloc and increases .__textl
   ADI 1
   STA .__textloc
   LAS         ; get the value from .__textloc into A
-  STA .char
+  STA .__char
   RET
 
 write_char:
-  LDD .char
+  LDD .__char
   DIC 0
   DIC 64      ; set read
   DIC 192     ; set read + enable

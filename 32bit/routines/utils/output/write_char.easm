@@ -1,7 +1,7 @@
 ;! name: WRITECHAR
 ;! entry: write_char
 ;! deps: 
-;! abi: all
+;! abi:
 ;! bss: none
 ;! align: 1
 

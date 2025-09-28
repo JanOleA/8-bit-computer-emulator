@@ -41,11 +41,11 @@ mm_loop:
   JPZ mm_done
   ; Shift y and branch on prior LSB via carry
   RSA
-  STA .char         ; store y >> 1 for later
+  STA .__char         ; store y >> 1 for later
   JPC mm_add
 
 mm_store_y:
-  LDA .char
+  LDA .__char
   STA .bss + 2
 
   ; x = (x + x) mod mod

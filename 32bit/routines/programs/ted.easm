@@ -99,7 +99,7 @@ main_loop:
   ADD .__ascii_start
   LAP
 insert_char_ml:
-  STA .char
+  STA .__char
   JSR insert_character
   LDA .bss + 7
   ADI 1
@@ -206,7 +206,7 @@ exit:
 
 handle_enter:
   LDI 10                  ; newline literal
-  STA .char
+  STA .__char
   JSR insert_character
   JSR count_lines
   LDI 0
@@ -256,7 +256,7 @@ handle_backspace:
   LDI 1
   STA .__work1            ; delete size = 1 byte by default
   LPA .__arg2                ; load mem[mem[.__arg2]] into A
-  STA .char             ; byte immediately before cursor
+  STA .__char             ; byte immediately before cursor
   CPI 92                ; backslash?
   JPZ hb_prev_backslash
   JMP hb_delete_prev
@@ -344,7 +344,7 @@ hb_ls_after_move:
   LDA .bss + 0
   ADD .bss + 1
   LAP
-  STA .char             ; first break character
+  STA .__char             ; first break character
   CPI 0
   JPZ hb_no_break
   CPI 92                ; backslash escape?
@@ -404,7 +404,7 @@ hb_calc_tail:
   STA .__res1
   JMP post_key_input
 
-insert_character:   ; --- insert character in .char into current location pointed to by cursor buffer pointer
+insert_character:   ; --- insert character in .__char into current location pointed to by cursor buffer pointer
   LDA .bss + 0          ; start of file
   ADD .bss + 1          ; cursor pointer in text buffer
   STA .__arg1             ; add them to get source
@@ -419,8 +419,8 @@ insert_character:   ; --- insert character in .char into current location pointe
   LDA .bss + 0
   ADD .bss + 1
   PHA                   ; push memory location of insert to stack
-  LDA .char
-  SAS                   ; pop memory location from stack to store .char
+  LDA .__char
+  SAS                   ; pop memory location from stack to store .__char
   RET
 
 handle_left:

@@ -16,10 +16,10 @@ from tools.assembler_core import build_instruction_map, assemble_lines as asm_as
 
 
 
-def assemble_snippet(lines, memory_size=8192):
+def assemble_snippet(lines, memory_size=8192, verbose=False, name="<module>"):
     memory = [0] * memory_size
     instruction_map = build_instruction_map()
-    program = asm_assemble_lines(lines, memory, instruction_map)
+    program = asm_assemble_lines(lines, memory, instruction_map, verbose=verbose, name=name)
     code_len = sum(len(ins[0]) for ins in program)
     code = [int(x) for x in memory[:code_len]]
     return code, program, instruction_map
@@ -137,7 +137,8 @@ def assemble_dynamic_module(src_path: str,
                             base_cursor: int,
                             bss_auto_start: int,
                             known_symbols: Dict[str, int],
-                            data_auto_start: int) -> Tuple[Dict, int, List[Tuple[int, int]], int, int]:
+                            data_auto_start: int,
+                            verbose: bool = True) -> Tuple[Dict, int, List[Tuple[int, int]], int, int]:
     with open(src_path, "r") as infile:
         text = infile.read()
     headers, raw_lines, extern_calls, auto_ptrs, data_items = parse_headers_and_preprocess(text)
@@ -269,7 +270,10 @@ def assemble_dynamic_module(src_path: str,
 
     # Assemble with larger memory to allow high addresses
     mem_cap = max(200000, (data_base or 0) + data_len + 64)
-    code, program, ins_map = assemble_snippet(lines, memory_size=mem_cap)
+
+    if verbose:
+        print(f"\n\n ------ Assembling snippet: {name} ------")
+    code, program, ins_map = assemble_snippet(lines, memory_size=mem_cap, verbose=verbose, name=name)
 
     # Determine base after we know code length, to avoid overlaps
     code_len = len(code)

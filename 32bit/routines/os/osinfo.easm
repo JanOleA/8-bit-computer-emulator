@@ -7,15 +7,15 @@
 ;! callable: yes
 
 .linechar = "-"
-.version =                 "EShell (ESH) 25.9.0a4 - 2025-09-24"
-..__sys_bits_avail_text_1 =       "AReg size       : %u bits"
+.version =                 "EShell (ESH) 25.9.0a5 - 2025-09-28"
+.sys_bits_avail_text_1 =       "AReg size       : %u bits"
 .memory_available_text =   "Memory available: %u kwords"
 .memory_available_text_2 = "                  (%u bits/word)"
 .installed_progs_text =    "Installed routines/programs: "
 .installed_progs_text_2 =  "Words used for programs (k): "
 .bss_text =                "Words reserved for BSS (k) : "
 .data_text =               "Words reserved for data (k): "
-.end_data_text =           "Data region ends at word   : "
+.end_data_text =           "Reserved memory            : [0, %u)"
 
 .help_text = "Type HELP for a list of commands"
 .list_text = "Type LIST for a list of all installed"
@@ -26,7 +26,7 @@ osinfo:
   JSR write_40_dash
   LDI .version
   JSR print_newline
-  LDI .__sys_bits_avail_text_1
+  LDI .sys_bits_avail_text_1
   PHA
   LDI .__sys_bits_avail
   PHA
@@ -45,7 +45,7 @@ osinfo:
   JSR @printf
   LDI .memory_available_text_2
   PHA
-  LDI ..__sys_bits_avail
+  LDI .__sys_bits_avail
   PHA
   JSR @printf
   JSR get_num_progs
@@ -79,11 +79,12 @@ osinfo:
   JSR print_decimal
   JSR @newline
   LDI .end_data_text
-  JSR print_no_newline
-  LDA .bss + 14                   ; end of data region
+  PHA
+  LDA .bss + 14
   STA .__sys_reserved_region_end
-  JSR @display_number
-  JSR @newline
+  LDI .bss + 14                   ; end of data region (pointer)
+  PHA
+  JSR @printf
   JSR write_40_dash
   LDI .help_text
   JSR print_newline

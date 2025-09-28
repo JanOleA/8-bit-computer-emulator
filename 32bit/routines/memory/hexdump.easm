@@ -7,8 +7,8 @@
 ;! callable: yes
 
 ; HEXDUMP <addr> <nwords>
-; Dynamic formatting based on OS ABI symbol ..__sys_bits_avail:
-;   if ..__sys_bits_avail <= 16  => 16-bit mode: 8 columns, width 4 (space padded)
+; Dynamic formatting based on OS ABI symbol .__sys_bits_avail:
+;   if .__sys_bits_avail <= 16  => 16-bit mode: 8 columns, width 4 (space padded)
 ;   else                  => 32-bit mode: 4 columns, width 8 (space padded)
 ; This lets the same routine adapt to different machine configurations.
 
@@ -38,8 +38,8 @@ hx_go:
   JSR @parse_number
   STA .bss + 1
 
-  ; Determine formatting mode from ..__sys_bits_avail
-  LDA ..__sys_bits_avail
+  ; Determine formatting mode from .__sys_bits_avail
+  LDA .__sys_bits_avail
   CPI 17
   JPC hx_set_32          ; if A >= 17 (carry clear until A < 17?) we branch (Using CPI semantics: carry set if A >= immediate; we want >16 so >=17) -> if A >= 17 jump to 32-bit
   ; 16-bit mode

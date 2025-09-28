@@ -49,16 +49,16 @@ print_init:
   STA .max_lines
 print_loop:
   LPA .__arg1                ; load mem[mem[.__arg1]] into A
-  STA .char
+  STA .__char
   CPI 0
   JPZ end
   LDA .escape_mode              ; check if we are in escape mode
   CPI 1
   JPZ escape_char
-  LDA .char
+  LDA .__char
   CPI 92
   JPZ set_escape
-  LDA .char
+  LDA .__char
   CPI 10                ; literal newline (0x0A)
   JPZ escape_newline
   JSR write_char_wrapper
@@ -72,7 +72,7 @@ set_escape:
 escape_char:            ; -- handle escape characters
   LDI 0
   STA .escape_mode              ; reset escape mode
-  LDA .char
+  LDA .__char
   CPI 92                ; \, print it
   JPZ escape_backslash
   CPI 78                ; N, newline

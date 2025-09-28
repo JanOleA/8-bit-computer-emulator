@@ -75,12 +75,12 @@ main_loop:
   LDA .__ascii_start
   ADD .bss
   LAP
-  STA .char
+  STA .__char
   JSR @write_char
   ; buffer char
   LDA .__input_ptr
   PHA
-  LDA .char
+  LDA .__char
   SAS
   ; advance ptr and len with clamps
   LDA .__input_ptr
@@ -562,13 +562,13 @@ hlc_copy:
   CPI .hist_entry_len
   JPZ hlc_done
   LPA .bss + 1611
-  STA .char
+  STA .__char
   CPI 0
   JPZ hlc_done
   JSR @write_char
   LDA .__input_ptr
   PHA
-  LDA .char
+  LDA .__char
   SAS
   LDA .bss + 1611
   ADI 1

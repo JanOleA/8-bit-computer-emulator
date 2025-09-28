@@ -1,6 +1,6 @@
 ;! name: CPYMEM
 ;! entry: copy_mem
-;! deps: display_number, parse_number
+;! deps: display_number, parse_number, printf
 ;! abi: all
 ;! bss: auto
 ;! align: 1
@@ -11,6 +11,8 @@
 ;   bss + 0 = src
 ;   bss + 1 = dst
 ;   bss + 2 = len
+
+.invalid_address = "Invalid mem.addr. in cpymem: %u"
 
 copy_mem:
   ; take three arguments. If less are given, use numbers in __arg1, __arg2 and __num_digits (src, dst, len)
@@ -67,23 +69,27 @@ cpy_ge_src:
 ; forward copy
 cpy_forward:
   LDA .bss
-  STA .__work2          ; src_ptr
+  STA .__work2            ; src_ptr
   LDA .bss + 1
-  STA .__work3          ; dst_ptr
+  STA .__work3            ; dst_ptr
   LDA .bss + 2
-  STA .__work4          ; count
+  STA .__work4            ; count
 cf_loop:
-  LDA .__work4          ; load count
-  CPI 0               ; compare count to 0
-  JPZ cpy_ret         ; if count is 0, return
+  LDA .__work4            ; load count
+  CPI 0                   ; compare count to 0
+  JPZ cpy_ret             ; if count is 0, return
   ; A = *dst_ptr
   LDA .__work3
-  PHA ; push dst_prt to stack
+  CMP .__sys_reserved_region_end         ; if address >= reserved region end, OK
+  JPC cpy_forward_address_ok
+  JMP cpy_invalid_address
+cpy_forward_address_ok:
+  PHA                     ; push dst_ptr to stack
   ; A = *src_ptr
   LDA .__work2
-  PHA ; push src_ptr to stack
-  LAS ; pop pointer from stack, get source mem content to A
-  SAS ; pop dst_ptr from stack, store A
+  PHA                     ; push src_ptr to stack
+  LAS                     ; pop pointer from stack, get source mem content to A
+  SAS                     ; pop dst_ptr from stack, store A
   ; advance ptrs and dec count
   LDA .__work2
   ADI 1
@@ -116,12 +122,16 @@ cb_loop:
   JPZ cpy_ret
   ; A = *dst_ptr
   LDA .__work3
-  PHA ; push dst_prt to stack
+  CMP .__sys_reserved_region_end         ; if address >= reserved region end, OK
+  JPC cpy_backward_address_ok
+  JMP cpy_invalid_address
+cpy_backward_address_ok:
+  PHA                         ; push dst_ptr to stack
   ; A = *src_ptr
   LDA .__work2
-  PHA ; push src_ptr to stack
-  LAS ; pop pointer from stack, get source mem content to A
-  SAS ; pop dst_ptr from stack, store A
+  PHA                         ; push src_ptr to stack
+  LAS                         ; pop pointer from stack, get source mem content to A
+  SAS                         ; pop dst_ptr from stack, store A
   ; decrement ptrs and count
   LDA .__work2
   SUI 1
@@ -134,6 +144,13 @@ cb_loop:
   STA .__work4
   JMP cb_loop
 
+cpy_invalid_address:
+  ; print "Invalid memory address in cpymem"
+  LDI .invalid_address
+  PHA
+  LDI .__work3
+  PHA
+  JSR @printf
 cpy_ret:
   RET
 

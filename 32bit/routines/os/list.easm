@@ -30,8 +30,6 @@ list_commands:
   LDI 0
   STA .bss + 2
   STA .bss
-  LDI 0
-  STA .flagtmp          ; reuse bss space if defined later (ensure clear)
 lc_next:
   LPA .bss + 1                ; load mem[mem[.bss + 1]] into A
   CPI 0

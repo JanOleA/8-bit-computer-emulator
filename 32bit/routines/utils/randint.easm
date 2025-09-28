@@ -23,7 +23,7 @@ randint:
   CPI 0
   JPZ ri_zero
   ; Branch on available bits
-  LDA ..__sys_bits_avail
+  LDA .__sys_bits_avail
   CPI 32
   JPC ri_32
 

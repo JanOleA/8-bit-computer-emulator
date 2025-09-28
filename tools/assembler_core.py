@@ -55,17 +55,22 @@ def build_instruction_map() -> Dict[str, int]:
     }
 
 
-def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[str, int]):
+def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[str, int], verbose: bool = False, name: str = "<module>") -> List[Tuple[List[str], int]]:
     addresses: Dict[str, int] = {}
     addresses_line: Dict[int, int] = {}
     variables: Dict[str, int] = {}
     program: List[Tuple[List[str], int]] = []
+    varnames_check_used = set()
+    original_lines: List[str] = []
 
     address = 0
     progline = 0
 
+    if verbose:
+        print(f"\n--- Assembling {name} ---\n")
     # First pass: collect variables and labels, build program list
     for i, line in enumerate(lines):
+        oline = line
         line = line.split(";")[0]
         if line.replace(" ", "") == "":
             continue
@@ -79,6 +84,7 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                 instruction = instruction[:2]
 
             program.append([instruction, address - progline])
+            original_lines.append(oline)
             for item in instruction:
                 address += 1
             progline += 1
@@ -160,12 +166,18 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                                 except Exception:
                                     val -= variables.get(t2, 0)
                     variables[varname] = val
+                    varnames_check_used.add(varname)
             elif ":" in line:
                 # Label
                 address_name = line.strip().split(":")[0]
                 addresses[address_name] = address
                 addresses_line[address] = progline
 
+        if verbose:
+            print(line)
+
+    if verbose:
+        print("\n--- Encode into memory ---\n")
     # Second pass: encode program into memory
     memaddress = 0
     for i, line in enumerate(program):
@@ -195,15 +207,27 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                         terms_neg = t1.split("-")
                         pos_val = terms_neg[0]
                         if pos_val.startswith('.'):
+                            if not pos_val[1:] in variables:
+                                print(f"Warning: undefined pointer variable '{pos_val[1:]}' used in line: {original_lines[i]}. Program: {name}")
                             val += variables.get(pos_val[1:], 0)
+                            if pos_val[1:] in varnames_check_used:
+                                varnames_check_used.remove(pos_val[1:])
                         else:
                             try:
                                 val += int(pos_val)
                             except Exception:
+                                if not pos_val in variables:
+                                    print(f"Warning: undefined pointer variable '{pos_val}' used in line: {original_lines[i]}. Program: {name}")
                                 val += variables.get(pos_val, 0)
+                                if pos_val in varnames_check_used:
+                                    varnames_check_used.remove(pos_val)
                         for t2 in terms_neg[1:]:
                             if t2.startswith('.'):
+                                if not t2[1:] in variables:
+                                    print(f"Warning: undefined pointer variable '{t2[1:]}' used in line: {original_lines[i]}. Program: {name}")
                                 val -= variables.get(t2[1:], 0)
+                                if t2[1:] in varnames_check_used:
+                                    varnames_check_used.remove(t2[1:])
                             else:
                                 try:
                                     val -= int(t2)
@@ -211,7 +235,16 @@ def assemble_lines(lines: List[str], memory: List[int], instruction_map: Dict[st
                                     val -= variables.get(t2, 0)
                     program[i][0][1] = str(val)
                     mem_ins = int(val)
+                    if mem_ins == 0 and "." in original_lines[i] and verbose:
+                        print(f"{original_lines[i]}, mem_ins == 0, check if correct")
             memory[memaddress] = mem_ins
             memaddress += 1
+
+    if verbose:
+        print(f"\n--- Assembled program {name} ---\n")
+
+        if len(varnames_check_used) > 0:
+            for varname in varnames_check_used:
+                print(f"Warning: variable '{varname}' defined but not used")
 
     return program

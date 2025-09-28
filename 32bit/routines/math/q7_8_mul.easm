@@ -1,0 +1,141 @@
+;! name: Q7_8_MUL
+;! entry: q7_8_mul
+;! deps: multiply
+;! abi: sysinfo
+;! bss: auto
+;! align: 1
+
+; Multiply two Q7.8 fixed-point signed values (two's complement) and return Q7.8.
+; Call signature: q7_8_mul(SP - 3, SP - 2) = q7_8_mul(a, b)
+; Inputs:
+;   Stack Pointer - 3 = a (Q7.8, sign-extended to word)
+;   Stack Pointer - 2 = b (Q7.8, sign-extended to word)
+; Returns: A = result (Q7.8), rounded to nearest (away from zero on ties)
+
+; BSS locals
+a_val   = .bss + 0
+b_val   = .bss + 1
+sign    = .bss + 2      ; 0=positive, 1=negative
+mag_a   = .bss + 3
+mag_b   = .bss + 4
+prod    = .bss + 5      ; intermediate product (word-sized)
+mask    = .bss + 6      ; sign bit mask (1<<(bits-1))
+cnt     = .bss + 7
+
+q7_8_mul:
+  ; prologue and fetch args (following multiply.easm convention)
+  PLA
+  MOVAB
+  PLA
+  STA .a_val
+  PLA
+  STA .b_val
+  MOVBA
+  PHA
+
+  ; compute sign bit mask = 1 << (bits_avail - 1)
+  LDI 1
+  STA .mask
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .cnt
+qm_mask_loop:
+  LDA .cnt
+  CPI 0
+  JPZ qm_mask_done
+  LDA .mask
+  LSA
+  STA .mask
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qm_mask_loop
+qm_mask_done:
+  ; sign = (a<0) XOR (b<0)
+  ; test a < 0
+  LDA .a_val
+  CMP .mask
+  JPC qm_a_neg
+  LDI 0
+  STA .sign
+  JMP qm_test_b
+qm_a_neg:
+  LDI 1
+  STA .sign
+qm_test_b:
+  LDA .b_val
+  CMP .mask
+  JPC qm_b_neg
+  ; b non-negative
+  JMP qm_abs
+qm_b_neg:
+  ; flip sign (XOR 1)
+  LDA .sign
+  CPI 0
+  JPZ qm_set1
+  LDI 0
+  STA .sign
+  JMP qm_abs
+qm_set1:
+  LDI 1
+  STA .sign
+
+qm_abs:
+  ; mag_a = abs(a_val)
+  LDA .a_val
+  CMP .mask
+  JPC qm_abs_a_neg
+  STA .mag_a
+  JMP qm_abs_b
+qm_abs_a_neg:
+  LDI 0
+  SUB .a_val
+  STA .mag_a
+qm_abs_b:
+  LDA .b_val
+  CMP .mask
+  JPC qm_abs_b_neg
+  STA .mag_b
+  JMP qm_mul
+qm_abs_b_neg:
+  LDI 0
+  SUB .b_val
+  STA .mag_b
+
+qm_mul:
+  ; prod = mag_a * mag_b  (unsigned multiply routine)
+  LDA .mag_b
+  PHA
+  LDA .mag_a
+  PHA
+  JSR @multiply
+  STA .prod
+
+  ; rounding: add 1<<(8-1) = 128 to magnitude product
+  LDA .prod
+  ADI 128
+  STA .prod
+
+  ; rescale: >> 8 (logical ok since magnitude non-negative)
+  LDA .prod
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  STA .prod
+
+  ; apply sign
+  LDA .sign
+  CPI 0
+  JPZ qm_ret_pos
+  ; negative -> negate
+  LDI 0
+  SUB .prod
+  RET
+qm_ret_pos:
+  LDA .prod
+  RET

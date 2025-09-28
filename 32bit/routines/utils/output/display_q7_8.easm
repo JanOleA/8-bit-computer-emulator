@@ -1,0 +1,161 @@
+;! name: DISPQ78
+;! entry: display_q7_8
+;! deps: display_number, pow, write_char
+;! abi: sysinfo args
+;! bss: auto
+;! align: 1
+
+; Prints a signed Q7.8 fixed-point value as decimal: "[-]I.FFF"
+; - Input: A = Q7.8 value (two's complement). Word size from .__sys_bits_avail
+; - Output: prints integer part, '.', and 3 fractional digits (rounded down),
+;   returns total characters printed in .__res3. A restored to original input.
+
+orig_val    = .bss + 0
+work_val    = .bss + 1
+sign_mask   = .bss + 2
+chars       = .bss + 3
+ipart       = .bss + 4
+frac        = .bss + 5
+digit       = .bss + 6
+tmp         = .bss + 7
+cnt         = .bss + 8
+
+display_q7_8:
+  ; save original
+  STA .orig_val
+  STA .work_val
+
+  ; compute sign mask = 2^(bits-1)
+  LDI 2
+  PHA
+  LDA .__sys_bits_avail
+  SUI 1
+  PHA
+  JSR @pow
+  STA .sign_mask
+
+  ; init char count
+  LDI 0
+  STA .chars
+
+  ; check sign
+  LDA .work_val
+  CMP .sign_mask
+  JPC q78_neg
+  JMP q78_abs_done
+q78_neg:
+  ; print '-'
+  LDI 45
+  JSR @write_char
+  LDI 1
+  STA .chars
+  ; negate to get magnitude
+  LDI 0
+  SUB .work_val
+  STA .work_val
+q78_abs_done:
+
+  ; integer part: ipart = work_val >> 8 (magnitude, so logical shift OK)
+  LDA .work_val
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  STA .ipart
+
+  ; fractional remainder: frac = work_val - (ipart << 8)
+  ; tmp = ipart << 8
+  LDA .ipart
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  STA .tmp
+  LDA .work_val
+  SUB .tmp
+  STA .frac
+
+  ; print integer part (unsigned)
+  LDA .ipart
+  JSR @display_number
+  LDA .__res3
+  ADD .chars
+  STA .chars
+
+  ; print '.'
+  LDI 46
+  JSR @write_char
+  LDA .chars
+  ADI 1
+  STA .chars
+
+  ; print 3 fractional digits by repeated scaling
+  LDI 3
+  STA .cnt
+q78_frac_loop:
+  LDA .cnt
+  CPI 0
+  JPZ q78_done
+  ; frac *= 10 → (frac<<3) + (frac<<1)
+  LDA .frac
+  LSA
+  STA .tmp          ; tmp = frac<<1
+  LDA .frac
+  LSA
+  LSA
+  LSA               ; A = frac<<3
+  ADD .tmp          ; A = frac*10
+  STA .frac
+  ; digit = frac >> 8
+  LDA .frac
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  STA .digit
+  ; print '0'+digit
+  LDA .digit
+  ADI 48
+  JSR @write_char
+  ; chars++
+  LDA .chars
+  ADI 1
+  STA .chars
+  ; frac -= digit << 8
+  LDA .digit
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  STA .tmp
+  LDA .frac
+  SUB .tmp
+  STA .frac
+  ; next digit
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP q78_frac_loop
+
+q78_done:
+  ; return count in .__res3, restore A
+  LDA .chars
+  STA .__res3
+  LDA .orig_val
+  RET
