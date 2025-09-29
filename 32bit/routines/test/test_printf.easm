@@ -15,6 +15,7 @@
 .text_7 = "Mafs: %f / %f = %f"
 .text_8 = "Ratio 1/3 = %f"
 .text_9 = "Ratio -22/7 = %f"
+.text_10 = "Ratio 22/-7 = %f"
 .insert_string = "string"
 
 args_1 = .bss
@@ -109,7 +110,8 @@ main:
   PHA
   JSR @printf
 
-  LDI 0               ; load integer part, 0.0
+  LDI 0               ; load integer part, -2
+  SUI 2
   PHA
   LDI 4               ; load fractional part, .004
   PHA
@@ -161,6 +163,20 @@ main:
   JSR @q7_8_from_ratio
   STA .args_9
   LDI .text_9
+  PHA
+  LDI .args_9
+  PHA
+  JSR @printf
+
+  ; Test q7_8_from_ratio 22/-7 (form -22 in a width-agnostic way)
+  LDI 22
+  PHA
+  LDI 0
+  SUI 7
+  PHA
+  JSR @q7_8_from_ratio
+  STA .args_9
+  LDI .text_10
   PHA
   LDI .args_9
   PHA

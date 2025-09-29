@@ -28,6 +28,9 @@
 .status_text2 = " A:(%d,%d) (%f,%f)"
 .status_text3 = " B:(%d,%d) (%f,%f)"
 .status_text4 = " C:(%d,%d) (%f,%f)"
+.status_text5 = "Acc A: (%f,%f)"
+.status_text6 = "Acc B: (%f,%f)"
+.status_text7 = "Acc C: (%f,%f)"
 
 a_x = .bss + 0 ; Body A X position
 a_y = .bss + 1 ; Body A Y position
@@ -223,6 +226,21 @@ print_status:
   LDI .status_text4
   PHA
   LDI .c_x
+  PHA
+  JSR @printf
+  LDI .status_text5
+  PHA
+  LDI .a_ax
+  PHA
+  JSR @printf
+  LDI .status_text6
+  PHA
+  LDI .b_ax
+  PHA
+  JSR @printf
+  LDI .status_text7
+  PHA
+  LDI .c_ax
   PHA
   JSR @printf
   RET

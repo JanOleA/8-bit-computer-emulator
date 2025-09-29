@@ -50,5 +50,6 @@ BSS regions:
   SQRT             BSS [22988,22992) size=4
   STRCOMPARE       BSS [22992,22995) size=3
   TED              BSS [22995,23009) size=14
-  TESTMEM          BSS [23009,23016) size=7
-  TETRIS           BSS [23016,23278) size=262
+  TESTPRINTF       BSS [23009,23040) size=31
+  TESTMEM          BSS [23040,23047) size=7
+  TETRIS           BSS [23047,23309) size=262
