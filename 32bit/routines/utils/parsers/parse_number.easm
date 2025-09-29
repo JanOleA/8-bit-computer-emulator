@@ -1,12 +1,32 @@
 ;! name: PARSENUM
 ;! entry: parse_number
-;! deps: 
+;! deps: q7_8_from_dec, multiply
 ;! abi: all
 ;! bss: auto
 ;! align: 1
 
-; Parse a text decimal number from pointer (first argument) into integer in .bss (stops at first non-digit)
-; returns the number in A and the updated pointer in .__arg1 (backwards compat)
+; Parse a number from a pointer (first argument). Supports:
+; - Optional leading '+' or '-'
+; - Integer: returns integer in A
+; - Decimal with a '.' followed by digits: returns Q7.8 fixed-point in A
+; In all cases, returns the updated pointer (first non-digit after the number)
+; in .__arg1 and the value also in .__res1 to preserve previous behavior.
+; BSS layout (locals)
+; .bss + 0 : result accumulator (int or temp)
+; .bss + 1 : tmp (res*2)
+; .bss + 2 : digit temp
+; .bss + 3 : input pointer
+; .bss + 4 : neg flag (0/1)
+; .bss + 5 : int_part magnitude
+; .bss + 6 : d1 (first frac digit)
+; .bss + 7 : d2
+; .bss + 8 : d3
+; .bss + 9 : d4 (for rounding)
+; .bss + 10: frac_dec (0..1000 pre-carry)
+; .bss + 11: tmp pointer
+; .bss + 12: saw_digit_before_dot flag (0/1)
+; .bss + 13: result word storage
+
 parse_number:
   PLA                 ; pull return address into A
   MOVAB               ; move it to B temporarily
@@ -18,7 +38,27 @@ parse_number:
   PHA                 ; push return address back to stack
 
   LDI 0
-  STA .bss
+  STA .bss            ; result accumulator
+  STA .bss + 4        ; neg = 0
+  STA .bss + 12       ; saw_digit_before_dot = 0
+
+  ; optional sign
+  LPA .bss + 3
+  CPI 45              ; '-'
+  JPZ pn_set_neg
+  CPI 43              ; '+'
+  JPZ pn_skip_sign
+  JMP pn_int_start
+pn_set_neg:
+  LDI 1
+  STA .bss + 4
+pn_skip_sign:
+  ; advance ptr past sign
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+
+pn_int_start:
 pn_loop:
   LPA .bss + 3        ; A = current char                ; load mem[mem[.bss + 3]] into A
   CPI 48              ; if A < '0' -> done
@@ -38,16 +78,197 @@ pn_ge_48:
   ADD .bss + 1        ; A = res*10
   ADD .bss + 2
   STA .bss
+  ; mark that we saw at least one integer digit
+  LDI 1
+  STA .bss + 12
   ; advance pointer
   LDA .bss + 3
   ADI 1
   STA .bss + 3
   JMP pn_loop
 pn_done:
-  ; return pointer to the first non-digit character in .__arg1 so callers
-  ; can verify token boundaries (maintains old behaviour expected by callers)
+  ; Check for decimal: if next char is '.' and it's followed by a digit, parse fractional
+  LPA .bss + 3
+  CPI 46              ; '.'
+  JPZ pn_check_frac_digit
+  JMP pn_return_int
+
+pn_check_frac_digit:
+  ; Lookahead: is the char after '.' a digit?
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 11       ; tmp ptr = ptr + 1
+  LPA .bss + 11
+  CPI 48
+  JPC pn_frac_yes_ge0
+  JMP pn_return_int   ; no digit after '.', treat as integer (stop at '.')
+pn_frac_yes_ge0:
+  CPI 58
+  JPC pn_return_int   ; not a digit after '.', treat as integer
+  ; We have a decimal: save integer part magnitude and parse fractional digits
+  LDA .bss
+  STA .bss + 5        ; int_part = accum
+  ; reset fractional digit slots
+  LDI 0
+  STA .bss + 6
+  STA .bss + 7
+  STA .bss + 8
+  STA .bss + 9
+  ; advance pointer past '.'
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+
+  ; parse up to 4 fractional digits for rounding, but consume all digits
+  LDI 0               ; use .bss+1 as counter for digits seen (reuse tmp)
+  STA .bss + 1
+pn_frac_loop:
+  LPA .bss + 3
+  CPI 48
+  JPC pn_frac_ge0
+  JMP pn_build_q78
+pn_frac_ge0:
+  CPI 58
+  JPC pn_build_q78
+  ; store into d1..d4 if cnt < 4
+  SUI 48
+  STA .bss + 2        ; save digit value
+  LDA .bss + 1        ; load counter
+  CPI 0
+  JPZ pn_store_d1
+  CPI 1
+  JPZ pn_store_d2
+  CPI 2
+  JPZ pn_store_d3
+  CPI 3
+  JPZ pn_store_d4
+  ; cnt >= 4: ignore value, just advance
+  JMP pn_frac_advance
+pn_store_d1:
+  LDA .bss + 2
+  STA .bss + 6
+  JMP pn_frac_advance_bump
+pn_store_d2:
+  LDA .bss + 2
+  STA .bss + 7
+  JMP pn_frac_advance_bump
+pn_store_d3:
+  LDA .bss + 2
+  STA .bss + 8
+  JMP pn_frac_advance_bump
+pn_store_d4:
+  LDA .bss + 2
+  STA .bss + 9
+  ; fallthrough to advance
+pn_frac_advance_bump:
+  LDA .bss + 1
+  ADI 1
+  STA .bss + 1
+pn_frac_advance:
+  ; advance pointer
+  LDA .bss + 3
+  ADI 1
+  STA .bss + 3
+  JMP pn_frac_loop
+
+pn_build_q78:
+  ; frac_dec = d1*100 + d2*10 + d3
+  ; compute t = d1*100
+  LDA .bss + 6
+  LSA
+  LSA                  ; *4
+  STA .bss + 10        ; reuse as temp t
+  LSA
+  LSA                  ; *16
+  LSA                  ; *32
+  LSA                  ; *64
+  ADD .bss + 10        ; *64 + *4 = *68
+  LSA                  ; *136
+  LSA                  ; *272  (approx, but simpler path: we can do *100 via 8*12+4. However keep consistent)
+  ; Simplify: recompute 100 as 10*10 using multiply (cheap enough)
+  ; Instead: t = d1; t = t*10; t = t*10
+  LDA .bss + 6
+  PHA
+  LDI 10
+  PHA
+  JSR @multiply
+  PHA                  ; push d1*10
+  LDI 10
+  PHA
+  JSR @multiply
+  STA .bss + 10        ; t = d1*100
+  ; t += d2*10
+  LDA .bss + 7
+  PHA
+  LDI 10
+  PHA
+  JSR @multiply
+  ADD .bss + 10
+  STA .bss + 10
+  ; t += d3
+  LDA .bss + 8
+  ADD .bss + 10
+  STA .bss + 10        ; frac_dec in .bss+10
+  ; rounding via d4
+  LDA .bss + 9
+  CPI 5
+  JPC pn_round_inc
+  JMP pn_round_done
+pn_round_inc:
+  LDA .bss + 10
+  ADI 1
+  STA .bss + 10
+  ; if frac_dec == 1000 then frac_dec=0; int_part++
+  CPI 1000
+  JPZ pn_frac_carry
+  JMP pn_round_done
+pn_frac_carry:
+  LDI 0
+  STA .bss + 10
+  LDA .bss + 5
+  ADI 1
+  STA .bss + 5
+pn_round_done:
+  ; Call q7_8_from_dec with (int_part, frac_dec)
+  LDA .bss + 5
+  PHA
+  LDA .bss + 10
+  PHA
+  JSR @q7_8_from_dec
+  ; apply leading sign if negative (negate result magnitude)
+  STA .bss + 13
+  LDA .bss + 4
+  CPI 0
+  JPZ pn_q78_done
+  LDI 0
+  SUB .bss + 13
+  STA .bss + 13
+pn_q78_done:
+  ; return pointer and value
   LDA .bss + 3
   STA .__arg1
-  LDA .bss
+  LDA .bss + 13
   STA .__res1
+  LDA .bss + 13
+  RET
+
+pn_return_int:
+  ; No decimal: return integer (with sign if provided)
+  ; If no integer digits were seen but we had a sign, treat as 0 and do not advance further.
+  LDA .bss
+  STA .bss + 13
+  LDA .bss + 4
+  CPI 0
+  JPZ pn_int_sign_done
+  ; negate result
+  LDI 0
+  SUB .bss + 13
+  STA .bss + 13
+pn_int_sign_done:
+  ; return pointer (current .bss+3) and value
+  LDA .bss + 3
+  STA .__arg1
+  LDA .bss + 13
+  STA .__res1
+  LDA .bss + 13
   RET

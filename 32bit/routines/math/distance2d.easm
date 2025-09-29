@@ -1,0 +1,331 @@
+;! name: DIST2D
+;! entry: distance2d
+;! deps: addsq64
+;! abi: all
+;! bss: auto
+;! align: 1
+
+; Compute integer Euclidean distance between two positions (x1,y1) and (x2,y2).
+; - Inputs (stack): push x1, push y1, push x2, push y2, then JSR @distance2d
+; - All values are two's complement signed with bit-width .__sys_bits_avail
+; - Output: A = floor( sqrt( (x2-x1)^2 + (y2-y1)^2 ) ), saturated to max positive
+; - Overflow-safe: uses 64-bit accumulation for sum of squares and binary-search sqrt
+
+; Locals (BSS)
+x1        = .bss + 0
+y1        = .bss + 1
+x2        = .bss + 2
+y2        = .bss + 3
+mask      = .bss + 4      ; sign bit mask 1<<(bits-1)
+cnt       = .bss + 5
+ax1       = .bss + 6      ; |x1|
+ay1       = .bss + 7      ; |y1|
+ax2       = .bss + 8      ; |x2|
+ay2       = .bss + 9      ; |y2|
+dx        = .bss + 10     ; |x2-x1| (unsigned magnitude)
+dy        = .bss + 11     ; |y2-y1|
+tmp       = .bss + 12
+sum_lo    = .bss + 13     ; 64-bit sum of squares low
+sum_hi    = .bss + 14     ; 64-bit sum of squares high
+sq_lo     = .bss + 15     ; temp square low
+sq_hi     = .bss + 16     ; temp square high
+lo_b      = .bss + 17     ; binary search low bound
+hi_b      = .bss + 18     ; binary search high bound (max positive)
+mid       = .bss + 19
+best      = .bss + 20
+
+distance2d:
+  ; Prologue: fetch args from stack in reverse push order: y2, x2, y1, x1
+  PLA
+  MOVAB
+  PLA
+  STA .y2
+  PLA
+  STA .x2
+  PLA
+  STA .y1
+  PLA
+  STA .x1
+  MOVBA
+  PHA
+
+  ; Build sign mask = 1 << (.__sys_bits_avail - 1)
+  LDI 1
+  STA .mask
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .cnt
+dist_mask_loop:
+  LDA .cnt
+  CPI 0
+  JPZ dist_mask_done
+  LDA .mask
+  LSA
+  STA .mask
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP dist_mask_loop
+dist_mask_done:
+
+  ; Magnitudes |x1|, |y1|, |x2|, |y2|
+  ; |x1|
+  LDA .x1
+  CMP .mask
+  JPC dist_x1_neg
+  STA .ax1
+  JMP dist_y1_abs
+dist_x1_neg:
+  LDI 0
+  SUB .x1
+  STA .ax1
+dist_y1_abs:
+  LDA .y1
+  CMP .mask
+  JPC dist_y1_neg
+  STA .ay1
+  JMP dist_x2_abs
+dist_y1_neg:
+  LDI 0
+  SUB .y1
+  STA .ay1
+dist_x2_abs:
+  LDA .x2
+  CMP .mask
+  JPC dist_x2_neg
+  STA .ax2
+  JMP dist_y2_abs
+dist_x2_neg:
+  LDI 0
+  SUB .x2
+  STA .ax2
+dist_y2_abs:
+  LDA .y2
+  CMP .mask
+  JPC dist_y2_neg
+  STA .ay2
+  JMP dist_diff
+dist_y2_neg:
+  LDI 0
+  SUB .y2
+  STA .ay2
+
+dist_diff:
+  ; dx = |x2 - x1| computed via magnitudes to avoid signed overflow
+  ; if sign(x1) == sign(x2): dx = |ax2 - ax1| else dx = ax2 + ax1
+  ; Determine signs
+  LDA .x1
+  CMP .mask
+  JPC dist_sx1_neg
+  LDI 0
+  STA .tmp            ; tmp = sx1 (0 non-neg, 1 neg)
+  JMP dist_sx2
+dist_sx1_neg:
+  LDI 1
+  STA .tmp
+dist_sx2:
+  LDA .x2
+  CMP .mask
+  JPC dist_sx2_neg
+  LDI 0
+  JMP dist_dx_compute
+dist_sx2_neg:
+  LDI 1
+dist_dx_compute:
+  ; A holds sx2, .tmp holds sx1
+  CMP .tmp
+  JPZ dist_dx_same_sign
+  ; different signs: dx = ax2 + ax1
+  LDA .ax2
+  ADD .ax1
+  STA .dx
+  JMP dist_dy
+dist_dx_same_sign:
+  ; same sign: dx = |ax2 - ax1|
+  LDA .ax2
+  CMP .ax1
+  JPC dist_dx_ge
+  ; ax2 < ax1 → dx = ax1 - ax2
+  LDA .ax1
+  SUB .ax2
+  STA .dx
+  JMP dist_dy
+dist_dx_ge:
+  ; ax2 >= ax1 → dx = ax2 - ax1
+  LDA .ax2
+  SUB .ax1
+  STA .dx
+
+dist_dy:
+  ; dy = |y2 - y1| with same logic
+  LDA .y1
+  CMP .mask
+  JPC dist_sy1_neg
+  LDI 0
+  STA .tmp            ; tmp = sy1
+  JMP dist_sy2
+dist_sy1_neg:
+  LDI 1
+  STA .tmp
+dist_sy2:
+  LDA .y2
+  CMP .mask
+  JPC dist_sy2_neg
+  LDI 0
+  JMP dist_dy_compute
+dist_sy2_neg:
+  LDI 1
+dist_dy_compute:
+  ; A holds sy2, .tmp holds sy1
+  CMP .tmp
+  JPZ dist_dy_same_sign
+  ; different signs: dy = ay2 + ay1
+  LDA .ay2
+  ADD .ay1
+  STA .dy
+  JMP dist_sum_squares
+dist_dy_same_sign:
+  LDA .ay2
+  CMP .ay1
+  JPC dist_dy_ge
+  ; ay2 < ay1 → dy = ay1 - ay2
+  LDA .ay1
+  SUB .ay2
+  STA .dy
+  JMP dist_sum_squares
+dist_dy_ge:
+  ; ay2 >= ay1 → dy = ay2 - ay1
+  LDA .ay2
+  SUB .ay1
+  STA .dy
+
+dist_sum_squares:
+  ; sum64 = dx^2 + dy^2 using add_square64
+  LDI 0
+  STA .sum_lo
+  STA .sum_hi
+  ; add dx^2
+  LDA .dx
+  STA .__arg1
+  LDI .sum_lo
+  STA .__arg2
+  LDI .sum_hi
+  STA .__res1
+  JSR @add_square64
+  ; add dy^2
+  LDA .dy
+  STA .__arg1
+  LDI .sum_lo
+  STA .__arg2
+  LDI .sum_hi
+  STA .__res1
+  JSR @add_square64
+
+  ; Prepare binary search bounds: [0, min(max_pos, dx+dy)] using triangle inequality
+  ; max_pos = (mask - 1)
+  ; hi_candidate = dx + dy (with overflow clamped to max_pos)
+  LDA .dx
+  ADD .dy
+  JPC dist_hi_ovf
+  STA .hi_b
+  JMP dist_set_hi_done
+dist_hi_ovf:
+  ; overflow -> clamp to max_pos
+  LDA .mask
+  SUI 1
+  STA .hi_b
+dist_set_hi_done:
+  ; Ensure hi <= max_pos anyway (redundant unless CPU width changes mid-run)
+  LDA .mask
+  SUI 1
+  CMP .hi_b
+  JPC dist_hi_ok
+  ; if (max_pos < hi_b) then hi_b = max_pos
+  LDA .mask
+  SUI 1
+  STA .hi_b
+dist_hi_ok:
+  ; Initialize low and best
+  LDI 0
+  STA .lo_b
+  STA .best
+  ; Fast path: if hi == 0 then distance is 0
+  LDA .hi_b
+  CPI 0
+  JPZ dist_bs_done
+
+dist_bs_loop:
+  ; while lo <= hi
+  LDA .hi_b
+  CMP .lo_b
+  JPC dist_bs_cont     ; continue if hi >= lo
+  JMP dist_bs_done     ; break when hi < lo
+dist_bs_cont:
+  ; mid = lo + ((hi - lo) >> 1) to avoid overflow
+  LDA .hi_b
+  SUB .lo_b
+  RSA
+  STA .tmp
+  LDA .lo_b
+  ADD .tmp
+  STA .mid
+  ; compute mid^2 into (sq_hi:sq_lo)
+  LDI 0
+  STA .sq_lo
+  STA .sq_hi
+  LDA .mid
+  STA .__arg1
+  LDI .sq_lo
+  STA .__arg2
+  LDI .sq_hi
+  STA .__res1
+  JSR @add_square64
+  ; if mid^2 <= sum64 → best=mid, lo=mid+1; else hi=mid-1
+  ; Compare (sq_hi,sq_lo) <= (sum_hi,sum_lo)
+  LDA .sq_hi
+  CMP .sum_hi
+  JPC dist_cmp_hi_ge
+  ; sq_hi < sum_hi → definitely <=
+  JMP dist_take_low
+dist_cmp_hi_ge:
+  JPZ dist_cmp_lo      ; equal hi → compare lo
+  ; sq_hi > sum_hi → too large
+  JMP dist_take_high
+dist_cmp_lo:
+  LDA .sq_lo
+  CMP .sum_lo
+  JPZ dist_take_low    ; equal → ok (<=)
+  JPC dist_take_high   ; sq_lo > sum_lo → too large
+  ; sq_lo < sum_lo → ok
+  JMP dist_take_low
+
+dist_take_high:
+  ; hi = mid - 1
+  LDA .mid
+  SUI 1
+  STA .hi_b
+  JMP dist_bs_loop
+
+dist_take_low:
+  ; best = mid; lo = mid + 1
+  LDA .mid
+  STA .best
+  ADI 1
+  STA .lo_b
+  JMP dist_bs_loop
+
+dist_bs_done:
+  ; Clamp to our conservative bound (dx+dy) in case of any search misbehavior
+  LDA .best
+  CMP .hi_b
+  JPZ dist_ret_ok
+  JPC dist_best_ge
+  JMP dist_ret_ok
+dist_best_ge:
+  ; best >= hi_b → best = hi_b
+  LDA .hi_b
+  STA .best
+dist_ret_ok:
+  ; Return best
+  LDA .best
+  RET

@@ -1,0 +1,714 @@
+;! name: 3BODYSIM
+;! entry: three_body_sim
+;! deps: printf, printez, parse_number, q7_8_from_ratio, q7_8_from_dec, q7_8_mul, q7_8_div, display_q7_8, newline, distance2d, toggle_display_enable
+;! abi: all
+;! bss: auto
+;! align: 1
+;! callable: yes
+
+
+;; -- 3 Body Simulation Program --
+;; Simulates the motion of three bodies under mutual gravitational attraction.
+;; Arguments: <mem_pointer to initial conditions> <time_step> <num_steps>
+
+.usage_1 = "Usage:"
+.usage_2 = "3BODYSIM <mem_ptr> <ts> <n_stp>"
+.usage_3 = "mem_ptr: ptr to init. conditions"
+.usage_4 = "ts: time step in ms (e.g., 10 for 0.01s)"
+.usage_5 = "n_stp: number of steps to simulate"
+
+.ic_text_line1 = "Initial Conditions:"
+.ic_text_line2 = "A:(%d,%d)  (%f,%f)  %f"
+.ic_text_line3 = "B:(%d,%d)  (%f,%f)  %f"
+.ic_text_line4 = "C:(%d,%d)  (%f,%f)  %f"
+.ic_text_line5 = "G:%f | ts:%f | Steps:%u"
+.ic_text_line6 = "Press any key to start..."
+
+.status_text = "Step %u/%u"
+.status_text2 = " A:(%d,%d) (%f,%f)"
+.status_text3 = " B:(%d,%d) (%f,%f)"
+.status_text4 = " C:(%d,%d) (%f,%f)"
+
+a_x = .bss + 0 ; Body A X position
+a_y = .bss + 1 ; Body A Y position
+a_vx = .bss + 2 ; Body A X velocity
+a_vy = .bss + 3 ; Body A Y velocity
+a_mass = .bss + 4 ; Body A mass
+
+b_x = .bss + 5 ; Body B X position
+b_y = .bss + 6 ; Body B Y position
+b_vx = .bss + 7 ; Body B X velocity
+b_vy = .bss + 8 ; Body B Y velocity
+b_mass = .bss + 9 ; Body B mass
+
+c_x = .bss + 10 ; Body C X position
+c_y = .bss + 11 ; Body C Y position
+c_vx = .bss + 12 ; Body C X velocity
+c_vy = .bss + 13 ; Body C Y velocity
+c_mass = .bss + 14 ; Body C mass
+
+gravity_const = .bss + 15 ; Gravitational constant (scaled)
+time_step = .bss + 16 ; Time step for simulation
+num_steps = .bss + 17 ; Number of simulation steps
+
+a_ax = .bss + 18 ; Body A X acceleration
+a_ay = .bss + 19 ; Body A Y acceleration
+b_ax = .bss + 20 ; Body B X acceleration
+b_ay = .bss + 21 ; Body B Y acceleration
+c_ax = .bss + 22 ; Body C X acceleration
+c_ay = .bss + 23 ; Body C Y acceleration
+
+step_count = .bss + 24 ; Current step count
+
+load_ptr = .bss + 25 ; Pointer to load initial conditions from memory
+load_step = .bss + 26 ; Current step in loading initial conditions
+tmp1 = .bss + 27 ; Temporary storage
+tmp2 = .bss + 28 ; Temporary storage
+tmp3 = .bss + 29 ; Temporary storage
+tmp4 = .bss + 30 ; Temporary storage
+tmp5 = .bss + 31 ; Temporary storage
+tmp6 = .bss + 32 ; Temporary storage
+tmp7 = .bss + 33 ; Temporary storage
+tmp8 = .bss + 34 ; Temporary storage
+tmp9 = .bss + 35 ; Temporary storage
+tmp10 = .bss + 36 ; Temporary storage
+tmp11 = .bss + 37 ; Temporary storage
+tmp12 = .bss + 38 ; Temporary storage
+tmp13 = .bss + 39 ; Temporary storage
+tmp14 = .bss + 40 ; Temporary storage
+tmp15 = .bss + 41 ; Temporary storage
+
+a_b_force_x = .bss + 42 ; Force magnitude between A and B (X component)
+a_b_force_y = .bss + 43 ; Force magnitude between A and B (Y component)
+a_c_force_x = .bss + 44 ; Force magnitude between A and C (X component)
+a_c_force_y = .bss + 45 ; Force magnitude between A and C (Y component)
+b_c_force_x = .bss + 46 ; Force magnitude between B and C (X component)
+b_c_force_y = .bss + 47 ; Force magnitude between B and C (Y component)
+
+three_body_sim:
+  ; Check for correct number of arguments
+  LDA .__argv_base
+  CPI 3
+  JPC tbs_go
+    ; Print usage message
+  LDI .usage_1
+  PHA
+  JSR @printez
+  LDI .usage_2
+  PHA
+  JSR @printez
+  LDI .usage_3
+  PHA
+  JSR @printez
+  LDI .usage_4
+  PHA
+  JSR @printez
+  LDI .usage_5
+  PHA
+  JSR @printez
+  RET
+
+tbs_go:
+  ; Fetch arguments
+  LDA .__argv_base + 1
+  PHA
+  JSR @parse_number
+  STA .load_ptr
+  
+  LDA .__argv_base + 2
+  PHA
+  JSR @parse_number
+  PHA
+  LDI 1000
+  PHA
+  JSR @q7_8_from_ratio
+  STA .time_step
+  
+  LDA .__argv_base + 3
+  PHA
+  JSR @parse_number
+  STA .num_steps
+
+  ; Load initial conditions from memory
+  LDI 0
+  STA .load_step
+tbs_load_loop:
+  LDA .load_step
+  CPI 16
+  JPC tbs_loaded
+  LDI .bss            ; bss is start of init conditions
+  ADD .load_step
+  PHA
+  LPA .load_ptr       ; load value from the pointer in load_ptr
+  SAS                 ; store in .bss + load_step
+  LDA .load_ptr
+  ADI 1
+  STA .load_ptr
+  LDA .load_step
+  ADI 1
+  STA .load_step
+  JMP tbs_load_loop
+tbs_loaded:
+  ; Print initial conditions
+  LDI .ic_text_line1
+  PHA
+  JSR @printez
+  LDI .ic_text_line2
+  PHA
+  LDI .a_x              ; five initial conditions for body A begin at .a_x
+  PHA
+  JSR @printf
+  LDI .ic_text_line3
+  PHA
+  LDI .b_x              ; five initial conditions for body B begin at .b_x
+  PHA
+  JSR @printf
+  LDI .ic_text_line4
+  PHA
+  LDI .c_x              ; five initial conditions for body C begin at .c_x
+  PHA
+  JSR @printf
+  LDI .ic_text_line5
+  PHA
+  LDI .gravity_const    ; three initial conditions for G, ts and N begin at .gravity_const
+  PHA
+  JSR @printf
+  LDI .ic_text_line6
+  PHA
+  JSR @printez
+  ; Wait for any key press
+tbs_wait_any_key:
+  KEI
+  CPI 128
+  JPC wait_done
+  JMP tbs_wait_any_key
+wait_done:
+
+  ; Main simulation loop
+  LDI 0
+  STA .step_count
+tbs_main_loop:
+  LDA .step_count
+  CMP .num_steps
+  JPC tbs_done
+  JSR step
+  LDA .step_count
+  ADI 1
+  STA .step_count
+  JSR print_status
+  JMP tbs_main_loop
+
+print_status:
+  LDA .step_count
+  STA .tmp10
+  LDA .num_steps
+  STA .tmp11
+  DIS 1                           ; clear display
+  JSR @toggle_display_enable
+  LDI .status_text
+  PHA
+  LDI .tmp10
+  PHA
+  JSR @printf
+  LDI .status_text2
+  PHA
+  LDI .a_x
+  PHA
+  JSR @printf
+  LDI .status_text3
+  PHA
+  LDI .b_x
+  PHA
+  JSR @printf
+  LDI .status_text4
+  PHA
+  LDI .c_x
+  PHA
+  JSR @printf
+  RET
+
+step:
+  ; Calculate accelerations based on current positions
+  JSR calculate_accelerations
+
+  ; Update velocities based on accelerations and time step
+  ; vx = vx + ax * dt
+  LDA .a_ax
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  ADD .a_vx             ; result from multiplication is in A register, so just add vx
+  STA .a_vx
+
+  LDA .a_ay
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  ADD .a_vy
+  STA .a_vy
+
+  LDA .b_ax
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  ADD .b_vx
+  STA .b_vx
+
+  LDA .b_ay
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  ADD .b_vy
+  STA .b_vy
+
+  LDA .c_ax
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  ADD .c_vx
+  STA .c_vx
+
+  LDA .c_ay
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  ADD .c_vy
+  STA .c_vy
+
+  ; Update positions based on velocities and time step. Position is integer and velocity is Q7.8, so just add integer part of velocity.
+  ; x = x + vx * dt
+  LDA .a_vx
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  ADD .a_x
+  STA .a_x
+
+  LDA .a_vy
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  ADD .a_y
+  STA .a_y
+
+  LDA .b_vx
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  ADD .b_x
+  STA .b_x
+
+  LDA .b_vy
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  ADD .b_y
+  STA .b_y
+
+  LDA .c_vx
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  ADD .c_x
+  STA .c_x
+
+  LDA .c_vy
+  PHA
+  LDA .time_step
+  PHA
+  JSR @q7_8_mul
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  ADD .c_y
+  STA .c_y
+
+  RET
+
+calculate_accelerations:
+  ; Reset accelerations to zero
+  LDI 0
+  STA .a_ax
+  STA .a_ay
+  STA .b_ax
+  STA .b_ay
+  STA .c_ax
+  STA .c_ay
+
+  ; Calculate distance between A and B
+  LDA .a_x
+  PHA
+  LDA .a_y
+  PHA
+  LDA .b_x
+  PHA
+  LDA .b_y
+  PHA
+  JSR @distance2d
+  RSA                  ; right shift 8 times (divide by 256) to scale down
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 2
+  JPC dist_ab_ok
+  LDI 2
+dist_ab_ok:
+  STA .tmp1            ; tmp1 = distance AB
+  ; Calculate force magnitude between A and B: F = G * m1 * m2
+  LDA .a_mass
+  PHA
+  LDA .b_mass
+  PHA
+  JSR @q7_8_mul
+  PHA
+  LDA .gravity_const
+  PHA
+  JSR @q7_8_mul
+  STA .tmp2            ; tmp2 = force magnitude AB
+  ; Calculate distance between A and C
+  LDA .a_x
+  PHA
+  LDA .a_y
+  PHA
+  LDA .c_x
+  PHA
+  LDA .c_y
+  PHA
+  JSR @distance2d
+  RSA                  ; right shift 8 times (divide by 256) to scale down
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 2
+  JPC dist_ac_ok
+  LDI 2
+dist_ac_ok:
+  STA .tmp3            ; tmp3 = distance AC
+  ; Calculate force magnitude between A and C: F = G * m1 * m2
+  LDA .a_mass
+  PHA
+  LDA .c_mass
+  PHA
+  JSR @q7_8_mul
+  PHA
+  LDA .gravity_const
+  PHA
+  JSR @q7_8_mul
+  STA .tmp4            ; tmp4 = force magnitude AC
+  ; Calculate distance between B and C
+  LDA .b_x
+  PHA
+  LDA .b_y
+  PHA
+  LDA .c_x
+  PHA
+  LDA .c_y
+  PHA
+  JSR @distance2d
+  RSA                  ; right shift 8 times (divide by 256) to scale down
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  CPI 2
+  JPC dist_bc_ok
+  LDI 2
+dist_bc_ok:
+  STA .tmp5            ; tmp5 = distance BC
+  ; Calculate force magnitude between B and C: F = G * m1 * m2
+  LDA .b_mass
+  PHA
+  LDA .c_mass
+  PHA
+  JSR @q7_8_mul
+  PHA
+  LDA .gravity_const
+  PHA
+  JSR @q7_8_mul
+  STA .tmp6            ; tmp6 = force magnitude BC
+
+  ; Calculate a_ax
+  ; a_ax = (F_AB * (bx - ax) / d_AB³ + F_AC * (cx - ax) / d_AC³) / m_a
+  ; build fraction (bx - ax) / d_AB³
+  LDA .b_x
+  SUB .a_x
+  PHA
+  LDA .tmp1
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (bx - ax) / d_AB
+  LDA .tmp1
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (bx - ax) / d_AB²
+  LDA .tmp1
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (bx - ax) / d_AB³
+  ; multiply by force magnitude F_AB
+  LDA .tmp2
+  PHA
+  JSR @q7_8_mul
+  STA .a_b_force_x                      ; F_AB * (bx - ax) / d_AB³
+  ; build fraction (cx - ax) / d_AC³
+  LDA .c_x
+  SUB .a_x
+  PHA
+  LDA .tmp3
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cx - ax) / d_AC
+  LDA .tmp3
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cx - ax) / d_AC²
+  LDA .tmp3
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cx - ax) / d_AC³
+  ; multiply by force magnitude F_AC
+  LDA .tmp4
+  PHA
+  JSR @q7_8_mul
+  STA .a_c_force_x                      ; F_AC * (cx - ax) / d_AC³
+  ; add contributions and divide by mass
+  ADD .a_b_force_x                      ; a_c_force_x already in A, a_b_force_x + a_c_force_x
+  PHA
+  LDA .a_mass
+  PHA
+  JSR @q7_8_div
+  STA .a_ax
+
+  ; Calculate a_ay
+  ; a_ay = (F_AB * (by - ay) / d_AB³ + F_AC * (cy - ay) / d_AC³) / m_a
+  ; build fraction (by - ay) / d_AB³
+  LDA .b_y
+  SUB .a_y
+  PHA
+  LDA .tmp1
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (by - ay) / d_AB
+  LDA .tmp1
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (by - ay) / d_AB²
+  LDA .tmp1
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (by - ay) / d_AB³
+  ; multiply by force magnitude F_AB
+  LDA .tmp2
+  PHA
+  JSR @q7_8_mul
+  STA .a_b_force_y                      ; F_AB * (by - ay) / d_AB³
+  ; build fraction (cy - ay) / d_AC³
+  LDA .c_y
+  SUB .a_y
+  PHA
+  LDA .tmp3
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cy - ay) / d_AC
+  LDA .tmp3
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cy - ay) / d_AC²
+  LDA .tmp3
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cy - ay) / d_AC³
+  ; multiply by force magnitude F_AC
+  LDA .tmp4
+  PHA
+  JSR @q7_8_mul
+  STA .a_c_force_y                      ; F_AC * (cy - ay) / d_AC³
+  ; add contributions and divide by mass
+  ADD .a_b_force_y                      ; a_c_force_y already in A, a_b_force_y + a_c_force_y
+  PHA
+  LDA .a_mass
+  PHA
+  JSR @q7_8_div
+  STA .a_ay
+
+  ; Calculate b_ax
+  ; b_ax = (F_AB * (ax - bx) / d_AB³ + F_BC * (cx - bx) / d_BC³) / m_b
+
+  ; build fraction (ax - bx) / d_AB³ = - F_AB * (bx - ax) / d_AB³ = -.a_b_force_x
+  LDI 0
+  SUB .a_b_force_x
+  STA .tmp7                                 ; tmp7 = b_a_force_x = F_AB * (ax - bx) / d_AB³
+  
+  ; build fraction (cx - bx) / d_BC³
+  LDA .c_x
+  SUB .b_x
+  PHA
+  LDA .tmp5
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cx - bx) / d_BC
+  LDA .tmp5
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cx - bx) / d_BC²
+  LDA .tmp5
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cx - bx) / d_BC³
+  ; multiply by force magnitude F_BC
+  LDA .tmp6
+  PHA
+  JSR @q7_8_mul
+  STA .b_c_force_x                      ; F_BC * (cx - bx) / d_BC³
+  ; add contributions and divide by mass
+  ADD .tmp7                                 ; b_c_force_x already in A, b_a_force_x + b_c_force_x
+  PHA
+  LDA .b_mass
+  PHA
+  JSR @q7_8_div
+  STA .b_ax
+
+  ; Calculate b_ay
+  ; b_ay = (F_AB * (ay - by) / d_AB³ + F_BC * (cy - by) / d_BC³) / m_b
+
+  ; build fraction (ay - by) / d_AB³ = - F_AB * (by - ay) / d_AB³ = -.a_b_force_y
+  LDI 0
+  SUB .a_b_force_y
+  STA .tmp7                                 ; tmp7 = b_a_force_y = F_AB * (ay - by) / d_AB³
+
+  ; build fraction (cy - by) / d_BC³
+  LDA .c_y
+  SUB .b_y
+  PHA
+  LDA .tmp5
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cy - by) / d_BC
+  LDA .tmp5
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cy - by) / d_BC²
+  LDA .tmp5
+  PHA
+  JSR @q7_8_from_ratio 
+  PHA   ; (cy - by) / d_BC³
+  ; multiply by force magnitude F_BC
+  LDA .tmp6
+  PHA
+  JSR @q7_8_mul
+  STA .b_c_force_y                      ; F_BC * (cy - by) / d_BC³
+  ; add contributions and divide by mass
+  ADD .tmp7                                 ; b_c_force_y already in A, b_a_force_y + b_c_force_y
+  PHA
+  LDA .b_mass
+  PHA
+  JSR @q7_8_div
+  STA .b_ay
+
+  ; Calculate c_ax
+  ; c_ax = (F_AC * (ax - cx) / d_AC³ + F_BC * (bx - cx) / d_BC³) / m_c
+  ; build fraction (ax - cx) / d_AC³ = - F_AC * (cx - ax) / d_AC³ = -.a_c_force_x
+  LDI 0
+  SUB .a_c_force_x
+  STA .tmp7                                 ; tmp7 = c_a_force_x = F_AC * (ax - cx) / d_AC³
+  ; build fraction (bx - cx) / d_BC³ = - F_BC * (cx - bx) / d_BC³ = -.b_c_force_x
+  LDI 0
+  SUB .b_c_force_x
+  STA .tmp8                                 ; tmp8 = c_b_force_x = F_BC * (bx - cx) / d_BC³
+  ; add contributions and divide by mass
+  ADD .tmp7                                 ; c_a_force_x + c_b_force_x
+  PHA
+  LDA .c_mass
+  PHA
+  JSR @q7_8_div
+  STA .c_ax
+
+  ; Calculate c_ay
+  ; c_ay = (F_AC * (ay - cy) / d_AC³ + F_BC * (by - cy) / d_BC³) / m_c
+  ; build fraction (ay - cy) / d_AC³ = - F_AC * (cy - ay) / d_AC³ = -.a_c_force_y
+  LDI 0
+  SUB .a_c_force_y
+  STA .tmp7                                 ; tmp7 = c_a_force_y = F_AC * (ay - cy) / d_AC³
+  ; build fraction (by - cy) / d_BC³ = - F_BC * (cy - by) / d_BC³ = -.b_c_force_y
+  LDI 0
+  SUB .b_c_force_y
+  STA .tmp8                                 ; tmp8 = c_b_force_y = F_BC * (by - cy) / d_BC³
+  ; add contributions and divide by mass
+  ADD .tmp7                                 ; c_a_force_y + c_b_force_y
+  PHA
+  LDA .c_mass
+  PHA
+  JSR @q7_8_div
+  STA .c_ay
+  RET
+
+tbs_done:
+  JSR @newline
+  RET

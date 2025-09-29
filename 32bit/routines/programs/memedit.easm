@@ -1,6 +1,6 @@
 ;! name: MEMEDIT
 ;! entry: main
-;! deps: display_number, newline, write_char
+;! deps: display_number, newline, write_char, parse_number
 ;! abi: all
 ;! bss: auto
 ;! align: 1
@@ -35,33 +35,8 @@ main:
 me_go:
   ; parse first arg -> write_base
   LDA .__argv_base + 1
-  STA .__res2           ; __res2 = pointer to string
-  LDI 0
-  STA .__res1
-me_pn:
-  LPA .__res2                ; load mem[mem[.__res2]] into A
-  CPI 0
-  JPZ me_pn_done
-  CPI 32
-  JPZ me_pn_done
-  SUI 48
-  STA .__char
-  LDA .__res1
-  LSA
-  STA .__pow2
-  LSA
-  LSA
-  ADD .__pow2
-  STA .__res1
-  LDA .__res1
-  ADD .__char
-  STA .__res1
-  LDA .__res2
-  ADI 1
-  STA .__res2
-  JMP me_pn
-me_pn_done:
-  LDA .__res1
+  PHA
+  JSR @parse_number
   STA .bss
   STA .bss + 1
 
@@ -226,50 +201,26 @@ pas_skip1:
   STA .bss + 5
   JMP pas_next_token
 pas_start:
-  LDI 0
-  STA .bss + 6
-  LDI 0
-  STA .__num_digits
-pas_digits:
-  LPA .bss + 5                ; load mem[mem[.bss + 5]] into A
-  CPI 48
-  JPC pas_check_hi
-  JMP pas_after_num
-pas_check_hi:
-  CPI 58
-  JPC pas_after_num
-  ; digit: val = val*10 + (ch-48)
-  SUI 48
-  STA .__char
-  LDA .bss + 6
-  LSA
-  STA .__pow2
-  LSA
-  LSA
-  ADD .__pow2
-  STA .bss + 6
-  LDA .bss + 6
-  ADD .__char
-  STA .bss + 6
-  ; advance
+  ; Use parse_number to parse integer or decimal (Q7.8). If it doesn't
+  ; consume any input, advance by one char and continue.
   LDA .bss + 5
-  ADI 1
+  STA .__work1                 ; remember original scan_ptr
+  LDA .bss + 5
+  PHA
+  JSR @parse_number
+  STA .bss + 6                 ; store parsed value
+  LDA .__arg1                  ; updated pointer from parser
   STA .bss + 5
-  LDA .__num_digits
-  ADI 1
-  STA .__num_digits
-  JMP pas_digits
-pas_after_num:
-  ; if no digits, treat current char as separator: advance and continue
-  LDA .__num_digits
-  CPI 0
-  JPZ pas_sep_adv
-  ; write value to memory at write_ptr
+  ; if no progress, treat current char as separator: advance and continue
+  LDA .bss + 5
+  CMP .__work1
+  JPZ pas_sep_adv2
+  ; otherwise, write value to memory at write_ptr
   LDA .bss + 1
   CMP .__sys_reserved_region_end         ; if address >= reserved region end, OK
-  JPC pas_address_ok
+  JPC pas_address_ok2
   JMP pas_invalid_address
-pas_address_ok:
+pas_address_ok2:
   PHA
   LDA .bss + 6
   SAS
@@ -278,8 +229,8 @@ pas_address_ok:
   ADI 1
   STA .bss + 1
   JMP pas_next_token
-pas_sep_adv:
-  ; advance scan_ptr over non-digit separator and continue
+pas_sep_adv2:
+  ; advance scan_ptr over non-number separator and continue
   LDA .bss + 5
   ADI 1
   STA .bss + 5

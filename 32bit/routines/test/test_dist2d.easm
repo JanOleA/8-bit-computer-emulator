@@ -1,0 +1,22 @@
+;! name: TDIST2D
+;! entry: main
+;! deps: display_number, newline, distance2d
+;! abi: 
+;! bss: none
+;! align: 1
+;! callable: yes
+
+
+main:
+  LDI 1031
+  PHA
+  LDI 3911
+  PHA
+  LDI 4012
+  PHA
+  LDI 321
+  PHA
+  JSR @distance2d
+  JSR @display_number
+  JSR @newline
+  RET

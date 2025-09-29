@@ -253,7 +253,7 @@ def assemble_dynamic_module(src_path: str,
     else:
         # none; warn if usage detected
         if bss_required:
-            print(f"Warning: {src_path.name} references .bss but 'bss' is 'none'.")
+            print(f"Warning: {src_path} references .bss but 'bss' is 'none'.")
 
     # DATA injection (auto variables)
     data_base = None
@@ -306,7 +306,7 @@ def assemble_dynamic_module(src_path: str,
         code_index += len(tokens)
 
     if len(jsr_zero_code_indexes) != len(extern_calls):
-        raise ValueError(f"Extern calls count mismatch in {src_path.name}: found {len(jsr_zero_code_indexes)} JSR #0, headers referenced {len(extern_calls)} symbols")
+        raise ValueError(f"Extern calls count mismatch in {src_path}: found {len(jsr_zero_code_indexes)} JSR #0, headers referenced {len(extern_calls)} symbols")
 
     # Relocate internal jumps to chosen base
     relocate_jumps_in_place(code, program, ins_map, base_addr, relocate_jsr=True)
@@ -315,7 +315,7 @@ def assemble_dynamic_module(src_path: str,
     new_start, new_end = base_addr, base_addr + len(code)
     for s, e in used_bases:
         if not (new_end <= s or new_start >= e):
-            raise ValueError(f"Overlap: {src_path.name} [{new_start},{new_end}) conflicts with [{s},{e})")
+            raise ValueError(f"Overlap: {src_path} [{new_start},{new_end}) conflicts with [{s},{e})")
 
     # Callable flag: whether module is directly invokable from terminal (shell)
     callable_flag = 1 if headers.get("callable", "").lower() in ("1", "yes", "true", "y", "on") else 0
@@ -346,7 +346,7 @@ def assemble_dynamic_module(src_path: str,
         d_start, d_end = data_base, data_base + len(words)
         for s, e in used_bases:
             if not (d_end <= s or d_start >= e):
-                raise ValueError(f"Overlap: data for {src_path.name} [{d_start},{d_end}) conflicts with [{s},{e})")
+                raise ValueError(f"Overlap: data for {src_path} [{d_start},{d_end}) conflicts with [{s},{e})")
         used_bases.append((d_start, d_end))
         out[f"{name}_data"] = {"base": data_base, "length": len(words), "words": words}
 
@@ -362,7 +362,7 @@ def main(args):
     # Optionally scan 32bit/routines for extra modules
     routines_dir = os.path.join(Path(__file__).parent.parent, "32bit", "routines")
     bss_auto_start = 20000
-    data_auto_start = 25000
+    data_auto_start = 26000
     modules_to_patch: List[Tuple[str, Dict]] = []
     # Reserve OS call stub so modules don't overlap it
     try:
