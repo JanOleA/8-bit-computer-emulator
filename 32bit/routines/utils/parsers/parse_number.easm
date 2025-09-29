@@ -120,7 +120,7 @@ pn_frac_yes_ge0:
   STA .bss + 3
 
   ; parse up to 4 fractional digits for rounding, but consume all digits
-  LDI 0               ; use .bss+1 as counter for digits seen (reuse tmp)
+  LDI 0               ; use bss+1 as counter for digits seen (reuse tmp)
   STA .bss + 1
 pn_frac_loop:
   LPA .bss + 3
