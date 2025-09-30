@@ -33,7 +33,7 @@ do_mul:
   PHA                       ; push the first value for multiply to the stack
   LDA .work2
   PHA                       ; push the second value for multiply to the stack
-  JSR @multiply             ; result is returned in A
+  JSR @multiply
   JMP do_print
 ```
 

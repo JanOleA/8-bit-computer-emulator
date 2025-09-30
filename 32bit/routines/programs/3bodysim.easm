@@ -1,6 +1,6 @@
 ;! name: 3BODYSIM
 ;! entry: three_body_sim
-;! deps: printf, printez, parse_number, q7_8_from_ratio, q7_8_from_dec, q7_8_mul, q7_8_div, display_q7_8, newline, distance2d, toggle_display_enable, display_number, display_q7_8, q7_8_to_int, divide_signed, display_int
+;! deps: printf, printez, parse_number, q7_8_from_ratio, q7_8_from_dec, q7_8_mul, q7_8_div, display_q7_8, newline, distance2d, toggle_display_enable, display_number, display_q7_8, q7_8_to_int, divide_signed, display_int, divide
 ;! abi: all
 ;! bss: auto
 ;! align: 1
@@ -34,6 +34,10 @@
 .status_text8 =  "F AB: (%f, %f)"
 .status_text9 =  "F AC: (%f, %f)"
 .status_text10 = "F BC: (%f, %f)"
+
+.speeds_text1 = "VA: (%f, %f)"
+.speeds_text2 = "VB: (%f, %f)"
+.speeds_text3 = "VC: (%f, %f)"
 
 a_x = .bss + 0 ; Body A X position
 a_y = .bss + 1 ; Body A Y position
@@ -184,6 +188,7 @@ tbs_loaded:
   ; Main simulation loop
   LDI 0
   STA .step_count
+  JSR plot_positions
 tbs_main_loop:
   LDA .step_count
   CMP .num_steps
@@ -192,8 +197,252 @@ tbs_main_loop:
   LDA .step_count
   ADI 1
   STA .step_count
-  JSR print_status
+  STA .__arg1
+  LDI 10
+  STA .__arg2
+  JSR @divide
+  LDA .__res2
+  CPI 1
+  JPC tbs_main_loop      ; if remainder >= 1, skip plotting
+  JSR plot_positions
   JMP tbs_main_loop
+
+plot_positions:
+  ; Plot the three body positions on the LCD.
+  ; Assumptions:
+  ;   - Positions are signed integers in [-15000, 15000]
+  ;   - X axis maps left(-15000)→0 .. right(+15000)→(W-1)
+  ;   - Y axis maps up(-15000)→0 .. down(+15000)→(H-1)
+  ; Strategy:
+  ;   - Clear screen
+  ;   - Precompute (W-1) and (H-1) in Q7.8 once
+  ;   - For each body, compute:
+  ;       col = round( (x + 15000) / 30000 * (W-1) )
+  ;       row = round( (15000 - y) / 30000 * (H-1) )
+  ;     then move cursor Home, then Down row, Right col, write marker
+
+  ; Clear display
+  DIS 1
+  JSR @toggle_display_enable
+  DIS 8                 ; disable cursor and cursor blink
+  JSR @toggle_display_enable
+
+  LDI .speeds_text1
+  PHA
+  LDI .a_vx
+  PHA
+  JSR @printf
+
+  LDI .speeds_text2
+  PHA
+  LDI .b_vx
+  PHA
+  JSR @printf
+
+  LDI .speeds_text3
+  PHA
+  LDI .c_vx
+  PHA
+  JSR @printf
+
+  DIS 2
+  JSR @toggle_display_enable
+
+  ; Precompute (W-1) and (H-1) in both int and Q7.8
+  LDA .__sys_screen_width
+  SUI 1
+  STA .tmp12                ; W-1 (int)
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .tmp14
+
+  LDA .__sys_screen_height
+  SUI 1
+  STA .tmp13                ; H-1 (int)
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .tmp15
+
+  ; ---- Body A ----
+  ; col = round(((a_x+15000)/30000) * (W-1))
+  LDA .a_x
+  ADI 15000
+  PHA
+  LDI 30000
+  PHA
+  JSR @q7_8_from_ratio
+  PHA
+  LDA .tmp14                ; Q7.8(W-1)
+  PHA
+  JSR @q7_8_mul
+  PHA
+  JSR @q7_8_to_int
+  STA .tmp9                 ; col
+  ; row = round(((15000 - a_y)/30000) * (H-1))
+  LDI 15000
+  SUB .a_y
+  PHA
+  LDI 30000
+  PHA
+  JSR @q7_8_from_ratio
+  PHA
+  LDA .tmp15                ; Q7.8(H-1)
+  PHA
+  JSR @q7_8_mul
+  PHA
+  JSR @q7_8_to_int
+  STA .tmp10                ; row
+  ; Move cursor home
+  DIS 2
+  JSR @toggle_display_enable
+  ; move down by row
+pa_row_loop:
+  LDA .tmp10
+  CPI 0
+  JPZ pa_rows_done
+  DIS 20
+  JSR @toggle_display_enable
+  LDA .tmp10
+  SUI 1
+  STA .tmp10
+  JMP pa_row_loop
+pa_rows_done:
+  ; move right by col
+pa_col_loop:
+  LDA .tmp9
+  CPI 0
+  JPZ pa_cols_done
+  DIS 17
+  JSR @toggle_display_enable
+  LDA .tmp9
+  SUI 1
+  STA .tmp9
+  JMP pa_col_loop
+pa_cols_done:
+  ; write 'A'
+  LDI 65
+  JSR @write_char
+
+  ; ---- Body B ----
+  ; col
+  LDA .b_x
+  ADI 15000
+  PHA
+  LDI 30000
+  PHA
+  JSR @q7_8_from_ratio
+  PHA
+  LDA .tmp14
+  PHA
+  JSR @q7_8_mul
+  PHA
+  JSR @q7_8_to_int
+  STA .tmp9
+  ; row
+  LDI 15000
+  SUB .b_y
+  PHA
+  LDI 30000
+  PHA
+  JSR @q7_8_from_ratio
+  PHA
+  LDA .tmp15
+  PHA
+  JSR @q7_8_mul
+  PHA
+  JSR @q7_8_to_int
+  STA .tmp10
+  ; home and move
+  DIS 2
+  JSR @toggle_display_enable
+pb_row_loop:
+  LDA .tmp10
+  CPI 0
+  JPZ pb_rows_done
+  DIS 20
+  JSR @toggle_display_enable
+  LDA .tmp10
+  SUI 1
+  STA .tmp10
+  JMP pb_row_loop
+pb_rows_done:
+pb_col_loop:
+  LDA .tmp9
+  CPI 0
+  JPZ pb_cols_done
+  DIS 17
+  JSR @toggle_display_enable
+  LDA .tmp9
+  SUI 1
+  STA .tmp9
+  JMP pb_col_loop
+pb_cols_done:
+  ; write 'B'
+  LDI 66
+  JSR @write_char
+
+  ; ---- Body C ----
+  ; col
+  LDA .c_x
+  ADI 15000
+  PHA
+  LDI 30000
+  PHA
+  JSR @q7_8_from_ratio
+  PHA
+  LDA .tmp14
+  PHA
+  JSR @q7_8_mul
+  PHA
+  JSR @q7_8_to_int
+  STA .tmp9
+  ; row
+  LDI 15000
+  SUB .c_y
+  PHA
+  LDI 30000
+  PHA
+  JSR @q7_8_from_ratio
+  PHA
+  LDA .tmp15
+  PHA
+  JSR @q7_8_mul
+  PHA
+  JSR @q7_8_to_int
+  STA .tmp10
+  ; home and move
+  DIS 2
+  JSR @toggle_display_enable
+pc_row_loop:
+  LDA .tmp10
+  CPI 0
+  JPZ pc_rows_done
+  DIS 20
+  JSR @toggle_display_enable
+  LDA .tmp10
+  SUI 1
+  STA .tmp10
+  JMP pc_row_loop
+pc_rows_done:
+pc_col_loop:
+  LDA .tmp9
+  CPI 0
+  JPZ pc_cols_done
+  DIS 17
+  JSR @toggle_display_enable
+  LDA .tmp9
+  SUI 1
+  STA .tmp9
+  JMP pc_col_loop
+pc_cols_done:
+  ; write 'C'
+  LDI 67
+  JSR @write_char
+  RET
 
 print_status:
   LDA .step_count
@@ -252,7 +501,6 @@ print_status:
   LDI .b_c_force_x
   PHA
   JSR @printf
-  JSR tbs_wait_any_key
   RET
 
 step:
@@ -266,7 +514,10 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  ADD .a_vx             ; result from multiplication is in A register, so just add vx
+  PHA                     ; delta = ax*dt
+  LDA .a_vx               ; current vx
+  PHA
+  JSR sat_add_speed_q78   ; saturated add to [-128,128)
   STA .a_vx
 
   LDA .a_ay
@@ -274,7 +525,10 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  ADD .a_vy
+  PHA
+  LDA .a_vy
+  PHA
+  JSR sat_add_speed_q78
   STA .a_vy
 
   LDA .b_ax
@@ -282,7 +536,10 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  ADD .b_vx
+  PHA
+  LDA .b_vx
+  PHA
+  JSR sat_add_speed_q78
   STA .b_vx
 
   LDA .b_ay
@@ -290,7 +547,10 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  ADD .b_vy
+  PHA
+  LDA .b_vy
+  PHA
+  JSR sat_add_speed_q78
   STA .b_vy
 
   LDA .c_ax
@@ -298,7 +558,10 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  ADD .c_vx
+  PHA
+  LDA .c_vx
+  PHA
+  JSR sat_add_speed_q78
   STA .c_vx
 
   LDA .c_ay
@@ -306,7 +569,10 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  ADD .c_vy
+  PHA
+  LDA .c_vy
+  PHA
+  JSR sat_add_speed_q78
   STA .c_vy
 
   ; Update positions based on velocities and time step. Position is integer and velocity is Q7.8, so just add integer part of velocity.
@@ -319,6 +585,7 @@ step:
   PHA
   JSR @q7_8_to_int
   ADD .a_x
+  JSR clamp_pos_in_A
   STA .a_x
 
   LDA .a_vy
@@ -329,6 +596,7 @@ step:
   PHA
   JSR @q7_8_to_int
   ADD .a_y
+  JSR clamp_pos_in_A
   STA .a_y
 
   LDA .b_vx
@@ -339,6 +607,7 @@ step:
   PHA
   JSR @q7_8_to_int
   ADD .b_x
+  JSR clamp_pos_in_A
   STA .b_x
 
   LDA .b_vy
@@ -349,6 +618,7 @@ step:
   PHA
   JSR @q7_8_to_int
   ADD .b_y
+  JSR clamp_pos_in_A
   STA .b_y
 
   LDA .c_vx
@@ -359,6 +629,7 @@ step:
   PHA
   JSR @q7_8_to_int
   ADD .c_x
+  JSR clamp_pos_in_A
   STA .c_x
 
   LDA .c_vy
@@ -369,8 +640,224 @@ step:
   PHA
   JSR @q7_8_to_int
   ADD .c_y
+  JSR clamp_pos_in_A
   STA .c_y
 
+  RET
+
+; Saturating add for speeds: returns clamp(current + delta) to [-128, 128)
+; args ABI: push current; push delta; JSR sat_add_speed_q78
+; Returns: A = saturated sum
+sat_add_speed_q78:
+  ; Prologue: fetch args (top = delta, next = current)
+  PLA
+  MOVAB
+  PLA
+  STA .tmp9           ; delta
+  PLA
+  STA .tmp10          ; current
+  MOVBA
+  PHA
+  ; Build sign mask in .tmp11
+  LDI 1
+  STA .tmp11
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .tmp12
+sat_mask_loop:
+  LDA .tmp12
+  CPI 0
+  JPZ sat_mask_done
+  LDA .tmp11
+  LSA
+  STA .tmp11
+  LDA .tmp12
+  SUI 1
+  STA .tmp12
+  JMP sat_mask_loop
+sat_mask_done:
+  ; sign_delta -> .tmp12 (0/1)
+  LDA .tmp9
+  CMP .tmp11
+  JPC sat_d_neg
+  LDI 0
+  STA .tmp12
+  JMP sat_c_sign
+sat_d_neg:
+  LDI 1
+  STA .tmp12
+sat_c_sign:
+  ; sign_current -> .tmp15 (0/1)
+  LDA .tmp10
+  CMP .tmp11
+  JPC sat_c_neg
+  LDI 0
+  STA .tmp15
+  JMP sat_do_add
+sat_c_neg:
+  LDI 1
+  STA .tmp15
+sat_do_add:
+  ; sum = delta + current
+  LDA .tmp9
+  ADD .tmp10
+  STA .tmp13          ; sum (mod word)
+  ; sign_sum -> .tmp14
+  LDA .tmp13
+  CMP .tmp11
+  JPC sat_s_neg
+  LDI 0
+  STA .tmp14
+  JMP sat_chk_ovf
+sat_s_neg:
+  LDI 1
+  STA .tmp14
+sat_chk_ovf:
+  ; overflow if (sign_delta == sign_current) && (sign_sum != sign_delta)
+  LDA .tmp12
+  CMP .tmp15
+  JPZ sat_signs_equal
+  JMP sat_no_ovf
+sat_signs_equal:
+  ; if sign_sum != sign_delta -> overflow
+  LDA .tmp14
+  CMP .tmp12
+  JPZ sat_no_ovf
+  ; OVERFLOW -> saturate to boundary by sign of operands (sign_delta)
+  LDA .tmp12
+  CPI 0
+  JPZ sat_pos_sat
+  ; negative overflow -> -128.0
+  LDI 0
+  SUI 32768
+  RET
+sat_pos_sat:
+  ; positive overflow -> +127.996 (~0x7FFF)
+  LDI 32767
+  RET
+sat_no_ovf:
+  ; No signed overflow: clamp to [-128, 128)
+  LDA .tmp13
+  JSR clamp_speed_q78_in_A
+  RET
+
+; Clamp Q7.8 value in A to the range [-128, 128)
+; Uses temporaries: .tmp9 (val), .tmp10 (sign_mask), .tmp11 (cnt), .tmp12 (abs), .tmp13 (ip)
+clamp_speed_q78_in_A:
+  ; save original value
+  STA .tmp9
+  ; build sign mask = 1 << (.__sys_bits_avail - 1)
+  LDI 1
+  STA .tmp10
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .tmp11
+clmp_mask_loop:
+  LDA .tmp11
+  CPI 0
+  JPZ clmp_mask_done
+  LDA .tmp10
+  LSA
+  STA .tmp10
+  LDA .tmp11
+  SUI 1
+  STA .tmp11
+  JMP clmp_mask_loop
+clmp_mask_done:
+  ; abs(value)
+  LDA .tmp9
+  CMP .tmp10
+  JPC clmp_neg
+  STA .tmp12
+  JMP clmp_abs_done
+clmp_neg:
+  LDI 0
+  SUB .tmp9
+  STA .tmp12
+clmp_abs_done:
+  ; ip = abs(value) >> 8
+  LDA .tmp12
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  STA .tmp13
+  ; if ip >= 128 then clamp
+  LDA .tmp13
+  CPI 128
+  JPC clmp_do
+  ; else return original
+  LDA .tmp9
+  RET
+clmp_do:
+  ; choose min/max based on original sign
+  LDA .tmp9
+  CMP .tmp10
+  JPC clmp_set_min
+  ; positive overflow -> set to +127.996 (~0x7FFF)
+  LDI 32767
+  RET
+clmp_set_min:
+  ; negative overflow -> set to -128.0 (-(128<<8) = -32768)
+  LDI 0
+  SUI 32768
+  RET
+
+; Clamp integer position in A to [-15000, 15000]
+; Uses temporaries: .tmp9 (val), .tmp10 (sign_mask), .tmp11 (cnt), .tmp12 (abs)
+clamp_pos_in_A:
+  STA .tmp9
+  ; build sign mask
+  LDI 1
+  STA .tmp10
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .tmp11
+clp_mask_loop:
+  LDA .tmp11
+  CPI 0
+  JPZ clp_mask_done
+  LDA .tmp10
+  LSA
+  STA .tmp10
+  LDA .tmp11
+  SUI 1
+  STA .tmp11
+  JMP clp_mask_loop
+clp_mask_done:
+  ; if negative
+  LDA .tmp9
+  CMP .tmp10
+  JPC clp_is_neg
+  ; non-negative: if A >= 15000 -> clamp to 15000
+  LDA .tmp9
+  CPI 15000
+  JPC clp_pos_sat
+  ; else return original
+  LDA .tmp9
+  RET
+clp_pos_sat:
+  LDI 15000
+  RET
+clp_is_neg:
+  ; abs = -val
+  LDI 0
+  SUB .tmp9
+  STA .tmp12
+  ; if abs >= 15000 -> clamp to -15000
+  LDA .tmp12
+  CPI 15000
+  JPC clp_neg_sat
+  ; else return original
+  LDA .tmp9
+  RET
+clp_neg_sat:
+  LDI 0
+  SUI 15000
   RET
 
 calculate_accelerations:
@@ -734,5 +1221,11 @@ wait_done:
   RET
 
 tbs_done:
+  DIS 6             ; 0000 0110 - Set entry mode, cursor direction to increment
+  JSR @toggle_display_enable 
+  DIS 15            ; set on, display cursor, cursor blink
+  JSR @toggle_display_enable
+  DIS 1
+  JSR @toggle_display_enable
   JSR @newline
   RET
