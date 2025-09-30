@@ -1,0 +1,53 @@
+;! name: SINIT
+;! entry: setup_init_cond
+;! deps: q7_8_from_ratio
+;! abi: all
+;! bss: auto
+;! align: 1
+;! callable: yes
+
+ten_dec = .bss + 0   ; Q7.8 representation of 10.0
+
+; Set up initial conditions for 3-body simulation.
+setup_init_cond:
+  LDI 0
+  STA 32000     ; ax
+  STA 32001     ; ay
+  STA 32002     ; avx
+  STA 32003     ; avy
+  LDI 10
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .ten_dec
+  STA 32004     ; a_mass
+
+  LDI 10000
+  STA 32005     ; bx
+  LDI 0
+  STA 32006     ; by
+  LDI 0
+  STA 32007     ; bvx
+  STA 32008     ; bvy
+  LDA .ten_dec
+  STA 32009     ; b_mass
+
+  LDI 0
+  SUI 10000
+  STA 32010     ; cx
+  LDI 10000
+  STA 32011     ; cy
+  LDI 0
+  STA 32012     ; cvx
+  STA 32013     ; cvy
+  LDA .ten_dec
+  STA 32014     ; c_mass
+
+  LDI 1
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA 32015     ; G
+  RET

@@ -1,0 +1,126 @@
+;! name: DIVIDESIG
+;! entry: divide_signed
+;! deps: divide
+;! abi: sysinfo args
+;! bss: auto
+;! align: 1
+
+; Signed integer division wrapper around divide (unsigned).
+; Call signature (args ABI): divide_signed(SP-3, SP-2) = divide_signed(a, b)
+;   push a; push b; JSR @divide_signed
+; Returns: A = signed quotient (trunc toward zero). Division by zero → A=0.
+
+a_val      = .bss + 0
+b_val      = .bss + 1
+sign_mask  = .bss + 2
+cnt        = .bss + 3
+sign       = .bss + 4    ; 0 = non-negative, 1 = negative
+mag_a      = .bss + 5
+mag_b      = .bss + 6
+
+divide_signed:
+  ; Prologue: fetch args (top of stack = b, next = a)
+  PLA
+  MOVAB
+  PLA
+  STA .b_val
+  PLA
+  STA .a_val
+  MOVBA
+  PHA
+
+  ; Build sign mask = 1 << (.__sys_bits_avail - 1)
+  LDI 1
+  STA .sign_mask
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .cnt
+ds_mask_loop:
+  LDA .cnt
+  CPI 0
+  JPZ ds_mask_done
+  LDA .sign_mask
+  LSA
+  STA .sign_mask
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP ds_mask_loop
+ds_mask_done:
+
+  ; Determine quotient sign = (a<0) XOR (b<0)
+  LDA .a_val
+  CMP .sign_mask
+  JPC ds_a_neg
+  LDI 0
+  STA .sign
+  JMP ds_test_b
+ds_a_neg:
+  LDI 1
+  STA .sign
+ds_test_b:
+  LDA .b_val
+  CMP .sign_mask
+  JPC ds_b_neg
+  JMP ds_abs
+ds_b_neg:
+  LDA .sign
+  CPI 0
+  JPZ ds_set1
+  LDI 0
+  STA .sign
+  JMP ds_abs
+ds_set1:
+  LDI 1
+  STA .sign
+
+ds_abs:
+  ; mag_a = abs(a), mag_b = abs(b)
+  LDA .a_val
+  CMP .sign_mask
+  JPC ds_abs_a_neg
+  STA .mag_a
+  JMP ds_abs_b
+ds_abs_a_neg:
+  LDI 0
+  SUB .a_val
+  STA .mag_a
+ds_abs_b:
+  LDA .b_val
+  CMP .sign_mask
+  JPC ds_abs_b_neg
+  STA .mag_b
+  JMP ds_div
+ds_abs_b_neg:
+  LDI 0
+  SUB .b_val
+  STA .mag_b
+
+ds_div:
+  ; Divide magnitudes; handle b == 0 → return 0
+  LDA .mag_b
+  CPI 0
+  JPZ ds_div_zero
+  LDA .mag_a
+  STA .__arg1
+  LDA .mag_b
+  STA .__arg2
+  JSR @divide
+  ; A = unsigned quotient magnitude
+  JMP ds_apply_sign
+
+ds_div_zero:
+  LDI 0
+
+ds_apply_sign:
+  ; Apply sign to quotient in A
+  STA .mag_a      ; reuse .mag_a to hold quotient magnitude
+  LDA .sign
+  CPI 0
+  JPZ ds_ret_pos
+  LDI 0
+  SUB .mag_a
+  RET
+ds_ret_pos:
+  LDA .mag_a
+  RET

@@ -1,0 +1,129 @@
+;! name: Q78TOINT
+;! entry: q7_8_to_int
+;! deps:
+;! abi: sysinfo args
+;! bss: auto
+;! align: 1
+
+; Convert a Q7.8 fixed-point signed value (two's complement) to a rounded, signed integer.
+; Rounding mode: nearest, away from zero on ties (i.e., frac >= 0.5 rounds away from 0).
+;
+; Call signature (args ABI): q7_8_to_int(SP - 2) = q7_8_to_int(q78)
+;   push q78; JSR @q7_8_to_int
+; Returns: A = signed integer (system word width), rounded from Q7.8.
+;
+; Implementation notes:
+; - Works for general word widths by deriving the sign bit mask from .__sys_bits_avail.
+; - Algorithm: mag = abs(q78); ip = mag >> 8; frac = mag - (ip<<8); if frac >= 128 then ip++;
+;              return ±ip according to original sign.
+
+in_val  = .bss + 0
+mask    = .bss + 1    ; sign bit mask (1 << (bits-1))
+cnt     = .bss + 2
+sign    = .bss + 3    ; 0 = non-negative, 1 = negative
+mag     = .bss + 4
+ip      = .bss + 5    ; integer part (magnitude)
+tmp     = .bss + 6    ; temp for (ip << 8)
+frac    = .bss + 7
+
+q7_8_to_int:
+  ; Prologue: fetch single argument while preserving return address
+  PLA
+  MOVAB
+  PLA
+  STA .in_val
+  MOVBA
+  PHA
+
+  ; Build sign mask = 1 << (.__sys_bits_avail - 1)
+  LDI 1
+  STA .mask
+  LDA .__sys_bits_avail
+  SUI 1
+  STA .cnt
+qt_mask_loop:
+  LDA .cnt
+  CPI 0
+  JPZ qt_mask_done
+  LDA .mask
+  LSA
+  STA .mask
+  LDA .cnt
+  SUI 1
+  STA .cnt
+  JMP qt_mask_loop
+qt_mask_done:
+
+  ; Determine sign
+  LDA .in_val
+  CMP .mask
+  JPC qt_is_neg
+  LDI 0
+  STA .sign
+  JMP qt_abs
+qt_is_neg:
+  LDI 1
+  STA .sign
+
+qt_abs:
+  ; mag = abs(in_val)
+  LDA .in_val
+  CMP .mask
+  JPC qt_neg_val
+  STA .mag
+  JMP qt_split
+qt_neg_val:
+  LDI 0
+  SUB .in_val
+  STA .mag
+
+qt_split:
+  ; ip = mag >> 8
+  LDA .mag
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  RSA
+  STA .ip
+
+  ; tmp = ip << 8
+  LDA .ip
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  LSA
+  STA .tmp
+
+  ; frac = mag - tmp
+  LDA .mag
+  SUB .tmp
+  STA .frac
+
+  ; Round: if frac >= 128 then ip += 1
+  LDA .frac
+  CPI 128
+  JPC qt_round_up
+  JMP qt_apply_sign
+qt_round_up:
+  LDA .ip
+  ADI 1
+  STA .ip
+
+qt_apply_sign:
+  LDA .sign
+  CPI 0
+  JPZ qt_ret_pos
+  LDI 0
+  SUB .ip
+  RET
+qt_ret_pos:
+  LDA .ip
+  RET

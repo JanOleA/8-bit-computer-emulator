@@ -1,0 +1,124 @@
+;! name: TQ78TOINT
+;! entry: main
+;! abi:
+;! callable: yes
+;! depends: printf, q7_8_from_ratio, q7_8_to_int
+;! bss: auto
+;! align: 1
+
+tmp = .bss + 0
+tmp2 = .bss + 1
+
+.text = " %f -> %d "
+
+main:
+  LDI 1
+  STA .tmp
+  LDI 2
+  STA .tmp2
+  JSR do_test
+
+  LDI 1
+  STA .tmp
+  LDI 3
+  STA .tmp2
+  JSR do_test
+  
+  LDI 5
+  STA .tmp
+  LDI 3
+  STA .tmp2
+  JSR do_test
+
+  ; 0/1 -> 0
+  LDI 0
+  STA .tmp
+  LDI 1
+  STA .tmp2
+  JSR do_test
+
+  ; -1/2 -> -1 (away-from-zero on tie)
+  LDI 0
+  SUI 1
+  STA .tmp
+  LDI 2
+  STA .tmp2
+  JSR do_test
+
+  ; 3/2 -> 2 (1.5 rounds up)
+  LDI 3
+  STA .tmp
+  LDI 2
+  STA .tmp2
+  JSR do_test
+
+  ; -3/2 -> -2 (-1.5 rounds down away from zero)
+  LDI 0
+  SUI 3
+  STA .tmp
+  LDI 2
+  STA .tmp2
+  JSR do_test
+
+  ; 101/2 -> 51 (50.5 rounds up)
+  LDI 101
+  STA .tmp
+  LDI 2
+  STA .tmp2
+  JSR do_test
+
+  ; -101/2 -> -51 (-50.5 rounds to -51)
+  LDI 0
+  SUI 101
+  STA .tmp
+  LDI 2
+  STA .tmp2
+  JSR do_test
+
+  ; 255/256 -> 1 (0.996.. rounds to 1)
+  LDI 255
+  STA .tmp
+  LDI 256
+  STA .tmp2
+  JSR do_test
+
+  ; 511/256 -> 2 (1.996.. rounds to 2)
+  LDI 511
+  STA .tmp
+  LDI 256
+  STA .tmp2
+  JSR do_test
+
+  ; -255/256 -> -1 (-0.996.. rounds to -1)
+  LDI 0
+  SUI 255
+  STA .tmp
+  LDI 256
+  STA .tmp2
+  JSR do_test
+
+  LDI 0
+  SUI 13
+  STA .tmp
+  LDI 3
+  STA .tmp2
+  JSR do_test
+
+  RET
+
+do_test:
+  LDA .tmp
+  PHA
+  LDA .tmp2
+  PHA
+  JSR @q7_8_from_ratio
+  STA .tmp
+  PHA
+  JSR @q7_8_to_int
+  STA .tmp2
+  LDI .text
+  PHA
+  LDI .tmp
+  PHA
+  JSR @printf
+  RET

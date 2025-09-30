@@ -1,6 +1,6 @@
 ;! name: 3BODYSIM
 ;! entry: three_body_sim
-;! deps: printf, printez, parse_number, q7_8_from_ratio, q7_8_from_dec, q7_8_mul, q7_8_div, display_q7_8, newline, distance2d, toggle_display_enable
+;! deps: printf, printez, parse_number, q7_8_from_ratio, q7_8_from_dec, q7_8_mul, q7_8_div, display_q7_8, newline, distance2d, toggle_display_enable, display_number, display_q7_8, q7_8_to_int, divide_signed, display_int
 ;! abi: all
 ;! bss: auto
 ;! align: 1
@@ -18,19 +18,22 @@
 .usage_5 = "n_stp: number of steps to simulate"
 
 .ic_text_line1 = "Initial Conditions:"
-.ic_text_line2 = "A:(%d,%d)  (%f,%f)  %f"
-.ic_text_line3 = "B:(%d,%d)  (%f,%f)  %f"
-.ic_text_line4 = "C:(%d,%d)  (%f,%f)  %f"
+.ic_text_line2 = "A:(%d, %d)  (%f, %f)  %f"
+.ic_text_line3 = "B:(%d, %d)  (%f, %f)  %f"
+.ic_text_line4 = "C:(%d, %d)  (%f, %f)  %f"
 .ic_text_line5 = "G:%f | ts:%f | Steps:%u"
-.ic_text_line6 = "Press any key to start..."
+.anykey_text = "Press any key to continue..."
 
 .status_text = "Step %u/%u"
-.status_text2 = " A:(%d,%d) (%f,%f)"
-.status_text3 = " B:(%d,%d) (%f,%f)"
-.status_text4 = " C:(%d,%d) (%f,%f)"
-.status_text5 = "Acc A: (%f,%f)"
-.status_text6 = "Acc B: (%f,%f)"
-.status_text7 = "Acc C: (%f,%f)"
+.status_text2 = " A:(%d, %d) (%f, %f)"
+.status_text3 = " B:(%d, %d) (%f, %f)"
+.status_text4 = " C:(%d, %d) (%f, %f)"
+.status_text5 = "Acc A: (%f, %f)"
+.status_text6 = "Acc B: (%f, %f)"
+.status_text7 = "Acc C: (%f, %f)"
+.status_text8 =  "F AB: (%f, %f)"
+.status_text9 =  "F AC: (%f, %f)"
+.status_text10 = "F BC: (%f, %f)"
 
 a_x = .bss + 0 ; Body A X position
 a_y = .bss + 1 ; Body A Y position
@@ -81,12 +84,12 @@ tmp13 = .bss + 39 ; Temporary storage
 tmp14 = .bss + 40 ; Temporary storage
 tmp15 = .bss + 41 ; Temporary storage
 
-a_b_force_x = .bss + 42 ; Force magnitude between A and B (X component)
-a_b_force_y = .bss + 43 ; Force magnitude between A and B (Y component)
-a_c_force_x = .bss + 44 ; Force magnitude between A and C (X component)
-a_c_force_y = .bss + 45 ; Force magnitude between A and C (Y component)
-b_c_force_x = .bss + 46 ; Force magnitude between B and C (X component)
-b_c_force_y = .bss + 47 ; Force magnitude between B and C (Y component)
+a_b_force_x = .bss + 42 ; Force between A and B (X component)
+a_b_force_y = .bss + 43 ; Force between A and B (Y component)
+a_c_force_x = .bss + 44 ; Force between A and C (X component)
+a_c_force_y = .bss + 45 ; Force between A and C (Y component)
+b_c_force_x = .bss + 46 ; Force between B and C (X component)
+b_c_force_y = .bss + 47 ; Force between B and C (Y component)
 
 three_body_sim:
   ; Check for correct number of arguments
@@ -176,16 +179,7 @@ tbs_loaded:
   LDI .gravity_const    ; three initial conditions for G, ts and N begin at .gravity_const
   PHA
   JSR @printf
-  LDI .ic_text_line6
-  PHA
-  JSR @printez
-  ; Wait for any key press
-tbs_wait_any_key:
-  KEI
-  CPI 128
-  JPC wait_done
-  JMP tbs_wait_any_key
-wait_done:
+  JSR tbs_wait_any_key
 
   ; Main simulation loop
   LDI 0
@@ -243,6 +237,22 @@ print_status:
   LDI .c_ax
   PHA
   JSR @printf
+  LDI .status_text8
+  PHA
+  LDI .a_b_force_x
+  PHA
+  JSR @printf
+  LDI .status_text9
+  PHA
+  LDI .a_c_force_x
+  PHA
+  JSR @printf
+  LDI .status_text10
+  PHA
+  LDI .b_c_force_x
+  PHA
+  JSR @printf
+  JSR tbs_wait_any_key
   RET
 
 step:
@@ -306,14 +316,8 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
+  PHA
+  JSR @q7_8_to_int
   ADD .a_x
   STA .a_x
 
@@ -322,14 +326,8 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
+  PHA
+  JSR @q7_8_to_int
   ADD .a_y
   STA .a_y
 
@@ -338,14 +336,8 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
+  PHA
+  JSR @q7_8_to_int
   ADD .b_x
   STA .b_x
 
@@ -354,14 +346,8 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
+  PHA
+  JSR @q7_8_to_int
   ADD .b_y
   STA .b_y
 
@@ -370,14 +356,8 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
+  PHA
+  JSR @q7_8_to_int
   ADD .c_x
   STA .c_x
 
@@ -386,14 +366,8 @@ step:
   LDA .time_step
   PHA
   JSR @q7_8_mul
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
+  PHA
+  JSR @q7_8_to_int
   ADD .c_y
   STA .c_y
 
@@ -432,6 +406,12 @@ calculate_accelerations:
   LDI 2
 dist_ab_ok:
   STA .tmp1            ; tmp1 = distance AB
+  LDI 1
+  PHA
+  LDA .tmp1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .tmp12           ; tmp12 = 1/d_AB
   ; Calculate force magnitude between A and B: F = G * m1 * m2
   LDA .a_mass
   PHA
@@ -466,6 +446,12 @@ dist_ab_ok:
   LDI 2
 dist_ac_ok:
   STA .tmp3            ; tmp3 = distance AC
+  LDI 1
+  PHA
+  LDA .tmp3
+  PHA
+  JSR @q7_8_from_ratio
+  STA .tmp13           ; tmp13 = 1/d_AC
   ; Calculate force magnitude between A and C: F = G * m1 * m2
   LDA .a_mass
   PHA
@@ -500,6 +486,12 @@ dist_ac_ok:
   LDI 2
 dist_bc_ok:
   STA .tmp5            ; tmp5 = distance BC
+  LDI 1
+  PHA
+  LDA .tmp5
+  PHA
+  JSR @q7_8_from_ratio
+  STA .tmp14           ; tmp14 = 1/d_BC
   ; Calculate force magnitude between B and C: F = G * m1 * m2
   LDA .b_mass
   PHA
@@ -519,37 +511,37 @@ dist_bc_ok:
   SUB .a_x
   PHA
   LDA .tmp1
-  PHA
-  JSR @q7_8_from_ratio 
+  PHA                                  ; do the first division as integer division to avoid decimal overflow
+  JSR @divide_signed
   PHA   ; (bx - ax) / d_AB
   LDA .tmp1
   PHA
-  JSR @q7_8_from_ratio 
+  JSR @q7_8_from_ratio
   PHA   ; (bx - ax) / d_AB²
-  LDA .tmp1
-  PHA
-  JSR @q7_8_from_ratio 
+  LDA .tmp12
+  PHA                                   ; use precomputed 1/d_AB
+  JSR @q7_8_mul
   PHA   ; (bx - ax) / d_AB³
   ; multiply by force magnitude F_AB
   LDA .tmp2
   PHA
   JSR @q7_8_mul
-  STA .a_b_force_x                      ; F_AB * (bx - ax) / d_AB³
+  STA .a_b_force_x                      ; F_AB * (bx - ax) / d_AB³ (force on A due to B)
   ; build fraction (cx - ax) / d_AC³
   LDA .c_x
   SUB .a_x
   PHA
   LDA .tmp3
-  PHA
-  JSR @q7_8_from_ratio 
+  PHA                                  ; do the first division as integer division to avoid decimal overflow
+  JSR @divide_signed
   PHA   ; (cx - ax) / d_AC
   LDA .tmp3
   PHA
   JSR @q7_8_from_ratio 
   PHA   ; (cx - ax) / d_AC²
-  LDA .tmp3
+  LDA .tmp13
   PHA
-  JSR @q7_8_from_ratio 
+  JSR @q7_8_mul
   PHA   ; (cx - ax) / d_AC³
   ; multiply by force magnitude F_AC
   LDA .tmp4
@@ -571,16 +563,16 @@ dist_bc_ok:
   SUB .a_y
   PHA
   LDA .tmp1
-  PHA
-  JSR @q7_8_from_ratio 
+  PHA                                  ; do the first division as integer division to avoid decimal overflow
+  JSR @divide_signed
   PHA   ; (by - ay) / d_AB
   LDA .tmp1
   PHA
   JSR @q7_8_from_ratio 
   PHA   ; (by - ay) / d_AB²
-  LDA .tmp1
+  LDA .tmp12
   PHA
-  JSR @q7_8_from_ratio 
+  JSR @q7_8_mul
   PHA   ; (by - ay) / d_AB³
   ; multiply by force magnitude F_AB
   LDA .tmp2
@@ -592,16 +584,16 @@ dist_bc_ok:
   SUB .a_y
   PHA
   LDA .tmp3
-  PHA
-  JSR @q7_8_from_ratio 
+  PHA                                  ; do the first division as integer division to avoid decimal overflow
+  JSR @divide_signed
   PHA   ; (cy - ay) / d_AC
   LDA .tmp3
   PHA
   JSR @q7_8_from_ratio 
   PHA   ; (cy - ay) / d_AC²
-  LDA .tmp3
+  LDA .tmp13
   PHA
-  JSR @q7_8_from_ratio 
+  JSR @q7_8_mul
   PHA   ; (cy - ay) / d_AC³
   ; multiply by force magnitude F_AC
   LDA .tmp4
@@ -629,22 +621,22 @@ dist_bc_ok:
   SUB .b_x
   PHA
   LDA .tmp5
-  PHA
-  JSR @q7_8_from_ratio 
+  PHA                                   ; do the first division as integer division to avoid decimal overflow
+  JSR @divide_signed
   PHA   ; (cx - bx) / d_BC
   LDA .tmp5
   PHA
   JSR @q7_8_from_ratio 
   PHA   ; (cx - bx) / d_BC²
-  LDA .tmp5
+  LDA .tmp14
   PHA
-  JSR @q7_8_from_ratio 
+  JSR @q7_8_mul
   PHA   ; (cx - bx) / d_BC³
   ; multiply by force magnitude F_BC
   LDA .tmp6
   PHA
   JSR @q7_8_mul
-  STA .b_c_force_x                      ; F_BC * (cx - bx) / d_BC³
+  STA .b_c_force_x                       ; F_BC * (cx - bx) / d_BC³
   ; add contributions and divide by mass
   ADD .tmp7                                 ; b_c_force_x already in A, b_a_force_x + b_c_force_x
   PHA
@@ -666,16 +658,16 @@ dist_bc_ok:
   SUB .b_y
   PHA
   LDA .tmp5
-  PHA
-  JSR @q7_8_from_ratio 
+  PHA                                  ; do the first division as integer division to avoid decimal overflow
+  JSR @divide_signed
   PHA   ; (cy - by) / d_BC
   LDA .tmp5
   PHA
   JSR @q7_8_from_ratio 
   PHA   ; (cy - by) / d_BC²
-  LDA .tmp5
+  LDA .tmp14
   PHA
-  JSR @q7_8_from_ratio 
+  JSR @q7_8_mul
   PHA   ; (cy - by) / d_BC³
   ; multiply by force magnitude F_BC
   LDA .tmp6
@@ -725,6 +717,20 @@ dist_bc_ok:
   PHA
   JSR @q7_8_div
   STA .c_ay
+
+  RET
+
+; Wait for any key press
+tbs_wait_any_key:
+  LDI .anykey_text
+  PHA
+  JSR @printez
+wait_loop:
+  KEI
+  CPI 128
+  JPC wait_done
+  JMP wait_loop
+wait_done:
   RET
 
 tbs_done:

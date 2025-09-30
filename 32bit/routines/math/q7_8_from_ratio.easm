@@ -1,6 +1,6 @@
 ;! name: Q78FROMRATIO
 ;! entry: q7_8_from_ratio
-;! deps: divide
+;! deps: divide, printf
 ;! abi: sysinfo args
 ;! bss: auto
 ;! align: 1
@@ -27,6 +27,11 @@ frac       = .bss + 7
 rem        = .bss + 8
 cnt        = .bss + 9
 res        = .bss + 10
+numer_print = .bss + 11
+denom_print = .bss + 12
+res_print  = .bss + 13
+
+.debug_text = "q7_8ratio: %d / %d -> %f"
 
 q7_8_from_ratio:
   ; Prologue: fetch args (top of stack = denom, next = numer)
@@ -34,8 +39,10 @@ q7_8_from_ratio:
   MOVAB
   PLA
   STA .denom
+  STA .denom_print
   PLA
   STA .numer
+  STA .numer_print
   MOVBA
   PHA
 
@@ -199,8 +206,23 @@ qfr_combine:
   JPZ qfr_ret_pos
   LDI 0
   SUB .res
+  ; STA .res
+  ; STA .res_print
+  ; LDI .debug_text
+  ; PHA
+  ; LDI .numer_print
+  ; PHA
+  ; JSR @printf
+  ; LDA .res
   RET
 qfr_ret_pos:
+  ; LDA .res
+  ; STA .res_print
+  ; LDI .debug_text
+  ; PHA
+  ; LDI .numer_print
+  ; PHA
+  ; JSR @printf
   LDA .res
   RET
 
