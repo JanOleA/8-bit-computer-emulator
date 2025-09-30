@@ -91,7 +91,7 @@ setup_init_cond:
   STA 32011     ; cy
   LDA .ten_dec
   STA 32012     ; cvx
-  LDA .thirty_dec
+  LDA .fifty_dec
   STA 32013     ; cvy
   LDA .tenth_dec
   STA 32014     ; c_mass
