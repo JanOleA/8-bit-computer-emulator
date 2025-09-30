@@ -6,13 +6,19 @@
 ;! align: 1
 ;! callable: yes
 
-tenth_dec = .bss + 3  ; Q7.8 representation of 0.1
-one_dec = .bss + 1  ; Q7.8 representation of 1.0
-ten_dec = .bss + 0   ; Q7.8 representation of 10.0
-thirty_dec = .bss + 4  ; Q7.8 representation of 30.0
-fifty_dec = .bss + 5  ; Q7.8 representation of 50.0
-seventy_dec = .bss + 6  ; Q7.8 representation of 70.0
-hundred_dec = .bss + 2  ; Q7.8 representation of 100.0
+tenth_dec = .bss + 1      ; Q7.8 representation of 0.1
+one_dec = .bss + 2        ; Q7.8 representation of 1.0
+two_dec = .bss + 3        ; Q7.8 representation of 2.0
+three_dec = .bss + 4      ; Q7.8 representation of 3.0
+ten_dec = .bss + 5        ; Q7.8 representation of 10.0
+fifteen_dec = .bss + 6    ; Q7.8 representation of 15.0
+thirty_dec = .bss + 7     ; Q7.8 representation of 30.0
+fifty_dec = .bss + 8      ; Q7.8 representation of 50.0
+seventy_dec = .bss + 9    ; Q7.8 representation of 70.0
+hundred_dec = .bss + 10   ; Q7.8 representation of 100.0
+m5_dec = .bss + 11        ; Q7.8 representation of -5.0
+m12_dec = .bss + 12       ; Q7.8 representation of -12.0
+m1_dec = .bss + 13        ; Q7.8 representation of -1.0
 
 ; Set up initial conditions for 3-body simulation.
 setup_init_cond:
@@ -30,12 +36,33 @@ setup_init_cond:
   JSR @q7_8_from_ratio
   STA .one_dec
 
+  LDI 2
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .two_dec
+
+  LDI 3
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .three_dec
+
   LDI 10
   PHA
   LDI 1
   PHA
   JSR @q7_8_from_ratio
   STA .ten_dec
+
+  LDI 15
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .fifteen_dec
 
   LDI 30
   PHA
@@ -66,11 +93,37 @@ setup_init_cond:
   STA .hundred_dec
 
   LDI 0
+  SUI 5
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .m5_dec
+
+  LDI 0
+  SUI 12
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .m12_dec
+
+  LDI 0
+  SUI 1
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .m1_dec
+
+  LDI 0
   STA 32000     ; ax
   STA 32001     ; ay
+  LDA .m1_dec
   STA 32002     ; avx
+  LDA .m12_dec
   STA 32003     ; avy
-  LDA .ten_dec
+  LDA .fifteen_dec
   STA 32004     ; a_mass
 
   LDI 8000
@@ -81,15 +134,15 @@ setup_init_cond:
   STA 32007     ; bvx
   LDA .seventy_dec
   STA 32008     ; bvy
-  LDA .tenth_dec
+  LDA .two_dec
   STA 32009     ; b_mass
 
   LDI 0
   SUI 10000
   STA 32010     ; cx
-  LDI 10000
+  LDI 8000
   STA 32011     ; cy
-  LDA .ten_dec
+  LDA .thirty_dec
   STA 32012     ; cvx
   LDA .fifty_dec
   STA 32013     ; cvy
@@ -98,7 +151,7 @@ setup_init_cond:
 
   LDI 1
   PHA
-  LDI 4
+  LDI 5
   PHA
   JSR @q7_8_from_ratio
   STA 32015     ; G

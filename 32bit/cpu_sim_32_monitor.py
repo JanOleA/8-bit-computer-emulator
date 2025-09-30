@@ -43,13 +43,15 @@ class Game_32(Game):
                  monitor_columns=40, monitor_rows=20):
         super().__init__(autorun, target_FPS, target_HZ, draw_mem, draw_ops,
                          progload, LCD_display, json_images)
+        self._numkeypad = False
         self.cpubits = cpubits
         self.stackbits = stackbits
         self._width = 1900
-        self._height = 1000
+        self._height = 1080
         self._size = (self._width, self._height)
         self._mon_columns = monitor_columns
         self._mon_rows = monitor_rows
+        self._skiprows = 0
 
     def setup_fonts(self):
         pygame.font.init()
@@ -303,34 +305,38 @@ class Game_32(Game):
                                                                         self.WHITE))
 
         memcolumn = ""
-        self.memrows = []
-        ncols = 2
-        nrows = 60
-        for i in range(ncols):
-            text = f"{i:>08d} "
+        self._nrows = 64
+        self._ncols = 8 if self.cpubits <= 16 else 4
+        for i in range(self._ncols):
+            text = f"{i:>08d} " if self.cpubits > 16 else f"{i:>04d} "
             memcolumn += text
 
-        for i in range(nrows):
-            rowtext = f"{i*ncols:>03d}"
-            self.memrows.append(self._font_verysmall_console_bold.render(rowtext, True, self.TEXTGREY))
+        self._update_memory_row_indices()
         
         self.memcolumn = self._font_verysmall_console_bold.render(memcolumn, True, self.TEXTGREY)
         self.memory_title = self._font_exobold.render("Memory:", True, self.TEXTGREY)
 
         self._start_time = time.time()
 
+    def _update_memory_row_indices(self):
+        self.memrows = []
+        for i in range(self._nrows):
+            i += self._skiprows
+            rowtext = f"{i*self._ncols:>03x}"
+            self.memrows.append(self._font_verysmall_console_bold.render(rowtext, True, self.TEXTGREY))
+
     def draw_memory(self):
         memwidth = self.memcolumn.get_width()
         titlewidth = self.memory_title.get_width()
-        self.computer.get_mem_strings(60, 2, False, 8)
-        x = 1740
-        y = 57
-        self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, 5))
+        self.computer.get_mem_strings(self._nrows, self._ncols, False, 8 if self.cpubits > 16 else 4, skiprows=self._skiprows)
+        x = 42
+        y = 80
+        self._screen.blit(self.memory_title, (x + memwidth/2 - titlewidth/2, y - 45))
         self._screen.blit(self.memcolumn, (x, y - 18))
         for i, item in enumerate(self.computer.mem_strings):
             out_text = self._font_verysmall_console.render(item, True, self.TEXTGREY)
             self._screen.blit(out_text, (x, y))
-            self._screen.blit(self.memrows[i], (x - 32, y))
+            self._screen.blit(self.memrows[i], (x - 34, y))
             y += 15
 
     def loop(self):        
@@ -426,18 +432,18 @@ class Game_32(Game):
         """ Draw the memory """
         if self.draw_mem:
             self.draw_memory()
-        else:
-            """ Draw the program """
-            x = 1710
-            y = 30
-            for i, item in enumerate(self.prog_texts_black):
-                if self.display_op == i + self.prog_offsets[i]:
-                    item = self.prog_texts_green[i]
-                self._screen.blit(item, (x, y))
-                y += 15
-                if y >= self._height - 20:
-                    y = 30
-                    x += 115
+
+        """ Draw the main program """
+        x = 1710
+        y = 30
+        for i, item in enumerate(self.prog_texts_black):
+            if self.display_op == i + self.prog_offsets[i]:
+                item = self.prog_texts_green[i]
+            self._screen.blit(item, (x, y))
+            y += 15
+            if y >= self._height - 20:
+                y = 30
+                x += 115
 
         """ Draw the operations included in the current instruction """
         if self.draw_ops:
@@ -477,9 +483,9 @@ class Game_32(Game):
 
         self._screen.blit(self.clockrate, (5,5))
         self._screen.blit(self.fpstext, (100,5))
-        self._screen.blit(self._text_cycles_ran, (280,5))
-        self._screen.blit(self._loaded_program_text, (280,25))
-        self._screen.blit(self._text_uptime, (280,45))
+        self._screen.blit(self._text_cycles_ran, (290,5))
+        self._screen.blit(self._loaded_program_text, (290,25))
+        self._screen.blit(self._text_uptime, (290,45))
 
         if self.use_LCD_display: self.LCD_display.render(self._screen)
 
@@ -654,9 +660,11 @@ if __name__ == "__main__":
     parser.add_argument("--json", action="append", default=[], help="Path to JSON image to write into memory (can be repeated)")
     parser.add_argument("--monitor_columns", type=int, default=40, help="Number of columns in the monitor")
     parser.add_argument("--monitor_rows", type=int, default=20, help="Number of rows in the monitor")
+    parser.add_argument("--start-halted", action="store_true", default=False, help="Start the program in a halted state (spacebar to start)")
     args = parser.parse_args()
 
-    game = Game_32(True, args.fps, args.hz, progload=args.program, LCD_display=args.lcd,
+    autorun = not args.start_halted
+    game = Game_32(autorun=autorun, target_FPS=args.fps, target_HZ=args.hz, progload=args.program, LCD_display=args.lcd,
                    cpubits=args.cpubits, stackbits=args.stackbits, json_images=args.json,
                    monitor_columns=args.monitor_columns, monitor_rows=args.monitor_rows)
     game.execute()

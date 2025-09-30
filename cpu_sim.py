@@ -236,7 +236,7 @@ class Computer:
         program = self.assemble_lines(lines, self.memory, self.instruction_map)
         self.program = program
     
-    def get_mem_strings(self, rows = 16, rowlength = 16, space = True, textlength = 2):
+    def get_mem_strings(self, rows = 16, rowlength = 16, space = True, textlength = 2, skiprows = 0):
         """ Compiles a list of strings with the memory contents of the computer
         for easy printing.
 
@@ -248,13 +248,14 @@ class Computer:
         """
         mem_strings = []
         for i in range(rows):
+            i += skiprows
             s = ""
             try:
                 line = self.memory[i*rowlength:i*rowlength + rowlength]
                 for j, item in enumerate(line):
                     item = hex(item).replace("0x", "")
                     while len(item) < textlength:
-                        item = "0" + item
+                        item = " " + item
                     s += f"{item} "
                     if j == 7 and space:
                         s += " "
@@ -659,6 +660,7 @@ class Game:
     def __init__(self, autorun = True, target_FPS = 300, target_HZ = None,
                  draw_mem = False, draw_ops = False, progload = "program.txt",
                  LCD_display = False, json_images = None):
+        self._numkeypad = True
         self._keyboard_mode = False
         self._running = True
         self._screen = None
@@ -672,6 +674,7 @@ class Game:
         self.use_LCD_display = LCD_display
         self.cpubits = 8
         self.stackbits = 4
+        self._skiprows = 0
         self._json_images = json_images or []
 
         self.autorun = autorun
@@ -810,10 +813,11 @@ class Game:
         self.keypad_div = BitDisplay(cpos = (1030, 165), length = 1, radius = 15,
                                   offcolor = (40, 40, 40), oncolor = (80, 120, 80))
 
-        keypad_bg = pygame.Rect(self.keypad_div.x - 30, self.keypad1.y - 30,
-                                self.keypad1.width + self.keypad_div.width + 35,
-                                self.keypad_div.y - self.keypad1.y + 60)
-        pygame.draw.rect(self._bg, self.BLACK, keypad_bg, border_radius = 30)
+        if self._numkeypad:
+            keypad_bg = pygame.Rect(self.keypad_div.x - 30, self.keypad1.y - 30,
+                                    self.keypad1.width + self.keypad_div.width + 35,
+                                    self.keypad_div.y - self.keypad1.y + 60)
+            pygame.draw.rect(self._bg, self.BLACK, keypad_bg, border_radius = 30)
 
         self.keypad_rows = [self.keypad1, self.keypad2, self.keypad3, self.keypad4]
         self.keypad_numbers = [0, 0, 0, 0]
@@ -1056,19 +1060,34 @@ class Game:
         self.make_static_graphics()
 
         memcolumn = ""
+        self._nrows = 16
+        self._ncols = 16
         self.memrows = []
-        for i in range(16):
+        for i in range(self._nrows):
             text = f"{i:>02d} "
             if i == 7:
                 text += " "
             memcolumn += text
 
-            rowtext = f"{i*16:>03d}"
+            rowtext = f"{i*self._ncols:>03d}"
             self.memrows.append(self._font_small_console_bold.render(rowtext, True, self.TEXTGREY))
         
         self.memcolumn = self._font_small_console_bold.render(memcolumn, True, self.TEXTGREY)
 
         self._start_time = time.time()
+
+    def _update_memory_row_indices(self):
+        pass
+
+    def _mem_page_up(self):
+        max_rows = len(self.computer.memory) // self._ncols
+        self._skiprows = (self._skiprows + self._nrows) % max_rows
+        self._update_memory_row_indices()
+
+    def _mem_page_down(self):
+        max_rows = len(self.computer.memory) // self._ncols
+        self._skiprows = (self._skiprows - self._nrows) % max_rows
+        self._update_memory_row_indices()
 
     def simple_line(self, pos1, pos2, color, shift1 = (0,0), shift2 = (0,0), width = 5):
         """ Draws a simple line to display connections between registers to the
@@ -1144,6 +1163,12 @@ class Game:
                     # clean mode (no debug)
                     self.draw_mem = False
                     self.draw_ops = False
+
+                if event.key == pygame.K_PAGEDOWN:
+                    self._mem_page_down()
+
+                if event.key == pygame.K_PAGEUP:
+                    self._mem_page_up()
 
                 if event.key == pygame.K_KP_PLUS:
                     self.target_HZ = int(self.target_HZ*2)
@@ -1578,9 +1603,11 @@ if __name__ == "__main__":
     parser.add_argument("--hz", type=int, default=25, help="Target clock frequency (Hz)")
     parser.add_argument("--lcd", action="store_true", default=False, help="Enable LCD display panel")
     parser.add_argument("--json", action="append", default=[], help="Path to JSON image to write into memory (can be repeated)")
+    parser.add_argument("--start-halted", action="store_true", default=False, help="Start the program in a halted state (spacebar to start)")
     args = parser.parse_args()
 
-    game = Game(True, args.fps, args.hz, progload=args.program, LCD_display=args.lcd, json_images=args.json)
+    autorun = not args.start_halted
+    game = Game(autorun=autorun, target_FPS=args.fps, target_HZ=args.hz, progload=args.program, LCD_display=args.lcd, json_images=args.json)
 
     # Inject JSON images into memory if provided
     game.execute()

@@ -42,6 +42,7 @@ class Game_32(Game):
                  LCD_display = False, cpubits = 8, stackbits = 4, json_images=None):
         super().__init__(autorun, target_FPS, target_HZ, draw_mem, draw_ops,
                          progload, LCD_display, json_images)
+        self._numkeypad = False
         self.cpubits = cpubits
         self.stackbits = stackbits
         self._width = 1650
@@ -304,9 +305,11 @@ if __name__ == "__main__":
     parser.add_argument("--cpubits", type=int, default=32, help="CPU word size in bits")
     parser.add_argument("--stackbits", type=int, default=8, help="Stack pointer width in bits")
     parser.add_argument("--json", action="append", default=[], help="Path to JSON image to write into memory (can be repeated)")
+    parser.add_argument("--start-halted", action="store_true", default=False, help="Start the program in a halted state (spacebar to start)")
     args = parser.parse_args()
 
-    game = Game_32(True, args.fps, args.hz, progload=args.program, LCD_display=args.lcd,
+    autorun = not args.start_halted
+    game = Game_32(autorun=autorun, target_FPS=args.fps, target_HZ=args.hz, progload=args.program, LCD_display=args.lcd,
                    cpubits=args.cpubits, stackbits=args.stackbits, json_images=args.json)
     game.execute()
     

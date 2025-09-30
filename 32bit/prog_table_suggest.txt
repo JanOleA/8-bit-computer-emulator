@@ -57,18 +57,18 @@ Entries (NAME → BASE, SIZE, BSS, DATA, CALLABLE):
   RANDINT          → 16886 (len   68)  BSS 22829+2     DATA —           CALL 0
   REM64            → 16954 (len   73)  BSS 22831+7     DATA —           CALL 0
   RUN              → 17027 (len   37)  BSS 22838+2     DATA 31008+41    CALL 1
-  SINIT            → 17064 (len  137)  BSS 22840+7     DATA —           CALL 1
-  SKIPLINE         → 17201 (len   88)  BSS —           DATA —           CALL 0
-  SPLIT            → 17289 (len   83)  BSS 22847+166   DATA —           CALL 0
-  SQRT             → 17372 (len   57)  BSS 23013+4     DATA —           CALL 0
-  STRCOMPARE       → 17429 (len   46)  BSS 23017+3     DATA —           CALL 0
-  TED              → 17475 (len 1168)  BSS 23020+14    DATA 31072+64    CALL 1
-  TDIST2D          → 18643 (len   19)  BSS —           DATA —           CALL 1
-  TESTPRINTF       → 18662 (len  219)  BSS 23034+31    DATA 31152+198   CALL 1
-  TQ78TOINT        → 18881 (len  165)  BSS 23065+2     DATA 31376+11    CALL 1
-  TESTMEM          → 19046 (len  196)  BSS 23067+7     DATA 31408+52    CALL 1
-  TOGGLEDIS        → 19242 (len    7)  BSS —           DATA —           CALL 0
-  WAIT100          → 19249 (len    7)  BSS —           DATA —           CALL 0
-  WAIT1600         → 19256 (len   20)  BSS —           DATA —           CALL 0
-  WAIT3200         → 19276 (len    5)  BSS —           DATA —           CALL 0
-  WRITECHAR        → 19281 (len    8)  BSS —           DATA —           CALL 0
+  SINIT            → 17064 (len  207)  BSS 22840+14    DATA —           CALL 1
+  SKIPLINE         → 17271 (len   88)  BSS —           DATA —           CALL 0
+  SPLIT            → 17359 (len   83)  BSS 22854+166   DATA —           CALL 0
+  SQRT             → 17442 (len   57)  BSS 23020+4     DATA —           CALL 0
+  STRCOMPARE       → 17499 (len   46)  BSS 23024+3     DATA —           CALL 0
+  TED              → 17545 (len 1168)  BSS 23027+14    DATA 31072+64    CALL 1
+  TDIST2D          → 18713 (len   19)  BSS —           DATA —           CALL 1
+  TESTPRINTF       → 18732 (len  219)  BSS 23041+31    DATA 31152+198   CALL 1
+  TQ78TOINT        → 18951 (len  165)  BSS 23072+2     DATA 31376+11    CALL 1
+  TESTMEM          → 19116 (len  196)  BSS 23074+7     DATA 31408+52    CALL 1
+  TOGGLEDIS        → 19312 (len    7)  BSS —           DATA —           CALL 0
+  WAIT100          → 19319 (len    7)  BSS —           DATA —           CALL 0
+  WAIT1600         → 19326 (len   20)  BSS —           DATA —           CALL 0
+  WAIT3200         → 19346 (len    5)  BSS —           DATA —           CALL 0
+  WRITECHAR        → 19351 (len    8)  BSS —           DATA —           CALL 0
