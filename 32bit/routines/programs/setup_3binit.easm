@@ -6,6 +6,7 @@
 ;! align: 1
 ;! callable: yes
 
+thirty_twoth_dec = .bss + 0      ; Q7.8 representation of 1/32 = 0.03125
 tenth_dec = .bss + 1      ; Q7.8 representation of 0.1
 one_dec = .bss + 2        ; Q7.8 representation of 1.0
 two_dec = .bss + 3        ; Q7.8 representation of 2.0
@@ -19,9 +20,18 @@ hundred_dec = .bss + 10   ; Q7.8 representation of 100.0
 m5_dec = .bss + 11        ; Q7.8 representation of -5.0
 m12_dec = .bss + 12       ; Q7.8 representation of -12.0
 m1_dec = .bss + 13        ; Q7.8 representation of -1.0
+m_fifty_dec = .bss + 14   ; Q7.8 representation of -50.0
+m_seventy_dec = .bss + 15 ; Q7.8 representation of -70.0
 
 ; Set up initial conditions for 3-body simulation.
 setup_init_cond:
+  LDI 1
+  PHA
+  LDI 32
+  PHA
+  JSR @q7_8_from_ratio
+  STA .thirty_twoth_dec
+
   LDI 1
   PHA
   LDI 10
@@ -117,36 +127,53 @@ setup_init_cond:
   STA .m1_dec
 
   LDI 0
+  SUI 50
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .m_fifty_dec
+
+  LDI 0
+  SUI 70
+  PHA
+  LDI 1
+  PHA
+  JSR @q7_8_from_ratio
+  STA .m_seventy_dec
+
+  LDI 0
+  SUI 5000
   STA 32000     ; ax
+  LDI 0
   STA 32001     ; ay
-  LDA .m1_dec
+  LDI 0
   STA 32002     ; avx
-  LDA .m12_dec
+  LDA .m_fifty_dec
   STA 32003     ; avy
-  LDA .fifteen_dec
+  LDA .ten_dec
   STA 32004     ; a_mass
 
-  LDI 8000
+  LDI 5000
   STA 32005     ; bx
   LDI 0
   STA 32006     ; by
   LDI 0
   STA 32007     ; bvx
-  LDA .seventy_dec
+  LDA .fifty_dec
   STA 32008     ; bvy
-  LDA .two_dec
+  LDA .ten_dec
   STA 32009     ; b_mass
 
   LDI 0
-  SUI 10000
   STA 32010     ; cx
-  LDI 8000
+  LDI 15000
   STA 32011     ; cy
-  LDA .thirty_dec
+  LDA .hundred_dec
   STA 32012     ; cvx
-  LDA .fifty_dec
+  LDI 0
   STA 32013     ; cvy
-  LDA .tenth_dec
+  LDA .thirty_twoth_dec
   STA 32014     ; c_mass
 
   LDI 1
