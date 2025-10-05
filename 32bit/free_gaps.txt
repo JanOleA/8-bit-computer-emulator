@@ -1,5 +1,5 @@
 ; Free gaps between modules (start,end,words)
-19395,26000,6605 ; between writechar and 3bodysim_data
+19413,26000,6587 ; between writechar and 3bodysim_data
 26502,26528,26 ; between 3bodysim_data and asteroids_data
 26572,26592,20 ; between asteroids_data and calc_data
 26627,26656,29 ; between calc_data and compareget_data
@@ -19,6 +19,6 @@
 30932,30960,28 ; between poke_data and q78fromratio_data
 30985,31008,23 ; between q78fromratio_data and run_data
 31049,31072,23 ; between run_data and ted_data
-31136,31152,16 ; between ted_data and testprintf_data
-31350,31376,26 ; between testprintf_data and tq78toint_data
-31387,31408,21 ; between tq78toint_data and testmem_data
+31165,31184,19 ; between ted_data and testprintf_data
+31382,31408,26 ; between testprintf_data and tq78toint_data
+31419,31440,21 ; between tq78toint_data and testmem_data

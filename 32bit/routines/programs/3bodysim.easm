@@ -212,13 +212,14 @@ plot_positions:
   ; Assumptions:
   ;   - Positions are signed integers in [-15000, 15000]
   ;   - X axis maps left(-15000)→0 .. right(+15000)→(W-1)
-  ;   - Y axis maps up(-15000)→0 .. down(+15000)→(H-1)
+  ;   - Y axis plotting range is [-10000, 10000]
+  ;     Mapping preserves current direction: y=+10000 → row 0 (top), y=-10000 → row H-1 (bottom)
   ; Strategy:
   ;   - Clear screen
   ;   - Precompute (W-1) and (H-1) in Q7.8 once
   ;   - For each body, compute:
   ;       col = round( (x + 15000) / 30000 * (W-1) )
-  ;       row = round( (15000 - y) / 30000 * (H-1) )
+  ;       row = round( (10000 - y) / 20000 * (H-1) )
   ;     then move cursor Home, then Down row, Right col, write marker
 
   ; Clear display
@@ -282,11 +283,11 @@ plot_positions:
   PHA
   JSR @q7_8_to_int
   STA .tmp9                 ; col
-  ; row = round(((15000 - a_y)/30000) * (H-1))
-  LDI 15000
+  ; row = round(((10000 - a_y)/20000) * (H-1))
+  LDI 10000
   SUB .a_y
   PHA
-  LDI 30000
+  LDI 20000
   PHA
   JSR @q7_8_from_ratio
   PHA
@@ -342,11 +343,11 @@ pa_cols_done:
   PHA
   JSR @q7_8_to_int
   STA .tmp9
-  ; row
-  LDI 15000
+  ; row = round(((10000 - b_y)/20000) * (H-1))
+  LDI 10000
   SUB .b_y
   PHA
-  LDI 30000
+  LDI 20000
   PHA
   JSR @q7_8_from_ratio
   PHA
@@ -400,11 +401,11 @@ pb_cols_done:
   PHA
   JSR @q7_8_to_int
   STA .tmp9
-  ; row
-  LDI 15000
+  ; row = round(((10000 - c_y)/20000) * (H-1))
+  LDI 10000
   SUB .c_y
   PHA
-  LDI 30000
+  LDI 20000
   PHA
   JSR @q7_8_from_ratio
   PHA

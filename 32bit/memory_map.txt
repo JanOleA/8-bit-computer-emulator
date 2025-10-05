@@ -96,16 +96,16 @@ Segments:
   [17395,17478)  code          split                len=83  
   [17478,17535)  code          sqrt                 len=57  
   [17535,17581)  code          strcompare           len=46  
-  [17581,18749)  code          ted                  len=1168  
-  [18749,18768)  code          tdist2d              len=19  
-  [18768,18987)  code          testprintf           len=219  
-  [18987,19152)  code          tq78toint            len=165  
-  [19152,19348)  code          testmem              len=196  
-  [19348,19355)  code          toggledis            len=7  
-  [19355,19362)  code          wait100              len=7  
-  [19362,19382)  code          wait1600             len=20  
-  [19382,19387)  code          wait3200             len=5  
-  [19387,19395)  code          writechar            len=8  
+  [17581,18767)  code          ted                  len=1186  
+  [18767,18786)  code          tdist2d              len=19  
+  [18786,19005)  code          testprintf           len=219  
+  [19005,19170)  code          tq78toint            len=165  
+  [19170,19366)  code          testmem              len=196  
+  [19366,19373)  code          toggledis            len=7  
+  [19373,19380)  code          wait100              len=7  
+  [19380,19400)  code          wait1600             len=20  
+  [19400,19405)  code          wait3200             len=5  
+  [19405,19413)  code          writechar            len=8  
   [19996,19999)  os-code       CALL_STUB            len=3  JSR,<op>,RET
   [19999,20000)  os-var        call_stub_initial    len=1  
   [20000,20048)  bss           3bodysim             len=48  
@@ -184,10 +184,10 @@ Segments:
   [30896,30932)  data          poke_data            len=36  
   [30960,30985)  data          q78fromratio_data    len=25  
   [31008,31049)  data          run_data             len=41  
-  [31072,31136)  data          ted_data             len=64  
-  [31152,31350)  data          testprintf_data      len=198  
-  [31376,31387)  data          tq78toint_data       len=11  
-  [31408,31460)  data          testmem_data         len=52  
+  [31072,31165)  data          ted_data             len=93  
+  [31184,31382)  data          testprintf_data      len=198  
+  [31408,31419)  data          tq78toint_data       len=11  
+  [31440,31492)  data          testmem_data         len=52  
 
 Free gaps between segments:
   [2015,2020)  words=5  (free)
@@ -196,7 +196,7 @@ Free gaps between segments:
   [2501,2599)  words=98  (free)
   [2605,3000)  words=395  (free)
   [5273,6000)  words=727  (free)
-  [19395,19996)  words=601  (free)
+  [19413,19996)  words=583  (free)
   [23083,26000)  words=2917  (free)
   [26502,26528)  words=26  (free)
   [26572,26592)  words=20  (free)
@@ -217,6 +217,6 @@ Free gaps between segments:
   [30932,30960)  words=28  (free)
   [30985,31008)  words=23  (free)
   [31049,31072)  words=23  (free)
-  [31136,31152)  words=16  (free)
-  [31350,31376)  words=26  (free)
-  [31387,31408)  words=21  (free)
+  [31165,31184)  words=19  (free)
+  [31382,31408)  words=26  (free)
+  [31419,31440)  words=21  (free)

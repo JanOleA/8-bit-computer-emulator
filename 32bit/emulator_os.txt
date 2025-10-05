@@ -71,6 +71,9 @@ __argv_buf  = 2500            ; buffer where argument strings are copied
 __sys_prog_table = 3000
 
 start:
+  LDA .call_stub_initial
+  STA CALL_STUB + 1
+  LSP 0                       ; set stack pointer to 0
   LDI 42
   STA .__random_seed
   LDI 1

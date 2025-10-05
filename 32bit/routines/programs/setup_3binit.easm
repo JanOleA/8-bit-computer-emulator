@@ -167,9 +167,9 @@ setup_init_cond:
 
   LDI 0
   STA 32010     ; cx
-  LDI 15000
+  LDI 9999
   STA 32011     ; cy
-  LDA .hundred_dec
+  LDA .seventy_dec
   STA 32012     ; cvx
   LDI 0
   STA 32013     ; cvy

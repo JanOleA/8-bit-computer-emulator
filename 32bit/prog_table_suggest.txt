@@ -62,13 +62,13 @@ Entries (NAME → BASE, SIZE, BSS, DATA, CALLABLE):
   SPLIT            → 17395 (len   83)  BSS 22856+166   DATA —           CALL 0
   SQRT             → 17478 (len   57)  BSS 23022+4     DATA —           CALL 0
   STRCOMPARE       → 17535 (len   46)  BSS 23026+3     DATA —           CALL 0
-  TED              → 17581 (len 1168)  BSS 23029+14    DATA 31072+64    CALL 1
-  TDIST2D          → 18749 (len   19)  BSS —           DATA —           CALL 1
-  TESTPRINTF       → 18768 (len  219)  BSS 23043+31    DATA 31152+198   CALL 1
-  TQ78TOINT        → 18987 (len  165)  BSS 23074+2     DATA 31376+11    CALL 1
-  TESTMEM          → 19152 (len  196)  BSS 23076+7     DATA 31408+52    CALL 1
-  TOGGLEDIS        → 19348 (len    7)  BSS —           DATA —           CALL 0
-  WAIT100          → 19355 (len    7)  BSS —           DATA —           CALL 0
-  WAIT1600         → 19362 (len   20)  BSS —           DATA —           CALL 0
-  WAIT3200         → 19382 (len    5)  BSS —           DATA —           CALL 0
-  WRITECHAR        → 19387 (len    8)  BSS —           DATA —           CALL 0
+  TED              → 17581 (len 1186)  BSS 23029+14    DATA 31072+93    CALL 1
+  TDIST2D          → 18767 (len   19)  BSS —           DATA —           CALL 1
+  TESTPRINTF       → 18786 (len  219)  BSS 23043+31    DATA 31184+198   CALL 1
+  TQ78TOINT        → 19005 (len  165)  BSS 23074+2     DATA 31408+11    CALL 1
+  TESTMEM          → 19170 (len  196)  BSS 23076+7     DATA 31440+52    CALL 1
+  TOGGLEDIS        → 19366 (len    7)  BSS —           DATA —           CALL 0
+  WAIT100          → 19373 (len    7)  BSS —           DATA —           CALL 0
+  WAIT1600         → 19380 (len   20)  BSS —           DATA —           CALL 0
+  WAIT3200         → 19400 (len    5)  BSS —           DATA —           CALL 0
+  WRITECHAR        → 19405 (len    8)  BSS —           DATA —           CALL 0

@@ -32,6 +32,7 @@ screen_height_sub1 = bss + 14
 .mode1_text = "command"
 .mode2_text = "spchars"
 .compiling_text = "Compiling to mem[%u:]"
+.invalid_address = "Invalid mem.addr. in ted: %u"
 
 ted_start:
   LDA .__sys_screen_height
@@ -418,10 +419,26 @@ insert_character:   ; --- insert character in .__char into current location poin
   JSR @copy_mem
   LDA .bss + 0
   ADD .bss + 1
+  CMP .__sys_reserved_region_end         ; if address >= reserved region end, OK
+  JPC insert_ok
+  JMP insert_invalid_address
+insert_ok:
   PHA                   ; push memory location of insert to stack
   LDA .__char
   SAS                   ; pop memory location from stack to store .__char
   RET
+
+insert_invalid_address:
+  ; mem address is still in A
+  STA .bss + 13
+  ; print "Invalid memory address in ted: %u"
+  LDI .invalid_address
+  PHA
+  LDI .bss + 13
+  PHA
+  JSR @printf
+  PLA                 ; pull once from stack to skip one return address
+  RET                 ; return, exit entirely
 
 handle_left:
   LDI 0
