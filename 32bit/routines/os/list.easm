@@ -112,20 +112,10 @@ lc_more:
   ; wait for any key
 lc_wait_key:
   KEI
-  PHA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  RSA
-  CPI 1
-  JPZ lc_key_ok
-  PLA
+  CPI 128
+  JPC lc_key_ok
   JMP lc_wait_key
 lc_key_ok:
-  PLA
   JSR @newline
   LDI 0
   STA .bss

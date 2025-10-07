@@ -30,6 +30,7 @@ class Computer:
         self.overflow_limit = 256
         self.stackpointer_start = 224
         self.bits_stackpointer = 4
+        self._mask = self.overflow_limit - 1             # 0xFF for 8-bit
 
         print(f"Stack range: {hex(self.stackpointer_start)} : {hex(self.stackpointer_start+ 2**self.bits_stackpointer)}")
         print(f"Stack size: {2**self.bits_stackpointer}")
@@ -305,7 +306,7 @@ class Computer:
         b = int(self.breg)
 
         maximum = self.overflow_limit  # typically 256 for 8-bit
-        mask = maximum - 1             # 0xFF for 8-bit
+        mask = self._mask
 
         if self.controlword & self.SU:
             # Subtraction: A - B, carry = 1 when A >= B (no borrow)
@@ -423,9 +424,9 @@ class Computer:
             # - shift A right by 1 (zero fills)
             # - carry out the LSB that was shifted out
             # - update Zero flag if result == 0
-            mask = self.overflow_limit - 1
-            lsb = int(self.areg) & 1
-            self.areg = (int(self.areg) >> 1) & mask
+            mask = self._mask
+            lsb = self.areg & 1
+            self.areg = (self.areg >> 1) & mask
             # Update flags to reflect the shift result (C=lsb, Z=(A==0))
             self.flags = 0
             if lsb:

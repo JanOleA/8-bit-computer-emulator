@@ -22,6 +22,7 @@ class Computer_32(Computer):
         self.memory = np.zeros(2**bits, dtype = np.uint32)
         self.get_mem_strings()
         self.overflow_limit = 2**bits
+        self._mask = self.overflow_limit - 1             # 0xFF for 8-bit
 
         if stackpointer_start is None:
             stackpointer_start = 2**(bits - 1)

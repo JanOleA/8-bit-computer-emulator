@@ -1,5 +1,5 @@
 ; Free gaps between modules (start,end,words)
-19413,26000,6587 ; between writechar and 3bodysim_data
+19393,26000,6607 ; between writechar and 3bodysim_data
 26502,26528,26 ; between 3bodysim_data and asteroids_data
 26572,26592,20 ; between asteroids_data and calc_data
 26627,26656,29 ; between calc_data and compareget_data
