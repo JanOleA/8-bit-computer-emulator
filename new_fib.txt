@@ -1,0 +1,19 @@
+x = 255
+y = 254
+
+start:
+  LDI 1       ; x = 1
+  STA .x
+  LDI 0       ; y = 0
+  STA .y
+  OUT         ; print 0
+add:
+  ADD .x      ; A += x -> next fib
+  JPC start   ; overflow? restart
+  OUT         ; print fib
+  STA .x      ; x = A
+  ADD .y      ; A += y -> next fib
+  JPC start   ; overflow? restart (prevents printing wrapped value)
+  OUT         ; print fib
+  STA .y      ; y = A
+  JMP add     ; Jump to the start of the "add" loop
